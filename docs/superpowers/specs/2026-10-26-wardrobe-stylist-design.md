@@ -27,6 +27,8 @@ to rewear each kind of garment.
 pipeline; Technical depth (20%) — generate → verify → revise agent loop; Demo (25%) — visual at
 every step.
 
+**Stretch goals** (§11): "which look?" poll, style from screenshots. Future pitch: §12.
+
 **Out of scope for the MVP** (designed for, not built unless time allows): laundry tracking UI,
 no-repeat-with-same-people rule, full shopping feed, integration into the consumer Meta AI agent
 (ask in Discord office hours whether third-party tools/MCP are possible — stretch only).
@@ -200,3 +202,40 @@ built-during-hackathon statement.
 
 SAM risk check runs first whenever credits arrive. Repo must be public; README states that all
 code was written during the hackathon.
+
+## 11. Stretch goals (only after the core demo works end to end)
+
+Built in this order, each behind a feature flag so an unfinished one never reaches the demo.
+
+### 11a. "Which look?" poll (~half a day)
+- From Today (or a trip day), pick 2–3 looks → creates a `Poll` with a public link.
+- Friends open the link (no sign-in), see the renders, tap one. One vote per browser
+  (cookie + hashed IP, good enough for friends).
+- On phones, the Web Share API sends the poll image + link to Instagram Stories, Messages, etc.
+- The winning look gets a fitting note ("Friends picked this, 5–2") and acts as a soft score
+  for that event's outfit.
+- Data: `Poll { id, user_id, slug, outfit_ids[], event_id?, closes_at, votes{outfit_id → count} }`.
+
+### 11b. Style from screenshots (~1 day)
+- Upload screenshots of outfits you like (Instagram saves, Pinterest, etc.).
+- Muse Spark (vision) reads them into a `StyleProfile { summary, traits[], palette[],
+  avoid[], source_images[] }`, e.g. "muted earth tones, relaxed tailoring, minimal logos".
+- You can edit the profile in Settings — it's shown, not hidden.
+- Used as a **soft** score (`styleMatch` rule) to break ties between rule-passing outfits, and to
+  rank closet-gap suggestions. It never overrides hard rules.
+
+Why not real Instagram likes: Instagram retired its personal-account API (Basic Display) in
+Dec 2024; the Graph API only covers Business/Creator accounts' own content, not what a user
+liked or saved. Screenshots get the same effect with no API.
+
+## 12. Pitch: what Meta could do with this
+
+A closing slide, clearly framed as future direction (not built):
+- **Taste from likes and saves** — with consent, Instagram's signals replace screenshot uploads.
+- **Polls inside Instagram Stories** — native "which look?" stickers instead of a link.
+- **Shop the gap** — closet-gap suggestions go straight to Instagram Shopping / brand catalogs,
+  ranked by how many new outfits each item makes possible (useful, not spam ads).
+- **Ray-Ban Meta glasses** — "Hey Meta, what am I wearing?" logs outfits automatically; a
+  quick look at the closet updates the wardrobe.
+- **The Meta AI assistant** — the wardrobe as a tool the assistant can call ("what should I pack
+  for Lisbon?").

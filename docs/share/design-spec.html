@@ -79,6 +79,8 @@ pre{background:var(--paper-raised);border-top:1px solid var(--rule);border-botto
       <tr><td>6</td><td>Screens</td></tr>
       <tr><td>7</td><td>Error handling &amp; testing</td></tr>
       <tr><td>8</td><td>Demo script &amp; schedule</td></tr>
+      <tr><td>9</td><td>Stretch goals</td></tr>
+      <tr><td>10</td><td>Pitch: what Meta could do</td></tr>
     </table>
     <p class="muted" style="font-size:11px;margin-top:10px">Companion document: <b>UI Style Guide</b> (visual direction “The Lookbook”).</p>
   </div>
@@ -104,6 +106,7 @@ pre{background:var(--paper-raised);border-top:1px solid var(--rule);border-botto
   <tr><td>Technical depth</td><td>20%</td><td>A generate → verify → revise agent loop with code-checked rules</td></tr>
   <tr><td>Demo</td><td>25%</td><td>Visual at every step: closet appears, outfit renders, agent corrects itself on screen</td></tr>
 </table>
+<p class="muted"><b>Stretch goals</b> (section 9): a “which look?” poll and style from screenshots.</p>
 <p class="muted"><b>Out of scope for the MVP</b> (designed for, built only if time allows): laundry-tracking UI, the no-repeat-with-same-people rule, a full shopping feed, and plugging into the consumer Meta AI agent (to be asked in Discord office hours as a stretch).</p>
 
 <h2><span class="num">2</span>Architecture</h2>
@@ -268,6 +271,39 @@ ScanJob   id, user_id, media_url, status, progress, found_count, error?</pre>
   <tr><td>Wed 4 Nov</td><td>Demo video, README, submit by the afternoon (deadline 9 PM)</td></tr>
 </table>
 <p class="muted">The SAM check runs first, whatever day credits arrive. The repo must be public; the README states that all code was written during the hackathon.</p>
+
+<h2 class="pagebreak"><span class="num">9</span>Stretch goals</h2>
+<p>Only after the core demo works end to end. Built in this order, each behind a feature flag so an unfinished one never reaches the demo.</p>
+
+<h3>9a · “Which look?” poll <span class="muted" style="font-weight:400">— about half a day</span></h3>
+<div class="flowchart">
+  <div class="step"><span class="k">Create</span><span>From Today or a trip day, pick 2–3 looks → a <code>Poll</code> with a public link.</span></div>
+  <div class="step"><span class="k">Share</span><span>On phones, the browser’s share sheet sends the poll image + link to Instagram Stories, Messages and so on.</span></div>
+  <div class="step"><span class="k">Vote</span><span>Friends open the link with no sign-in, see the renders, tap one. One vote per browser (cookie + hashed IP — good enough among friends).</span></div>
+  <div class="step"><span class="k">Use the result</span><span>The winner gets a fitting note (“Friends picked this, 5–2”) and a soft score for that event’s outfit.</span></div>
+</div>
+<pre>Poll   id, user_id, slug, outfit_ids[], event_id?, closes_at, votes { outfit_id → count }</pre>
+
+<h3>9b · Style from screenshots <span class="muted" style="font-weight:400">— about a day</span></h3>
+<ul>
+  <li>Upload screenshots of outfits you like — Instagram saves, Pinterest, anything.</li>
+  <li>Muse Spark (vision) reads them into a style profile, e.g. “muted earth tones, relaxed tailoring, minimal logos”.</li>
+  <li>The profile is shown and editable in Settings — never hidden.</li>
+  <li>A soft <code>styleMatch</code> rule uses it to break ties between outfits that pass every hard rule, and to rank closet-gap suggestions. It never overrides a hard rule.</li>
+</ul>
+<pre>StyleProfile   summary, traits[], palette[], avoid[], source_images[]</pre>
+<div class="callout"><b>Why not real Instagram likes?</b> Instagram retired its personal-account API (Basic Display) in December 2024. The Graph API that remains covers only Business and Creator accounts’ own content — not what someone liked or saved. Screenshots get the same effect with no API, and the real thing becomes the pitch below.</div>
+
+<h2 class="pagebreak"><span class="num">10</span>Pitch: what Meta could do with this</h2>
+<p class="muted">A closing slide, framed clearly as future direction — not something built during the hackathon.</p>
+<table>
+  <tr><th>Idea</th><th>What it would look like</th></tr>
+  <tr><td>Taste from likes and saves</td><td>With consent, Instagram’s signals replace screenshot uploads, so the stylist knows your taste from day one.</td></tr>
+  <tr><td>Polls inside Stories</td><td>A native “which look?” sticker instead of a link.</td></tr>
+  <tr><td>Shop the gap</td><td>Closet-gap suggestions go straight to Instagram Shopping, ranked by how many new outfits each item makes possible — useful recommendations, not spam ads.</td></tr>
+  <tr><td>Ray-Ban Meta glasses</td><td>“Hey Meta, what am I wearing?” logs the outfit automatically; a glance at the closet updates the wardrobe.</td></tr>
+  <tr><td>The Meta AI assistant</td><td>The wardrobe becomes a tool the assistant can call: “what should I pack for Lisbon?”</td></tr>
+</table>
 
 </div>
 </body>
