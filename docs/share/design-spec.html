@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wardrobe Stylist — Design Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F1EA; --paper-raised:#FBF9F4; --studio:#E9E5DC;
+  --ink:#1C1A17; --ink-muted:#5E5850; --ink-faint:#8F887D; --rule:#DAD4C8;
+  --accent:#8A2E1C; --ok:#3F5F3A; --warn:#8A5A12;
+  --serif:"Instrument Serif",Georgia,serif; --sans:"Instrument Sans",Helvetica,Arial,sans-serif;
+}
+@page{size:Letter;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:var(--paper)}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:12.5px;line-height:1.55}
+.flow{padding:.6in .75in;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+h1,h2,.serif{font-family:var(--serif);font-weight:400;letter-spacing:-0.02em;line-height:1.1}
+h1{font-size:60px;margin:14px 0 12px}
+h2{font-size:28px;margin:30px 0 8px;break-after:avoid}
+h3{font-size:13px;font-weight:600;margin:16px 0 6px;break-after:avoid}
+p{margin:0 0 8px;max-width:72ch}
+.label{font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted)}
+.muted{color:var(--ink-muted)}
+.lede{font-size:15px;color:var(--ink-muted);max-width:62ch}
+ul,ol{padding-left:18px;margin:0 0 8px}
+li{margin:2px 0}
+table{width:100%;border-collapse:collapse;margin:6px 0 10px;break-inside:avoid}
+td,th{text-align:left;padding:5px 10px 5px 0;border-top:1px solid var(--rule);vertical-align:top}
+th{font-weight:600}
+code,pre{font-family:var(--sans);font-variant-numeric:tabular-nums}
+code{background:var(--studio);padding:0 4px;border-radius:2px;font-size:11.5px}
+pre{background:var(--paper-raised);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:10px 12px;font-size:11px;line-height:1.5;white-space:pre-wrap;margin:6px 0 10px;break-inside:avoid}
+.meta{display:flex;gap:30px;margin:18px 0 6px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.keep{break-inside:avoid}
+.num{font-family:var(--serif);font-size:15px;color:var(--ink-muted);margin-right:6px}
+/* diagrams */
+.flowchart{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:10px 0 14px;break-inside:avoid}
+.step{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:8px 0;border-top:1px solid var(--rule);align-items:baseline}
+.step .k{font-weight:600}
+.step.loop{background:var(--paper-raised);padding:8px 10px;margin:0 -10px}
+.arrow{color:var(--ink-faint);font-size:11px;padding-left:150px;margin-left:14px}
+.arch{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:12px;margin:10px 0 14px;break-inside:avoid}
+.arch .col{border-top:2px solid var(--ink);padding-top:8px}
+.arch .col div{padding:4px 0;border-bottom:1px solid var(--rule);font-size:12px}
+.tag{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);padding:1px 6px;border-radius:2px;margin-right:4px}
+.callout{border-left:2px solid var(--accent);padding:4px 0 4px 12px;margin:10px 0;max-width:72ch}
+.cover{height:9.8in;display:flex;flex-direction:column;justify-content:space-between;break-after:page}
+.pagebreak{break-before:page}
+</style>
+</head>
+<body>
+<div class="flow">
+
+<div class="cover">
+  <div>
+    <div class="label">Meta Global AI Developer Hackathon · Track: Build for Your World</div>
+    <h1>Wardrobe Stylist<br><em>Design Spec</em></h1>
+    <p class="lede">A mobile-first web app that turns a one-minute closet video into a digital wardrobe, then plans what to wear each day — and on trips — from your calendar, the weather, and clothes you actually own.</p>
+    <div class="meta">
+      <div><div class="label">Date</div>26 Oct 2026</div>
+      <div><div class="label">Team</div>Arjun Rangarajan (solo, with Claude Code)</div>
+      <div><div class="label">Build window</div>27 Oct – 4 Nov 2026</div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Contents</div>
+    <table style="max-width:4.5in">
+      <tr><td>1</td><td>Intent &amp; success criteria</td></tr>
+      <tr><td>2</td><td>Architecture</td></tr>
+      <tr><td>3</td><td>Data model</td></tr>
+      <tr><td>4</td><td>Closet scan</td></tr>
+      <tr><td>5</td><td>Stylist agent</td></tr>
+      <tr><td>6</td><td>Screens</td></tr>
+      <tr><td>7</td><td>Error handling &amp; testing</td></tr>
+      <tr><td>8</td><td>Demo script &amp; schedule</td></tr>
+    </table>
+    <p class="muted" style="font-size:11px;margin-top:10px">Companion document: <b>UI Style Guide</b> (visual direction “The Lookbook”).</p>
+  </div>
+</div>
+
+<h2 style="margin-top:0"><span class="num">1</span>Intent</h2>
+<p><b>The problem, firsthand:</b> “I own plenty of clothes and still wear the same few things.” Every morning is a decision made without knowing what the day holds. Packing for a trip is the same problem multiplied by every day away.</p>
+<p><b>The product:</b> film your closet once and the app builds a digital wardrobe. Each morning it reads your calendar and the weather, asks about anything that isn’t on the calendar, and proposes an outfit from clothes you own — explaining why, and optionally rendering it on you. For trips it plans each day and builds a packing list that respects how often you’re willing to rewear each kind of garment.</p>
+
+<h3>Success criteria</h3>
+<ul>
+  <li>Judges can open a deployed link and use a working product.</li>
+  <li>The 3-minute demo shows: closet scan → daily outfit with visible self-correction → “anything else today?” → trip packing → closet gap card.</li>
+  <li>At least four Meta models, each doing something distinct: SAM 3.1, Muse Spark, Muse Image, Muse Voice Transcribe (plus Model API search grounding).</li>
+  <li>Everything shown was built 27 Oct – 4 Nov, provable from the public repo’s commit history.</li>
+</ul>
+
+<h3>How it maps to the judging rubric</h3>
+<table>
+  <tr><th>Criterion</th><th>Weight</th><th>Our answer</th></tr>
+  <tr><td>Impact</td><td>30%</td><td>A daily, personal problem; less decision fatigue, fewer duplicate purchases</td></tr>
+  <tr><td>Use of Meta AI tooling</td><td>25%</td><td>A pipeline across four Meta models, each used for what it’s uniquely good at</td></tr>
+  <tr><td>Technical depth</td><td>20%</td><td>A generate → verify → revise agent loop with code-checked rules</td></tr>
+  <tr><td>Demo</td><td>25%</td><td>Visual at every step: closet appears, outfit renders, agent corrects itself on screen</td></tr>
+</table>
+<p class="muted"><b>Out of scope for the MVP</b> (designed for, built only if time allows): laundry-tracking UI, the no-repeat-with-same-people rule, a full shopping feed, and plugging into the consumer Meta AI agent (to be asked in Discord office hours as a stretch).</p>
+
+<h2><span class="num">2</span>Architecture</h2>
+<div class="arch">
+  <div class="col"><div class="label">Client</div><div>Next.js (App Router, TypeScript)</div><div>Mobile-first web app</div><div>Camera + mic in the browser</div></div>
+  <div class="col"><div class="label">Server (same Next.js project)</div><div>API routes · outfit loop · rule engine</div><div>Model adapters (real / mock)</div><div>Supabase Postgres + Storage</div><div>Google sign-in + Calendar (read-only)</div></div>
+  <div class="col"><div class="label">External</div><div>Meta Model API</div><div>Open-Meteo weather</div><div>Vercel hosting</div></div>
+</div>
+<h3>Model adapters</h3>
+<p>Every model call goes through a thin interface with a real and a mock implementation, chosen by an environment variable (<code>MODELS=mock|real</code>). Mocks return saved fixtures, so the whole app can be built before API credits arrive.</p>
+<table>
+  <tr><th>Adapter</th><th>Meta model</th><th>Job</th></tr>
+  <tr><td><code>segmenter</code></td><td>SAM 3.1</td><td>Video / photo → a mask and track ID per garment</td></tr>
+  <tr><td><code>tagger</code></td><td>Muse Spark (vision)</td><td>Cutout → structured garment attributes</td></tr>
+  <tr><td><code>stylist</code></td><td>Muse Spark</td><td>Context + wardrobe → candidate outfits (JSON) and revisions</td></tr>
+  <tr><td><code>renderer</code></td><td>Muse Image</td><td>Outfit → try-on or flat-lay image</td></tr>
+  <tr><td><code>transcriber</code></td><td>Muse Voice Transcribe</td><td>Audio → text</td></tr>
+</table>
+<p class="muted">If SAM 3.1’s API video support is weak: sample frames, segment each, dedupe. Further fallback: SAM 3 open weights.</p>
+
+<h2><span class="num">3</span>Data model</h2>
+<pre>Profile   user_id, home_city, home_lat/lon, person_photo?,
+          render_mode: tryon | flatlay | none        (default flatlay)
+          wear_limits: { category → max wears before wash | unlimited }
+
+Garment   id, user_id, source_media_id, photo_url, cutout_url,
+          category, subcategory, colors[], pattern, formality(1–5), warmth(1–5), tags[],
+          status: clean | worn | laundry             (default clean)
+          wear_limit_override?, wears_since_wash, wear_count, last_worn_at, confirmed
+
+Outfit    id, user_id, garment_ids[], rationale (per-garment “why”), rule_report,
+          revision_log, render_mode, render_url?, source: agent | user, context_date
+
+WearLog   id, user_id, date, outfit_id, event_id?, people[]
+
+Event     id, user_id, date, start, end, title, location?, attendees[], source: calendar | user
+
+Trip      id, user_id, destination, start_date, end_date, day_plans[], packing_list
+
+ScanJob   id, user_id, media_url, status, progress, found_count, error?</pre>
+<table>
+  <tr><th colspan="2">Default rewear limits (editable, with per-item overrides)</th></tr>
+  <tr><td>1 wear</td><td>Underwear, socks, t-shirts, sweatpants / athletic</td></tr>
+  <tr><td>2 wears</td><td>Dress shirts</td></tr>
+  <tr><td>3 wears</td><td>Sweaters, trousers</td></tr>
+  <tr><td>5 wears</td><td>Jeans</td></tr>
+  <tr><td>Unlimited</td><td>Outerwear, shoes, accessories</td></tr>
+</table>
+<div class="callout"><b>Built to extend.</b> <code>status</code> and <code>wears_since_wash</code> exist from day one, so laundry tracking is just a UI. <code>WearLog.people</code> and <code>Event.attendees</code> exist from day one, so the no-repeat rule is just one more rule file. No migrations needed.</div>
+
+<h2 class="pagebreak"><span class="num">4</span>Closet scan</h2>
+<div class="flowchart">
+  <div class="step"><span class="k">Capture</span><span><span class="tag">Sweep</span> pan across the closet · <span class="tag">Hold-up</span> show items one at a time · <span class="tag">Photo</span> single item. A photo is a one-frame video; all three share one pipeline.</span></div>
+  <div class="step"><span class="k">Upload</span><span>To Storage; a <code>ScanJob</code> reports progress (“Found 14 · tagging 6/14”).</span></div>
+  <div class="step"><span class="k">Segment — SAM 3.1</span><span>Text prompt “clothing item” on the video → each garment tracked across frames under one ID.</span></div>
+  <div class="step"><span class="k">Best frame</span><span>Per garment, pick the largest and sharpest mask → transparent PNG cutout.</span></div>
+  <div class="step"><span class="k">Tag — Muse Spark</span><span>Category, subcategory, colors, pattern, formality, warmth, tags — schema-validated, retried once, else left for manual tagging.</span></div>
+  <div class="step"><span class="k">Dedupe</span><span>Similar candidates compared by Muse Spark (“same item?”).</span></div>
+  <div class="step"><span class="k">Review</span><span>You confirm, fix tags or delete. Only confirmed garments are used by the stylist.</span></div>
+</div>
+<div class="callout"><b>Day-1 risk check (when API credits arrive):</b> run one real closet video through SAM 3.1 and confirm text prompts on video, the mask format and size limits.</div>
+
+<h2><span class="num">5</span>Stylist agent</h2>
+<h3>The outfit loop — run by our code in a fixed order</h3>
+<div class="flowchart">
+  <div class="step"><span class="k">Gather context</span><span>Events (calendar + ones you added) · weather at the event or home location · eligible garments</span></div>
+  <div class="step"><span class="k">Propose</span><span>Muse Spark returns 3 candidate outfits as JSON: garment IDs + a “why” for each piece</span></div>
+  <div class="step loop"><span class="k">Check → revise</span><span>Every rule checks every candidate. If all fail, the violations go back to Muse Spark to revise (max 2 rounds).</span></div>
+  <div class="step"><span class="k">Pick</span><span>Rank survivors by rule soft-scores + the model’s ranking</span></div>
+  <div class="step"><span class="k">Render</span><span>Muse Image in your render mode; on failure or timeout, fall back to the piece grid</span></div>
+  <div class="step"><span class="k">Store &amp; show</span><span>Outfit with its rule report and revision log — shown in the UI as “fitting notes”</span></div>
+</div>
+
+<h3>Rules</h3>
+<p>Each rule is one file implementing <code>{ id, kind: hard | soft, check(outfit, ctx) → violations[], score?(outfit, ctx) }</code>. Adding a rule means adding a file to the registry.</p>
+<table>
+  <tr><th>Rule</th><th>Kind</th><th>When</th><th>What it checks</th></tr>
+  <tr><td>completeness</td><td>hard</td><td>MVP</td><td>Top + bottom (or one-piece) + shoes</td></tr>
+  <tr><td>formality</td><td>hard</td><td>MVP</td><td>Matches the day’s most formal event</td></tr>
+  <tr><td>weather</td><td>hard</td><td>MVP</td><td>Warmth vs. temperature; nothing rain-unsafe at ≥50% rain</td></tr>
+  <tr><td>availability</td><td>hard</td><td>MVP</td><td>Every piece is clean</td></tr>
+  <tr><td>wearLimit</td><td>hard</td><td>Trips</td><td>Uses per garment ≤ its rewear limit</td></tr>
+  <tr><td>capsuleReuse</td><td>soft</td><td>Trips</td><td>Fewer distinct items scores higher</td></tr>
+  <tr><td>noRepeatWithSamePeople</td><td>hard</td><td>Later</td><td>Not worn recently in front of the same attendees</td></tr>
+  <tr><td>laundryCycle</td><td>hard</td><td>Later</td><td>Moves items to laundry when they hit their limit</td></tr>
+</table>
+
+<h3>Daily flow</h3>
+<ul>
+  <li>The day’s most formal event sets the dress code. A big gap between events (gym → client meeting) produces a change-of-clothes suggestion.</li>
+  <li>After the first outfit appears, the card asks: <i>“Anything else today that’s not on your calendar?”</i> Quick chips (gym, dinner out, date, outdoors, nothing) or voice / text. Answers become <code>Event(source: user)</code> and the loop runs again.</li>
+  <li>“I wore this” writes a <code>WearLog</code> entry and updates the wear counts.</li>
+</ul>
+
+<h3>Chat agent</h3>
+<p>Muse Spark with tools: <code>get_events</code>, <code>get_weather</code>, <code>search_wardrobe</code>, <code>plan_outfit</code>, <code>plan_trip</code>, <code>log_wear</code>, <code>add_event</code>. Voice comes in through the transcriber. Free-form requests become tool calls; outfits always come from the outfit loop, never straight from the chat model.</p>
+
+<h3>Trip packing</h3>
+<p>Input: destination and dates, or detected from calendar events (“Flight to ORD”). For each day, the destination’s weather plus any trip events go through the outfit loop with <code>wearLimit</code> and <code>capsuleReuse</code>. Output: day-by-day outfits, a packing checklist (each garment and how many days it’s used), and a warning when your wardrobe can’t meet the limits (“you own 3 clean t-shirts for 5 days”).</p>
+
+<h3>Closet gap card</h3>
+<p>Muse Spark proposes 3 items you might be missing. Our code counts, for each one, how many new rule-passing outfits it would make possible — the model can’t invent that number. The best one is matched to a real product through Model API search grounding. Shown as one card, not a feed.</p>
+
+<h2 class="pagebreak"><span class="num">6</span>Screens</h2>
+<table>
+  <tr><th>Screen</th><th>Contents</th></tr>
+  <tr><td>Onboarding</td><td>Google sign-in → home city → optional photo of you → render mode → rewear limits</td></tr>
+  <tr><td>Today</td><td>Weather and events line, outfit (render, why, fitting notes), “anything else today?”, I wore this, another look</td></tr>
+  <tr><td>Closet</td><td>Grid, filters, status words, + Scan</td></tr>
+  <tr><td>Scan</td><td>Capture → progress → review</td></tr>
+  <tr><td>Mic (global)</td><td>Chat agent by voice</td></tr>
+  <tr><td>Trip</td><td>Destination + dates → day-by-day outfits + packing checklist</td></tr>
+  <tr><td>Settings</td><td>Render mode, rewear limits, home city</td></tr>
+</table>
+<p class="muted">Visual design follows the companion UI Style Guide.</p>
+
+<h2><span class="num">7</span>Error handling &amp; testing</h2>
+<div class="cols">
+  <div class="keep">
+    <h3>Error handling</h3>
+    <ul>
+      <li>Every model call has a timeout and a typed error; the UI names the failure and offers a retry.</li>
+      <li>A failed render falls back to the piece grid and never blocks the outfit.</li>
+      <li>Stylist output is schema-validated; unknown garment IDs count as violations.</li>
+      <li>Too few garments for a valid outfit → say which category is missing (feeds the gap card).</li>
+      <li>No calendar → manual events only. No weather → ask “warm, mild or cold?”.</li>
+    </ul>
+  </div>
+  <div class="keep">
+    <h3>Testing</h3>
+    <ul>
+      <li>Unit tests for every rule with fixture outfits.</li>
+      <li>Outfit-loop tests with a mock stylist — including one that breaks rules, to exercise revision.</li>
+      <li>Trip planner: satisfiable and unsatisfiable rewear limits.</li>
+      <li>Adapter contract tests against fixtures; a manual smoke script for the real APIs.</li>
+      <li>3 Nov: run every demo step against the real APIs.</li>
+    </ul>
+  </div>
+</div>
+
+<h2><span class="num">8</span>Demo script &amp; schedule</h2>
+<table>
+  <tr><th>Time</th><th>Moment</th></tr>
+  <tr><td>0:00</td><td>Hook: “I own 60 pieces of clothing and wear 6 of them.”</td></tr>
+  <tr><td>0:20</td><td>Closet scan: pan the phone, cutouts appear, review</td></tr>
+  <tr><td>0:50</td><td>Today: client meeting + rain → render, and the agent catches its own mistake</td></tr>
+  <tr><td>1:30</td><td>“Anything else today?” → by voice: “drinks after work” → outfit updates</td></tr>
+  <tr><td>2:00</td><td>Trip: “Chicago Thu–Sun” → packing list that respects rewear limits</td></tr>
+  <tr><td>2:30</td><td>Closet gap card with a computed outfit count</td></tr>
+  <tr><td>2:45</td><td>The Meta models used, and that everything was built during the hackathon</td></tr>
+</table>
+<table>
+  <tr><th>Day</th><th>Goal</th></tr>
+  <tr><td>Tue 27 Oct</td><td>App skeleton, Supabase, Google sign-in, data model, adapters + mocks</td></tr>
+  <tr><td>Wed 28 Oct</td><td>Closet scan UI + pipeline (mocked) + review screen</td></tr>
+  <tr><td>Thu 29 Oct</td><td>Rule engine + outfit loop + Today screen</td></tr>
+  <tr><td>Fri 30 Oct</td><td>Real calendar + weather, “anything else today?”</td></tr>
+  <tr><td>Sat 31 Oct</td><td>Render modes (try-on / flat lay / none)</td></tr>
+  <tr><td>Sun 1 Nov</td><td>Chat agent + voice</td></tr>
+  <tr><td>Mon 2 Nov</td><td>Trip packing + rewear limits</td></tr>
+  <tr><td>Tue 3 Nov</td><td>Gap card, polish, deploy, full real-API run</td></tr>
+  <tr><td>Wed 4 Nov</td><td>Demo video, README, submit by the afternoon (deadline 9 PM)</td></tr>
+</table>
+<p class="muted">The SAM check runs first, whatever day credits arrive. The repo must be public; the README states that all code was written during the hackathon.</p>
+
+</div>
+</body>
+</html>

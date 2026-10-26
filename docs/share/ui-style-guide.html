@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wardrobe Stylist — UI Style Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F1EA; --paper-raised:#FBF9F4; --studio:#E9E5DC;
+  --ink:#1C1A17; --ink-muted:#5E5850; --ink-faint:#8F887D; --rule:#DAD4C8;
+  --accent:#8A2E1C; --ok:#3F5F3A; --warn:#8A5A12; --error:#9B1C1C;
+  --serif:"Instrument Serif",Georgia,serif; --sans:"Instrument Sans",Helvetica,Arial,sans-serif;
+  --shadow:0 1px 2px rgb(28 26 23 / .06),0 8px 24px rgb(28 26 23 / .08);
+}
+.dark{
+  --paper:#151412; --paper-raised:#1E1C19; --studio:#26231F;
+  --ink:#ECE7DD; --ink-muted:#A39C90; --ink-faint:#6F695F; --rule:#2E2B27;
+  --accent:#D0694F; --ok:#8DB283; --warn:#D9A44B; --error:#E07A7A;
+  --shadow:none;
+}
+@page{size:Letter;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5}
+.doc{margin:0}
+.cover,section.page{width:8.5in;height:11in;padding:.55in .65in;overflow:hidden;break-after:page;margin:0}
+h1,h2,.serif{font-family:var(--serif);font-weight:400;letter-spacing:-0.02em;line-height:1.1}
+h2{font-size:31px;margin-bottom:6px}
+h3{font-size:13px;font-weight:600;margin:18px 0 8px}
+.label{font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted)}
+.muted{color:var(--ink-muted)}
+.lede{font-size:14px;color:var(--ink-muted);max-width:60ch;margin-bottom:18px}
+section{padding-top:8px;margin-bottom:28px}
+.avoid{break-inside:avoid}
+hr{border:0;border-top:1px solid var(--rule);margin:14px 0}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* cover */
+.cover{display:flex;flex-direction:column;justify-content:space-between;padding:8px 0}
+.cover h1{font-size:72px;margin:18px 0 14px}
+.cover h1 em{font-style:italic}
+.cover .meta{display:flex;gap:32px}
+.cover-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:0;height:150px;margin-top:28px}
+.cover-strip div{background:var(--studio);display:flex;align-items:center;justify-content:center;border-right:1px solid var(--paper)}
+.cover-strip svg{width:70%;height:70%}
+
+/* palette */
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.sw .chip{height:36px;border:1px solid var(--rule)}
+.sw b{display:block;font-weight:600;font-size:12px;margin-top:6px}
+.sw span{display:block;font-size:11px;color:var(--ink-muted)}
+.sw code{font-family:var(--sans);font-size:11px;font-variant-numeric:tabular-nums}
+.ratio{display:flex;height:22px;margin-top:14px;border:1px solid var(--rule)}
+.ratio div{height:100%}
+
+/* type */
+.spec{display:grid;grid-template-columns:110px 1fr;gap:6px 18px;align-items:baseline;border-top:1px solid var(--rule);padding:10px 0}
+.scale-row{display:flex;align-items:baseline;gap:14px;border-top:1px solid var(--rule);padding:6px 0}
+.scale-row .label{width:60px;flex:none}
+
+/* space */
+.bars{display:flex;align-items:flex-end;gap:14px}
+.bars div{background:var(--ink);opacity:.85}
+.bars figure{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--ink-muted)}
+.radii{display:flex;gap:20px}
+.radii figure{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--ink-muted)}
+.radii .box{width:92px;height:64px;background:var(--paper-raised);border:1px solid var(--ink)}
+
+/* components */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border-radius:6px;font:600 14px var(--sans);border:1px solid transparent}
+.btn-primary{background:var(--accent);color:var(--paper)}
+.btn-secondary{border-color:var(--ink);color:var(--ink);background:transparent}
+.btn-tertiary{color:var(--ink);text-decoration:underline;text-underline-offset:3px;padding:0 4px}
+.btn-block{width:100%}
+.tag{display:inline-flex;align-items:center;height:26px;padding:0 9px;border:1px solid var(--rule);border-radius:2px;font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.tag.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.field label{display:block;font-size:12px;font-weight:500;margin-bottom:6px}
+.field .in{height:44px;border:1px solid var(--rule);border-radius:6px;padding:0 12px;display:flex;align-items:center;font-size:15px;background:var(--paper-raised)}
+.field .in.focus{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;gap:16px;font-size:12px}
+.seg span{padding-bottom:3px;color:var(--ink-muted)}
+.seg span.on{color:var(--ink);border-bottom:1.5px solid var(--ink)}
+
+.tile .img{aspect-ratio:1/1;background:var(--studio);display:flex;align-items:center;justify-content:center}
+.tile .img svg{width:72%;height:72%}
+.tile .label{margin-top:6px;display:block}
+.tile .name{font-size:12px;line-height:1.3}
+.tile .st{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);font-weight:500}
+
+.notes{list-style:none;font-size:12px}
+.notes li{display:grid;grid-template-columns:16px 1fr;gap:6px;padding:5px 0;border-top:1px solid var(--rule)}
+.notes .k{font-weight:600}
+.notes .ok{color:var(--ok)} .notes .rv{color:var(--warn)}
+.notes s{color:var(--ink-faint)}
+
+/* phones */
+.phones{display:grid;grid-template-columns:1fr 1fr;gap:26px 20px;justify-items:center;margin-top:10px}
+.phone-wrap{display:flex;flex-direction:column;gap:8px;align-items:center}
+.phone{width:300px;height:620px;border-radius:40px;border:9px solid #1C1A17;background:var(--paper);color:var(--ink);overflow:hidden;position:relative;font-size:13px;}
+.phone.dark{border-color:#3A3631}
+.sb{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:11px;font-weight:600}
+.scr{padding:4px 18px 0}
+.nav{position:absolute;left:0;right:0;bottom:0;height:64px;border-top:1px solid var(--rule);background:var(--paper);display:flex;justify-content:space-around;align-items:center;font-size:10.5px;color:var(--ink-muted);padding-bottom:6px}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:3px}
+.nav .on{color:var(--accent)}
+.nav svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.3}
+.mic{position:absolute;right:16px;bottom:76px;width:52px;height:52px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center}
+.mic svg{width:22px;height:22px;stroke:var(--paper);fill:none;stroke-width:1.5}
+.hero{background:var(--studio);height:250px;position:relative;margin:10px -18px 0}
+.hero svg{position:absolute}
+.caption{font-size:11px;color:var(--ink-muted);text-align:center;max-width:300px}
+.strip{font-size:11.5px;color:var(--ink-muted);margin-top:4px}
+.piece{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--rule);align-items:center}
+.piece .th{width:44px;height:44px;background:var(--studio);display:flex;align-items:center;justify-content:center}
+.piece .th svg{width:80%;height:80%}
+.piece .n{font-size:12.5px;font-weight:500;line-height:1.25}
+.piece .w{font-size:11px;color:var(--ink-muted);line-height:1.3}
+.ask{background:var(--paper-raised);margin:12px -18px 0;padding:12px 18px}
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 6px;margin-top:10px}
+.cgrid .tile .img svg{width:70%;height:70%}
+.cgrid .name{font-size:10.5px}
+.prog{height:2px;background:var(--rule);margin:10px 0 4px}
+.prog div{height:100%;background:var(--ink);width:64%}
+.day{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--rule)}
+.day .d{font-family:var(--serif);font-size:22px;line-height:1}
+.minis{display:flex;gap:4px;margin-top:5px}
+.minis span{width:30px;height:30px;background:var(--studio);display:flex;align-items:center;justify-content:center}
+.minis svg{width:80%;height:80%}
+.check{display:grid;grid-template-columns:14px 1fr auto;gap:8px;padding:6px 0;border-top:1px solid var(--rule);font-size:12px;align-items:center}
+.box{width:13px;height:13px;border:1px solid var(--ink)}
+.box.x{background:var(--ink)}
+.warnline{font-size:11.5px;color:var(--warn);margin-top:8px}
+
+/* do/don't */
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dd .pane{border:1px solid var(--rule);padding:14px;height:250px;position:relative;overflow:hidden}
+.slop{background:#0F0F1A;color:#fff;font-family:Inter,Arial,sans-serif;text-align:center}
+.slop .g{font-size:22px;font-weight:800;color:#9B7BFA;margin-top:6px}
+.slop .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.slop .cards div{background:rgba(255,255,255,.06);border:1px solid rgba(139,92,246,.4);border-radius:16px;padding:10px 4px;font-size:10px}
+.slop .ic{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#06B6D4);margin:0 auto 6px}
+.slop .cta{display:inline-block;margin-top:14px;padding:8px 18px;border-radius:999px;background:linear-gradient(90deg,#8B5CF6,#3B82F6);font-size:11px;font-weight:700}
+.verdict{font-size:12px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{text-align:left;padding:6px 8px 6px 0;border-top:1px solid var(--rule);vertical-align:top}
+th{font-weight:600}
+ol.check-list{padding-left:18px;font-size:12.5px}
+ol.check-list li{padding:3px 0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="tee" viewBox="0 0 100 100"><path d="M30 15 L42 10 Q50 17 58 10 L70 15 L88 30 L78 42 L70 37 L70 90 L30 90 L30 37 L22 42 L12 30 Z"/></symbol>
+    <symbol id="knit" viewBox="0 0 100 100"><path d="M32 14 L43 10 Q50 16 57 10 L68 14 L84 26 L90 78 L80 80 L72 42 L72 90 L28 90 L28 42 L20 80 L10 78 L16 26 Z"/></symbol>
+    <symbol id="shirt" viewBox="0 0 100 100"><path d="M32 14 L42 9 L50 20 L58 9 L68 14 L84 26 L90 78 L80 80 L72 42 L72 90 L28 90 L28 42 L20 80 L10 78 L16 26 Z"/><path d="M50 20 L50 90" stroke="rgba(0,0,0,.18)" stroke-width="1"/></symbol>
+    <symbol id="pants" viewBox="0 0 100 100"><path d="M30 8 L70 8 L75 92 L56 92 L50 34 L44 92 L25 92 Z"/></symbol>
+    <symbol id="coat" viewBox="0 0 100 100"><path d="M30 8 L43 6 L50 32 L57 6 L70 8 L86 22 L91 84 L80 86 L74 44 L75 96 L25 96 L26 44 L20 86 L9 84 L14 22 Z"/><path d="M50 32 L50 96" stroke="rgba(0,0,0,.2)" stroke-width="1"/></symbol>
+    <symbol id="boot" viewBox="0 0 100 100"><path d="M28 16 L54 16 L54 60 L80 68 Q90 72 88 84 L28 84 Z"/></symbol>
+    <symbol id="shoe" viewBox="0 0 100 100"><path d="M10 62 Q12 48 30 50 L52 52 Q72 50 86 60 Q94 66 90 74 L12 74 Z"/></symbol>
+    <symbol id="skirt" viewBox="0 0 100 100"><path d="M34 12 L66 12 L84 88 L16 88 Z"/></symbol>
+  </defs>
+</svg>
+<div class="doc">
+
+<!-- COVER -->
+<div class="cover">
+  <div>
+    <div class="label">Meta Global AI Developer Hackathon · Build for Your World · Oct 2026</div>
+    <h1>Wardrobe Stylist<br><em>UI Style Guide</em></h1>
+    <p class="lede" style="font-size:16px">Direction: <b style="color:var(--ink)">The Lookbook</b>. The app should feel like a printed fashion lookbook or a tailor’s notebook, not a SaaS dashboard. Your clothes are the color; the interface is paper and ink.</p>
+    <div class="cover-strip">
+      <div><svg fill="#2B3A55"><use href="#coat"/></svg></div>
+      <div><svg fill="#C9B79C"><use href="#knit"/></svg></div>
+      <div><svg fill="#E8E4DA" stroke="#BDB5A6"><use href="#shirt"/></svg></div>
+      <div><svg fill="#3A4A6B"><use href="#pants"/></svg></div>
+      <div><svg fill="#5A3A26"><use href="#boot"/></svg></div>
+      <div><svg fill="#7A2F2A"><use href="#tee"/></svg></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><div class="label">Draft</div>v0.1 · 26 Oct 2026</div>
+    <div><div class="label">Author</div>Arjun Rangarajan</div>
+    <div><div class="label">Status</div>For feedback</div>
+  </div>
+</div>
+
+<!-- PRINCIPLES -->
+<section class="page">
+  <div class="label">01</div>
+  <h2>Principles</h2>
+  <p class="lede">Four ideas every screen follows. When a default (Tailwind, a component library, an AI suggestion) disagrees with these, these win.</p>
+  <div class="grid2">
+    <div class="avoid"><h3 class="serif" style="font-size:22px;font-weight:400">Your clothes are the color.</h3><p class="muted">The interface is near-monochrome. Garment photos and renders are the only saturated things on screen.</p></div>
+    <div class="avoid"><h3 class="serif" style="font-size:22px;font-weight:400">Editorial, not decorative.</h3><p class="muted">One serif moment per screen. Hierarchy comes from size, weight and space — not boxes, shadows and gradients.</p></div>
+    <div class="avoid"><h3 class="serif" style="font-size:22px;font-weight:400">Tailoring is the visual language.</h3><p class="muted">Garment tags, care labels and lookbook numbering (“Look 01”, “Piece 2/4”). Only a wardrobe app can use it — that’s why it’s ours.</p></div>
+    <div class="avoid"><h3 class="serif" style="font-size:22px;font-weight:400">Show the thinking honestly.</h3><p class="muted">The stylist’s checks and revisions appear as short “fitting notes”, never as a glowing AI badge.</p></div>
+  </div>
+  <hr>
+  <p><b>Logo-swap test:</b> <span class="muted">if you replaced our logo with a fintech logo and the screen still made sense, it’s too generic.</span></p>
+
+  <div class="label" style="margin-top:18px">02</div>
+  <h2>Color</h2>
+  <p class="lede">Warm paper, warm ink, one oxblood accent used at most twice per screen. Status colors are earthy and always paired with a word.</p>
+  <h3>Light</h3>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#F4F1EA"></div><b>paper</b><code>#F4F1EA</code><span>Page background</span></div>
+    <div class="sw"><div class="chip" style="background:#FBF9F4"></div><b>paper-raised</b><code>#FBF9F4</code><span>Sheets, prompts</span></div>
+    <div class="sw"><div class="chip" style="background:#E9E5DC"></div><b>studio</b><code>#E9E5DC</code><span>Behind garments</span></div>
+    <div class="sw"><div class="chip" style="background:#DAD4C8"></div><b>rule</b><code>#DAD4C8</code><span>Hairlines, borders</span></div>
+    <div class="sw"><div class="chip" style="background:#8F887D"></div><b>ink-faint</b><code>#8F887D</code><span>Meta only</span></div>
+    <div class="sw"><div class="chip" style="background:#5E5850"></div><b>ink-muted</b><code>#5E5850</code><span>Secondary text</span></div>
+    <div class="sw"><div class="chip" style="background:#1C1A17"></div><b>ink</b><code>#1C1A17</code><span>Primary text</span></div>
+    <div class="sw"><div class="chip" style="background:#8A2E1C"></div><b>accent · oxblood</b><code>#8A2E1C</code><span>Primary action, active nav</span></div>
+    <div class="sw"><div class="chip" style="background:#3F5F3A"></div><b>ok · moss</b><code>#3F5F3A</code><span>Passed checks</span></div>
+    <div class="sw"><div class="chip" style="background:#8A5A12"></div><b>warn · ochre</b><code>#8A5A12</code><span>Revisions</span></div>
+  </div>
+  <h3>Dark — its own design, not an inversion</h3>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#151412"></div><b>paper</b><code>#151412</code></div>
+    <div class="sw"><div class="chip" style="background:#1E1C19"></div><b>paper-raised</b><code>#1E1C19</code></div>
+    <div class="sw"><div class="chip" style="background:#ECE7DD"></div><b>ink</b><code>#ECE7DD</code></div>
+    <div class="sw"><div class="chip" style="background:#D0694F"></div><b>accent</b><code>#D0694F</code></div>
+    <div class="sw"><div class="chip" style="background:#8DB283"></div><b>ok</b><code>#8DB283</code></div>
+  </div>
+  <h3>Proportion on a typical screen</h3>
+  <div class="ratio"><div style="flex:62;background:#F4F1EA"></div><div style="flex:18;background:#E9E5DC"></div><div style="flex:12;background:#1C1A17"></div><div style="flex:5;background:#DAD4C8"></div><div style="flex:2;background:#8A2E1C"></div><div style="flex:1;background:#3F5F3A"></div></div>
+  <p class="muted" style="font-size:11px;margin-top:6px">Paper ~60% · studio ~20% · ink ~12% · rules ~5% · accent ≤2% · status ≤1%. Garment photos supply the rest of the color.</p>
+</section>
+
+<!-- TYPE -->
+<section class="page">
+  <div class="label">03</div>
+  <h2>Typography</h2>
+  <p class="lede">Instrument Serif for one editorial moment per screen; Instrument Sans for everything else. Both free on Google Fonts. Not allowed: Inter, Roboto, Geist, Plus Jakarta, monospace outside code.</p>
+  <div class="spec avoid"><span class="label">Display</span><div><div class="serif" style="font-size:44px">Rain-ready <em>client day</em></div><span class="muted" style="font-size:11px">Instrument Serif 400 · italic for emphasis · −0.02em · line-height 1.1</span></div></div>
+  <div class="spec avoid"><span class="label">Subhead</span><div><div style="font-size:20px;font-weight:600">Packing for Chicago</div><span class="muted" style="font-size:11px">Instrument Sans 600</span></div></div>
+  <div class="spec avoid"><span class="label">Body</span><div><div style="font-size:16px;max-width:52ch">Rain starts around five, so the suede loafers stay home. The leather boots handle puddles and still read smart enough for the client review.</div><span class="muted" style="font-size:11px">Instrument Sans 400 · 16px min · line-height 1.5 · ≤65ch</span></div></div>
+  <div class="spec avoid"><span class="label">Tag label</span><div><div class="label" style="color:var(--ink);font-size:12px">Outerwear · Piece 2/4 · Clean</div><span class="muted" style="font-size:11px">Instrument Sans 500 · uppercase · +0.08em · care-label style</span></div></div>
+  <div class="spec avoid"><span class="label">Numbers</span><div><div class="tnum" style="font-size:16px">14° → 9° · 80% rain · 5 days · 11 pieces</div><span class="muted" style="font-size:11px">tabular-nums so columns align</span></div></div>
+  <h3>Scale — ratio 1.25, base 16</h3>
+  <div class="scale-row"><span class="label">49</span><span class="serif" style="font-size:49px">Look 01</span></div>
+  <div class="scale-row"><span class="label">39</span><span class="serif" style="font-size:39px">Tuesday</span></div>
+  <div class="scale-row"><span class="label">31</span><span class="serif" style="font-size:31px">Chicago, Thu–Sun</span></div>
+  <div class="scale-row"><span class="label">25</span><span style="font-size:25px;font-weight:600">Your closet</span></div>
+  <div class="scale-row"><span class="label">20</span><span style="font-size:20px;font-weight:600">Fitting notes</span></div>
+  <div class="scale-row"><span class="label">16</span><span style="font-size:16px">Navy merino crewneck</span></div>
+  <div class="scale-row"><span class="label">13</span><span style="font-size:13px">Worn 3 times since wash</span></div>
+  <div class="scale-row"><span class="label">12</span><span class="label" style="color:var(--ink)">Knitwear</span></div>
+
+</section>
+<section class="page">
+  <div class="label">04</div>
+  <h2>Space, shape, elevation</h2>
+  <h3>Spacing scale (4px base)</h3>
+  <div class="bars">
+    <figure><div style="width:4px;height:4px"></div>4</figure>
+    <figure><div style="width:8px;height:8px"></div>8</figure>
+    <figure><div style="width:12px;height:12px"></div>12</figure>
+    <figure><div style="width:16px;height:16px"></div>16</figure>
+    <figure><div style="width:24px;height:24px"></div>24</figure>
+    <figure><div style="width:32px;height:32px"></div>32</figure>
+    <figure><div style="width:48px;height:48px"></div>48</figure>
+    <figure><div style="width:64px;height:64px"></div>64</figure>
+    <figure><div style="width:96px;height:96px"></div>96</figure>
+  </div>
+  <p class="muted" style="margin-top:8px">Space between groups is at least two steps larger than space within a group. 20px page gutter on phones.</p>
+  <h3>Radius by role</h3>
+  <div class="radii">
+    <figure><div class="box" style="border-radius:0"></div>0 · photos, sections</figure>
+    <figure><div class="box" style="border-radius:2px"></div>2 · tags, chips</figure>
+    <figure><div class="box" style="border-radius:6px"></div>6 · buttons, inputs</figure>
+    <figure><div class="box" style="border-radius:12px 12px 0 0"></div>12 · bottom sheets</figure>
+  </div>
+  <h3>Elevation</h3>
+  <div class="row" style="gap:28px">
+    <div style="width:150px;height:70px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding-left:6px;font-size:11px" class="muted">Default: on paper, hairlines</div>
+    <div style="width:150px;height:70px;background:var(--paper-raised);box-shadow:var(--shadow);display:flex;align-items:center;padding-left:12px;font-size:11px;border-radius:12px 12px 0 0" class="muted">Floating: sheets only</div>
+  </div>
+  <p class="muted" style="margin-top:10px">A container gets one of border, tint or shadow — never all three. No card inside a card.</p>
+</section>
+
+<!-- COMPONENTS -->
+<section class="page">
+  <div class="label">05</div>
+  <h2>Components</h2>
+  <h3>Buttons — one primary per screen</h3>
+  <div class="row">
+    <span class="btn btn-primary">I wore this</span>
+    <span class="btn btn-secondary">Another look</span>
+    <span class="btn btn-tertiary">Edit pieces</span>
+    <span class="btn btn-primary" style="opacity:.92">Packing…</span>
+  </div>
+  <p class="muted" style="font-size:11px;margin-top:6px">Labels name the action. No “Get started”, no chevrons, no pill-shaped gradient buttons.</p>
+
+  <h3>Tags &amp; chips</h3>
+  <div class="row">
+    <span class="tag on">Gym</span><span class="tag">Dinner out</span><span class="tag">Date</span><span class="tag">Outdoors</span><span class="tag">Nothing else</span>
+  </div>
+
+  <div class="grid2" style="margin-top:6px">
+    <div>
+      <h3>Inputs</h3>
+      <div class="field"><label>Home city</label><div class="in">Brooklyn, NY</div></div>
+      <div class="field" style="margin-top:14px"><label>Trip destination</label><div class="in focus">Chicago</div></div>
+    </div>
+    <div>
+      <h3>Render mode — text segmented control</h3>
+      <div class="seg"><span>Try-on</span><span class="on">Flat lay</span><span>Pieces</span></div>
+      <h3>Weather &amp; events — one line, not stat cards</h3>
+      <p class="tnum" style="font-size:12.5px">14° → 9° · Rain from 5pm<br><span class="muted">10:00 Client review · 19:00 Drinks <i>(added)</i></span></p>
+    </div>
+  </div>
+
+  <h3>Garment tiles</h3>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+    <div class="tile"><div class="img"><svg fill="#2B3A55"><use href="#coat"/></svg></div><span class="label">Outerwear</span><div class="name">Navy wool overcoat</div></div>
+    <div class="tile"><div class="img"><svg fill="#C9B79C"><use href="#knit"/></svg></div><span class="label">Knitwear</span><div class="name">Oat merino crewneck</div></div>
+    <div class="tile"><div class="img"><svg fill="#3A4A6B"><use href="#pants"/></svg></div><span class="label">Denim</span><div class="name">Selvedge jeans</div><div class="st">Worn 4/5</div></div>
+    <div class="tile"><div class="img"><svg fill="#5A3A26"><use href="#boot"/></svg></div><span class="label">Footwear</span><div class="name">Brown leather boots</div></div>
+    <div class="tile"><div class="img"><svg fill="#7A2F2A"><use href="#tee"/></svg></div><span class="label">Tops</span><div class="name">Rust cotton tee</div><div class="st">Laundry</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="avoid">
+      <h3>Fitting notes — the agent’s checks</h3>
+      <ul class="notes">
+        <li><span class="ok">✓</span><span><span class="k">Dress code</span> — client review → smart</span></li>
+        <li><span class="ok">✓</span><span><span class="k">Weather</span> — 9° by evening, overcoat added</span></li>
+        <li><span class="rv">↺</span><span><span class="k">Swapped</span> <s>suede loafers</s> → leather boots. 80% rain at 5pm.</span></li>
+        <li><span class="ok">✓</span><span><span class="k">Clean</span> — every piece available</span></li>
+      </ul>
+    </div>
+    <div class="avoid">
+      <h3>States</h3>
+      <div style="border-top:1px solid var(--rule);padding:14px 0">
+        <div class="serif" style="font-size:22px">Your closet is empty.</div>
+        <p class="muted" style="margin:4px 0 10px">Film it once — it takes about a minute.</p>
+        <span class="btn btn-primary" style="height:38px;font-size:13px">Scan closet</span>
+      </div>
+      <div style="border-top:1px solid var(--rule);padding:10px 0;font-size:12px">
+        <span style="color:var(--error);font-weight:600">Couldn’t render the try-on.</span> <span class="muted">Showing the pieces instead.</span> <span class="btn-tertiary" style="text-decoration:underline">Try again</span>
+      </div>
+      <div style="border-top:1px solid var(--rule);padding:10px 0;font-size:12px" class="muted">Checking Thursday’s forecast in Chicago…</div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENS -->
+<section class="page">
+  <div class="label">06</div>
+  <h2>Screens</h2>
+  <p class="lede">Mockups at phone size. Garment art is placeholder — real screens show SAM cutouts and Muse Image renders.</p>
+  <div class="phones">
+
+    <!-- TODAY top -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="sb"><span class="tnum">7:42</span><span>●●● ▮</span></div>
+        <div class="scr">
+          <div class="label">Tuesday 27 Oct</div>
+          <div class="serif" style="font-size:31px;margin-top:6px">Look 01 —<br><em>Rain-ready client day</em></div>
+          <div class="strip tnum">14° → 9° · Rain from 5pm · 10:00 Client review</div>
+          <div class="hero">
+            <svg fill="#2B3A55" style="left:14px;top:14px;width:120px;height:150px"><use href="#coat"/></svg>
+            <svg fill="#C9B79C" style="left:142px;top:12px;width:110px;height:110px"><use href="#knit"/></svg>
+            <svg fill="#4B4A46" style="left:150px;top:116px;width:90px;height:130px"><use href="#pants"/></svg>
+            <svg fill="#5A3A26" style="left:30px;top:170px;width:80px;height:70px"><use href="#boot"/></svg>
+            <span class="label" style="position:absolute;right:10px;top:10px;font-size:9px">Flat lay</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+            <div class="seg"><span>Try-on</span><span class="on">Flat lay</span><span>Pieces</span></div>
+            <span class="label" style="font-size:9.5px">4 pieces</span>
+          </div>
+          <span class="btn btn-primary" style="margin-top:12px;width:calc(100% - 66px)">I wore this</span>
+        </div>
+        <div class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <div class="nav">
+          <div class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Today</div>
+          <div><svg viewBox="0 0 24 24"><path d="M12 4a2 2 0 1 1 2 2c-1 0-2 1-2 2l9 6H3l9-6"/></svg>Closet</div>
+          <div><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="13"/><path d="M9 7V4h6v3"/></svg>Trips</div>
+        </div>
+      </div>
+      <div class="caption"><b>Today.</b> One serif moment, the look fills the width, one primary action.</div>
+    </div>
+
+    <!-- TODAY scrolled -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="sb"><span class="tnum">7:42</span><span>●●● ▮</span></div>
+        <div class="scr">
+          <div class="label">Look 01 · The pieces</div>
+          <div class="piece"><div class="th"><svg fill="#2B3A55"><use href="#coat"/></svg></div><div><div class="n">Navy wool overcoat</div><div class="w">9° by the time you head out for drinks</div></div></div>
+          <div class="piece"><div class="th"><svg fill="#C9B79C"><use href="#knit"/></svg></div><div><div class="n">Oat merino crewneck</div><div class="w">Smart enough for the client, soft enough for later</div></div></div>
+          <div class="piece"><div class="th"><svg fill="#4B4A46"><use href="#pants"/></svg></div><div><div class="n">Charcoal trousers</div><div class="w">Worn once since wash</div></div></div>
+          <div class="piece"><div class="th"><svg fill="#5A3A26"><use href="#boot"/></svg></div><div><div class="n">Brown leather boots</div><div class="w">Handles the 5pm rain</div></div></div>
+          <div class="label" style="margin-top:12px">Fitting notes</div>
+          <ul class="notes" style="font-size:11px;margin-top:4px">
+            <li><span class="ok">✓</span><span><span class="k">Dress code</span> — client review → smart</span></li>
+            <li><span class="rv">↺</span><span><span class="k">Swapped</span> <s>suede loafers</s> → boots, 80% rain</span></li>
+          </ul>
+          <div class="ask">
+            <div style="font-size:12.5px;font-weight:500">Anything today that’s not on your calendar?</div>
+            <div class="row" style="gap:6px;margin-top:8px"><span class="tag" style="height:24px;font-size:9.5px">Gym</span><span class="tag on" style="height:24px;font-size:9.5px">Drinks</span><span class="tag" style="height:24px;font-size:9.5px">Date</span><span class="tag" style="height:24px;font-size:9.5px">Nothing</span></div>
+          </div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Today</div>
+          <div><svg viewBox="0 0 24 24"><path d="M12 4a2 2 0 1 1 2 2c-1 0-2 1-2 2l9 6H3l9-6"/></svg>Closet</div>
+          <div><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="13"/><path d="M9 7V4h6v3"/></svg>Trips</div>
+        </div>
+      </div>
+      <div class="caption"><b>Today, scrolled.</b> Each piece explains itself; fitting notes show the self-correction; the follow-up question.</div>
+    </div>
+
+  </div>
+</section>
+<section class="page">
+  <div class="label">06</div>
+  <h2>Screens <span class="muted" style="font-size:20px">(cont.)</span></h2>
+  <div class="phones">
+    <!-- CLOSET -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="sb"><span class="tnum">7:44</span><span>●●● ▮</span></div>
+        <div class="scr">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div class="serif" style="font-size:31px">Closet</div>
+            <span class="tnum muted" style="font-size:11px">48 pieces</span>
+          </div>
+          <div class="row" style="gap:6px;margin-top:8px"><span class="tag on" style="height:24px;font-size:9.5px">All</span><span class="tag" style="height:24px;font-size:9.5px">Tops</span><span class="tag" style="height:24px;font-size:9.5px">Bottoms</span><span class="tag" style="height:24px;font-size:9.5px">Shoes</span><span class="tag" style="height:24px;font-size:9.5px">Laundry 3</span></div>
+          <div class="cgrid">
+            <div class="tile"><div class="img"><svg fill="#2B3A55"><use href="#coat"/></svg></div><div class="name">Navy overcoat</div></div>
+            <div class="tile"><div class="img"><svg fill="#C9B79C"><use href="#knit"/></svg></div><div class="name">Oat crewneck</div></div>
+            <div class="tile"><div class="img"><svg fill="#E8E4DA" stroke="#BDB5A6"><use href="#shirt"/></svg></div><div class="name">White oxford</div></div>
+            <div class="tile"><div class="img"><svg fill="#3A4A6B"><use href="#pants"/></svg></div><div class="name">Selvedge jeans</div><div class="st">Worn 4/5</div></div>
+            <div class="tile"><div class="img"><svg fill="#7A2F2A"><use href="#tee"/></svg></div><div class="name">Rust tee</div><div class="st">Laundry</div></div>
+            <div class="tile"><div class="img"><svg fill="#5A3A26"><use href="#boot"/></svg></div><div class="name">Leather boots</div></div>
+            <div class="tile"><div class="img"><svg fill="#4B4A46"><use href="#pants"/></svg></div><div class="name">Charcoal trousers</div></div>
+            <div class="tile"><div class="img"><svg fill="#D9D3C7" stroke="#AFA799"><use href="#shoe"/></svg></div><div class="name">White sneakers</div></div>
+            <div class="tile"><div class="img"><svg fill="#56603F"><use href="#knit"/></svg></div><div class="name">Olive cardigan</div></div>
+          </div>
+        </div>
+        <div class="nav">
+          <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Today</div>
+          <div class="on"><svg viewBox="0 0 24 24"><path d="M12 4a2 2 0 1 1 2 2c-1 0-2 1-2 2l9 6H3l9-6"/></svg>Closet</div>
+          <div><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="13"/><path d="M9 7V4h6v3"/></svg>Trips</div>
+        </div>
+      </div>
+      <div class="caption"><b>Closet.</b> Cutouts on studio gray, no cards, status as words not dots.</div>
+    </div>
+
+    <!-- SCAN REVIEW -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="sb"><span class="tnum">7:51</span><span>●●● ▮</span></div>
+        <div class="scr">
+          <div class="label">Closet scan</div>
+          <div class="serif" style="font-size:31px;margin-top:4px">Found 14 pieces</div>
+          <div class="prog"><div></div></div>
+          <div class="muted tnum" style="font-size:11px">Tagging 9 of 14…</div>
+          <div class="cgrid">
+            <div class="tile"><div class="img"><svg fill="#3D5A73"><use href="#shirt"/></svg></div><div class="name">Chambray shirt</div><span class="label" style="font-size:8.5px">Smart casual</span></div>
+            <div class="tile"><div class="img"><svg fill="#1F1F22"><use href="#coat"/></svg></div><div class="name">Black peacoat</div><span class="label" style="font-size:8.5px">Smart</span></div>
+            <div class="tile"><div class="img"><svg fill="#9C8A6E"><use href="#pants"/></svg></div><div class="name">Khaki chinos</div><span class="label" style="font-size:8.5px">Casual</span></div>
+            <div class="tile"><div class="img"><svg fill="#6B2D3A"><use href="#knit"/></svg></div><div class="name">Burgundy knit</div><span class="label" style="font-size:8.5px">Casual</span></div>
+            <div class="tile"><div class="img"><svg fill="#2E2E2E"><use href="#skirt"/></svg></div><div class="name">Black skirt</div><span class="label" style="font-size:8.5px">Smart</span></div>
+            <div class="tile"><div class="img" style="opacity:.45"></div><div class="name muted">Tagging…</div></div>
+          </div>
+          <span class="btn btn-primary btn-block" style="margin-top:14px">Add 14 pieces</span>
+          <div style="text-align:center;margin-top:8px"><span class="btn-tertiary" style="font-size:12px;text-decoration:underline">Review one by one</span></div>
+        </div>
+      </div>
+      <div class="caption"><b>Scan review.</b> Pieces settle in as they’re found; you confirm before anything is used.</div>
+    </div>
+
+  </div>
+</section>
+<section class="page">
+  <div class="label">06</div>
+  <h2>Screens <span class="muted" style="font-size:20px">(cont.)</span></h2>
+  <div class="phones">
+    <!-- TRIP -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="sb"><span class="tnum">20:15</span><span>●●● ▮</span></div>
+        <div class="scr">
+          <div class="label">Trip · Thu 29 Oct – Sun 1 Nov</div>
+          <div class="serif" style="font-size:31px;margin-top:4px">Chicago</div>
+          <div class="strip tnum">11 pieces · 1 carry-on · 6° to 12°, windy</div>
+          <div class="day"><div class="d tnum">Thu</div><div><div style="font-size:12px;font-weight:500">Travel + team dinner</div><div class="minis"><span><svg fill="#2B3A55"><use href="#coat"/></svg></span><span><svg fill="#C9B79C"><use href="#knit"/></svg></span><span><svg fill="#3A4A6B"><use href="#pants"/></svg></span><span><svg fill="#5A3A26"><use href="#boot"/></svg></span></div></div></div>
+          <div class="day"><div class="d tnum">Fri</div><div><div style="font-size:12px;font-weight:500">Offsite, smart</div><div class="minis"><span><svg fill="#2B3A55"><use href="#coat"/></svg></span><span><svg fill="#E8E4DA" stroke="#BDB5A6"><use href="#shirt"/></svg></span><span><svg fill="#4B4A46"><use href="#pants"/></svg></span><span><svg fill="#5A3A26"><use href="#boot"/></svg></span></div></div></div>
+          <div class="day"><div class="d tnum">Sat</div><div><div style="font-size:12px;font-weight:500">Walking the city</div><div class="minis"><span><svg fill="#2B3A55"><use href="#coat"/></svg></span><span><svg fill="#56603F"><use href="#knit"/></svg></span><span><svg fill="#3A4A6B"><use href="#pants"/></svg></span><span><svg fill="#D9D3C7" stroke="#AFA799"><use href="#shoe"/></svg></span></div></div></div>
+          <div class="label" style="margin-top:10px">Packing list</div>
+          <div class="check"><span class="box x"></span><span>Selvedge jeans</span><span class="muted tnum" style="font-size:11px">3 days · limit 5</span></div>
+          <div class="check"><span class="box"></span><span>T-shirts</span><span class="muted tnum" style="font-size:11px">×4 · 1 wear each</span></div>
+          <div class="warnline">You own 3 clean tees for 4 days — wash one tonight or pack a knit.</div>
+        </div>
+        <div class="nav">
+          <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Today</div>
+          <div><svg viewBox="0 0 24 24"><path d="M12 4a2 2 0 1 1 2 2c-1 0-2 1-2 2l9 6H3l9-6"/></svg>Closet</div>
+          <div class="on"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="13"/><path d="M9 7V4h6v3"/></svg>Trips</div>
+        </div>
+      </div>
+      <div class="caption"><b>Trip.</b> Day-by-day looks, a packing list that respects rewear limits, and an honest warning.</div>
+    </div>
+
+    <!-- TODAY DARK -->
+    <div class="phone-wrap">
+      <div class="phone dark">
+        <div class="sb"><span class="tnum">21:08</span><span>●●● ▮</span></div>
+        <div class="scr">
+          <div class="label">Tomorrow · Wed 28 Oct</div>
+          <div class="serif" style="font-size:31px;margin-top:6px">Look 02 —<br><em>Quiet desk day</em></div>
+          <div class="strip tnum">17° · Clear · No events</div>
+          <div class="hero">
+            <svg fill="#56603F" style="left:20px;top:16px;width:120px;height:120px"><use href="#knit"/></svg>
+            <svg fill="#3A4A6B" style="left:150px;top:20px;width:100px;height:140px"><use href="#pants"/></svg>
+            <svg fill="#D9D3C7" style="left:30px;top:160px;width:100px;height:80px"><use href="#shoe"/></svg>
+          </div>
+          <ul class="notes" style="font-size:11px;margin-top:10px">
+            <li><span class="ok">✓</span><span><span class="k">Rotation</span> — olive cardigan, not worn in 3 weeks</span></li>
+          </ul>
+          <span class="btn btn-primary btn-block" style="margin-top:10px">Lay it out tonight</span>
+        </div>
+        <div class="nav">
+          <div class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Today</div>
+          <div><svg viewBox="0 0 24 24"><path d="M12 4a2 2 0 1 1 2 2c-1 0-2 1-2 2l9 6H3l9-6"/></svg>Closet</div>
+          <div><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="13"/><path d="M9 7V4h6v3"/></svg>Trips</div>
+        </div>
+      </div>
+      <div class="caption"><b>Dark mode.</b> Warm off-black, lighter accent, no shadows.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DO / DON'T -->
+<section class="page">
+  <div class="label">07</div>
+  <h2>What we’re avoiding</h2>
+  <p class="lede">The same moment — “here’s your outfit” — done the default AI way and our way.</p>
+  <div class="dd avoid">
+    <div>
+      <div class="pane slop">
+        <div style="font-size:10px;opacity:.6;margin-top:4px">✨ AI-POWERED STYLING</div>
+        <div class="g">Unlock Your Perfect Look</div>
+        <div style="font-size:10px;opacity:.7;margin-top:4px">Supercharge your wardrobe with seamless AI</div>
+        <div class="cards"><div><div class="ic"></div>Smart Outfits</div><div><div class="ic"></div>Weather AI</div><div><div class="ic"></div>Calendar Sync</div></div>
+        <div class="cta">Get Started →</div>
+      </div>
+      <p class="verdict"><b style="color:var(--error)">Don’t.</b> <span class="muted">Gradient text, purple glow, Inter, three equal icon cards, sparkles, “unlock / supercharge / seamless”, pill CTA with chevron. Swap the logo and it’s any app.</span></p>
+    </div>
+    <div>
+      <div class="pane" style="background:var(--paper)">
+        <div class="label">Tuesday 27 Oct · 14° · rain later</div>
+        <div class="serif" style="font-size:26px;margin-top:6px">Look 01 — <em>Rain-ready client day</em></div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:12px">
+          <div style="background:var(--studio);aspect-ratio:1"><svg fill="#2B3A55" style="width:100%;height:100%"><use href="#coat"/></svg></div>
+          <div style="background:var(--studio);aspect-ratio:1"><svg fill="#C9B79C" style="width:100%;height:100%"><use href="#knit"/></svg></div>
+          <div style="background:var(--studio);aspect-ratio:1"><svg fill="#4B4A46" style="width:100%;height:100%"><use href="#pants"/></svg></div>
+          <div style="background:var(--studio);aspect-ratio:1"><svg fill="#5A3A26" style="width:100%;height:100%"><use href="#boot"/></svg></div>
+        </div>
+        <ul class="notes" style="font-size:10.5px;margin-top:10px"><li><span class="rv">↺</span><span>Swapped <s>suede loafers</s> → boots, 80% rain at 5pm</span></li></ul>
+        <span class="btn btn-primary" style="height:34px;font-size:12px;margin-top:8px">I wore this</span>
+      </div>
+      <p class="verdict"><b style="color:var(--ok)">Do.</b> <span class="muted">Specific to this person’s day, clothes carry the color, reasoning shown in plain words, one action.</span></p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:22px">Ban list (checked before every commit)</h3>
+  <table>
+    <tr><th>Pattern</th><th>Instead</th></tr>
+    <tr><td>Purple/blue gradients, gradient text</td><td>Solid tokens; color comes from the clothes</td></tr>
+    <tr><td>Inter / Roboto / Geist, monospace for “tech”</td><td>Instrument Serif + Instrument Sans</td></tr>
+    <tr><td>Pure #000 / #fff</td><td>Warm paper and ink</td></tr>
+    <tr><td>Cards everywhere, cards in cards, rounded-2xl</td><td>Content on paper, hairlines, radius by role</td></tr>
+    <tr><td>Uniform shadows, glassmorphism</td><td>Shadow only on sheets; blur at most once</td></tr>
+    <tr><td>Three equal icon cards, icon-in-circle</td><td>One anchor element, supporting items smaller</td></tr>
+    <tr><td>Bounce/elastic motion, <code>transition: all</code></td><td>ease-out, 150–360ms, transform + opacity only</td></tr>
+    <tr><td>✨, “AI-powered”, unlock / seamless / elevate</td><td>Show the reasoning; specific, dry copy</td></tr>
+    <tr><td>Big-number stat cards</td><td>One line of text with tabular numbers</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <div class="label">08</div>
+  <h2>Motion &amp; voice</h2>
+  <table>
+    <tr><th>Token</th><th>Value</th><th>Use</th></tr>
+    <tr><td>ease-out</td><td class="tnum">cubic-bezier(0.23, 1, 0.32, 1)</td><td>Entering / leaving (default)</td></tr>
+    <tr><td>ease-in-out</td><td class="tnum">cubic-bezier(0.65, 0, 0.35, 1)</td><td>Moving on screen</td></tr>
+    <tr><td>fast / base / sheet</td><td class="tnum">150 / 220 / 360 ms</td><td>Press · most transitions · sheets</td></tr>
+  </table>
+  <p class="muted" style="margin-top:8px">Signature moments only: scan cutouts settle into the grid one by one; outfit pieces slide into the look (shoes last); a rejected piece strikes through and its replacement slides in. Everything honors reduced motion.</p>
+  <h3>Voice</h3>
+  <div class="grid2">
+    <div><div class="label" style="color:var(--ok)">Say</div><p>“Rain from 5pm — swapped to the leather boots.”</p><p>“You own 3 clean tees for 4 days.”</p><p>“Your closet is empty. Film it once — about a minute.”</p></div>
+    <div><div class="label" style="color:var(--error)">Don’t say</div><p class="muted">“Optimized for weather conditions ✨”</p><p class="muted">“Unlock your perfect wardrobe with AI”</p><p class="muted">“Get started on your style journey!”</p></div>
+  </div>
+
+  <div class="label" style="margin-top:28px">09</div>
+  <h2>Screen checklist</h2>
+  <ol class="check-list">
+    <li><b>Squint:</b> one focal point, one primary action.</li>
+    <li><b>Logo swap:</b> would it fit a fintech app? Then it’s too generic.</li>
+    <li><b>Grayscale:</b> hierarchy survives without color.</li>
+    <li><b>Ban list:</b> zero unexplained hits.</li>
+    <li><b>States:</b> empty, loading, partial, error.</li>
+    <li><b>Phone:</b> 375px, thumb reach, 44px targets, safe areas.</li>
+    <li><b>Accessibility:</b> AA contrast, focus rings, no color-only status, reduced motion.</li>
+    <li><b>Real content:</b> long names, 1 item vs 80 items.</li>
+    <li><b>Screenshot</b> light and dark; compare with neighboring screens.</li>
+  </ol>
+  <hr>
+  <p class="muted" style="font-size:11px">Sources: Vercel Web Interface Guidelines; Pixelslop AI Slop Pattern Catalog; ux-skill “How to detect AI slop”; Refactoring UI (summary); Emil Kowalski animation principles (summary); SSENSE style reference (Refero); Good On You and Fits wardrobe-app reviews. Full links in docs/ui-style-guide.md.</p>
+</section>
+
+</div>
+</body>
+</html>
