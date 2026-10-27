@@ -42,3 +42,17 @@ export interface Outfit extends Candidate {
   id: string; userId: string; contextDate: string; ruleReport: RuleResult[]
   revisionLog: RevisionEntry[]; renderMode: RenderMode; renderUrl: string | null; source: 'agent' | 'user'
 }
+
+export interface DayPlan { date: string; outfitId: string | null; note: string }
+export interface Trip {
+  id: string; userId: string; destination: string; lat: number; lon: number; startDate: string; endDate: string
+  dayPlans: DayPlan[]; packingList: { garmentId: string; days: number }[]; warnings: string[]
+}
+
+export type ScanStatus = 'queued' | 'segmenting' | 'tagging' | 'review' | 'failed'
+export interface ScanJob {
+  id: string; userId: string; mediaUrl: string; frameUrls: string[]; status: ScanStatus
+  progress: number; foundCount: number; error: string | null
+}
+
+export interface WearLog { id: string; userId: string; date: string; outfitId: string; eventId: string | null; people: string[] }
