@@ -1,5 +1,4 @@
 import { expect, test } from 'vitest'
-// @ts-expect-error — plain ESM script without types
 import { scan } from '../scripts/check-slop.mjs'
 
 test('flags banned patterns', () => {
