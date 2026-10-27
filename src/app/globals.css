@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* Tokens — docs/ui-style-guide.md §2–5. Default palette, shadows and radii are removed so only these exist. */
+:root {
+  --paper: #F4F1EA;
+  --paper-raised: #FBF9F4;
+  --studio: #E9E5DC;
+  --ink: #1C1A17;
+  --ink-muted: #5E5850;
+  --ink-faint: #8F887D;
+  --rule: #DAD4C8;
+  --accent: #8A2E1C;
+  --ok: #3F5F3A;
+  --warn: #8A5A12;
+  --error: #9B1C1C;
+  --sheet-shadow: 0 1px 2px rgb(28 26 23 / .06), 0 8px 24px rgb(28 26 23 / .08);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --paper: #151412;
+    --paper-raised: #1E1C19;
+    --studio: #24221E;
+    --ink: #ECE7DD;
+    --ink-muted: #A39C90;
+    --ink-faint: #6F695F;
+    --rule: #2E2B27;
+    --accent: #D0694F;
+    --ok: #8DB283;
+    --warn: #D9A44B;
+    --error: #E07A7A;
+    --sheet-shadow: none;
+    color-scheme: dark;
+  }
+}
+
+:root.dark {
+  --paper: #151412;
+  --paper-raised: #1E1C19;
+  --studio: #24221E;
+  --ink: #ECE7DD;
+  --ink-muted: #A39C90;
+  --ink-faint: #6F695F;
+  --rule: #2E2B27;
+  --accent: #D0694F;
+  --ok: #8DB283;
+  --warn: #D9A44B;
+  --error: #E07A7A;
+  --sheet-shadow: none;
+  color-scheme: dark;
+}
+
+@theme {
+  --color-*: initial;
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-studio: var(--studio);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-error: var(--error);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --shadow-*: initial;
+  --shadow-sheet: var(--sheet-shadow);
+
+  --radius-*: initial;
+  --radius-tag: 2px;
+  --radius-control: 6px;
+  --radius-sheet: 12px;
+  --radius-mic: 9999px;
+
+  --font-*: initial;
+  --font-serif: var(--font-instrument-serif), Georgia, serif;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, sans-serif;
+
+  --text-*: initial;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 25px;
+  --text-2xl: 31px;
+  --text-3xl: 39px;
+  --text-4xl: 49px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+html { background: var(--paper); }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.display { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.press { transition: transform 150ms var(--ease-out), opacity 150ms var(--ease-out); }
+.press:active { transform: scale(0.98); }
+
+@keyframes settle-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.settle-in { animation: settle-in 220ms var(--ease-out) both; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 16px; height: 16px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: spin 700ms linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .press:active { transform: none; }
+  .settle-in { animation: fade-in 220ms linear both; }
+  .spinner { animation-duration: 2s; }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
