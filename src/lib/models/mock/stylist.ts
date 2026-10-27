@@ -56,14 +56,20 @@ function toCandidate(ids: string[], input: ProposeInput): Candidate {
 function pick(input: ProposeInput, extraAvoid: string[][] = [], avoidPieces = new Set<string>()): Candidate[] {
   const avoid = new Set([...(input.avoidOutfits ?? []), ...extraAvoid].map(key))
   const list = ranked(input, avoid, avoidPieces)
+  const good = list.filter((r) => r.bad === 0)
   const chosen: string[][] = []
-  for (const r of list) {
-    if (chosen.length >= input.count) break
-    // prefer variety: each new candidate changes at least two pieces
-    if (chosen.some((c) => r.ids.filter((id) => c.includes(id)).length > r.ids.length - 2) && list.length > input.count * 3) continue
-    chosen.push(r.ids)
+  const add = (pool: typeof list, varied: boolean) => {
+    for (const r of pool) {
+      if (chosen.length >= input.count) return
+      if (chosen.includes(r.ids)) continue
+      // prefer variety: each new candidate changes at least two pieces
+      if (varied && chosen.some((c) => r.ids.filter((id) => c.includes(id)).length > r.ids.length - 2)) continue
+      chosen.push(r.ids)
+    }
   }
-  for (const r of list) { if (chosen.length >= input.count) break; if (!chosen.includes(r.ids)) chosen.push(r.ids) }
+  add(good, true)
+  add(good, false)
+  add(list, false)
   return chosen.map((ids) => toCandidate(ids, input))
 }
 
