@@ -1,0 +1,53 @@
+import type { CalendarEvent, Candidate, Garment, Level, StyleProfile } from '@/lib/domain/types'
+import type { DayContext, Violation } from '@/lib/rules/types'
+
+export class ModelError extends Error {
+  constructor(public adapter: string, public kind: 'timeout' | 'bad_output' | 'http' | 'unavailable', msg: string) {
+    super(`${adapter}: ${msg}`)
+    this.name = 'ModelError'
+  }
+}
+
+export const TIMEOUT_MS = 30_000
+export const RENDER_TIMEOUT_MS = 45_000
+
+export function withTimeout<T>(p: Promise<T>, ms: number, adapter: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  const t = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ModelError(adapter, 'timeout', `no response in ${ms} ms`)), ms) })
+  return Promise.race([p, t]).finally(() => clearTimeout(timer))
+}
+
+export interface FrameMask { frameIndex: number; maskPng: Buffer; area: number; bbox: [number, number, number, number] }
+export interface SegmentTrack { trackId: string; masks: FrameMask[] }
+export interface Segmenter { segment(frameUrls: string[]): Promise<SegmentTrack[]> }
+
+export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags'>
+export interface Tagger { tag(cutoutUrl: string): Promise<GarmentTags>; sameItem(a: string, b: string): Promise<boolean> }
+
+export interface ProposeInput {
+  day: DayContext; wardrobe: Garment[]; count: number; extraGuidance?: string; styleProfile?: StyleProfile | null
+  /** garment-id sets already shown today ("Another look") */
+  avoidOutfits?: string[][]
+}
+export interface Stylist {
+  classifyEvents(events: CalendarEvent[]): Promise<Record<string, Level>>
+  propose(input: ProposeInput): Promise<Candidate[]>
+  revise(input: ProposeInput & { rejected: { candidate: Candidate; violations: Violation[] }[] }): Promise<Candidate[]>
+  suggestGaps(wardrobe: Garment[]): Promise<GarmentTags[]>
+  styleFromImages?(imageUrls: string[]): Promise<StyleProfile>
+}
+
+export interface Renderer { render(req: { mode: 'tryon' | 'flatlay'; cutoutUrls: string[]; personPhotoUrl?: string }): Promise<{ url: string }> }
+export interface Transcriber { transcribe(audio: Buffer, mime: string): Promise<string> }
+
+// OpenAI chat-completions shapes
+export interface ToolCall { id: string; name: string; arguments: string }
+export type ChatMessage =
+  | { role: 'system' | 'user'; content: string }
+  | { role: 'assistant'; content: string | null; toolCalls?: ToolCall[] }
+  | { role: 'tool'; toolCallId: string; content: string }
+export interface ToolSpec { name: string; description: string; parameters: Record<string, unknown> }
+export interface ChatTurn { content: string | null; toolCalls: ToolCall[] }
+export interface ChatModel { complete(messages: ChatMessage[], tools: ToolSpec[]): Promise<ChatTurn> }
+
+export interface Models { segmenter: Segmenter; tagger: Tagger; stylist: Stylist; renderer: Renderer; transcriber: Transcriber; chat: ChatModel }

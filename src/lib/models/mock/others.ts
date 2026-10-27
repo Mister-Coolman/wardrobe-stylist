@@ -1,0 +1,82 @@
+import sharp from 'sharp'
+import { FIXTURE_TAGS } from '../fixtures/garments'
+import type { ChatModel, Renderer, SegmentTrack, Segmenter, Tagger, Transcriber } from '../types'
+
+// Mask grid the mock "finds" in any frame: 3×2 regions of a 120×80 mask, plus a second sighting of region 0.
+const REGIONS: [number, number, number, number][] = [
+  [0, 0, 40, 40], [40, 0, 40, 40], [80, 0, 40, 40], [0, 40, 40, 40], [40, 40, 40, 40], [80, 40, 40, 40],
+]
+
+async function rectMask([x, y, w, h]: [number, number, number, number]): Promise<Buffer> {
+  const pad = 3
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="black"/>` +
+    `<rect x="${x + pad}" y="${y + pad}" width="${w - pad * 2}" height="${h - pad * 2}" fill="white"/></svg>`
+  return sharp(Buffer.from(svg)).greyscale().png().toBuffer()
+}
+
+export const mockSegmenter: Segmenter = {
+  async segment(frameUrls) {
+    if (!frameUrls.length) return []
+    const tracks: SegmentTrack[] = []
+    for (const [i, r] of REGIONS.entries()) {
+      tracks.push({ trackId: `mock-${i}`, masks: [{ frameIndex: 0, maskPng: await rectMask(r), area: (r[2] - 6) * (r[3] - 6), bbox: r }] })
+    }
+    // the same coat filmed twice
+    tracks.push({ trackId: 'mock-0-again', masks: [{ frameIndex: 0, maskPng: await rectMask(REGIONS[0]), area: 34 * 34, bbox: REGIONS[0] }] })
+    return tracks
+  },
+}
+
+const seen = new Map<string, number>()
+export const mockTagger: Tagger = {
+  async tag(cutoutUrl) {
+    if (!seen.has(cutoutUrl)) seen.set(cutoutUrl, seen.size)
+    return FIXTURE_TAGS[seen.get(cutoutUrl)! % FIXTURE_TAGS.length]
+  },
+  async sameItem(a, b) {
+    // the pipeline names cutouts by content hash, so identical cutouts share a url
+    return a === b
+  },
+}
+
+export const mockRenderer: Renderer = {
+  async render({ mode }) {
+    if (process.env.MOCK_RENDER_FAIL === '1') throw new Error('mock render failure')
+    return { url: mode === 'tryon' ? '/fixtures/render-tryon.svg' : '/fixtures/render-flatlay.svg' }
+  },
+}
+
+export const mockTranscriber: Transcriber = {
+  async transcribe() {
+    return 'drinks after work'
+  },
+}
+
+/** Scripted agent: maps a few phrases to tool calls, then summarizes the tool results. */
+export const mockChat: ChatModel = {
+  async complete(messages) {
+    const last = messages[messages.length - 1]
+    if (last.role === 'tool') {
+      const results = messages.slice(messages.map((m) => m.role).lastIndexOf('assistant') + 1)
+      const lastJson = (() => { try { return JSON.parse(results[results.length - 1].content as string) } catch { return {} } })()
+      return { content: lastJson.summary ?? 'Done.', toolCalls: [] }
+    }
+    const raw = last.role === 'user' ? last.content : ''
+    const text = raw.toLowerCase()
+    const id = () => `call_${Math.random().toString(36).slice(2, 8)}`
+    const date = (text.match(/\d{4}-\d{2}-\d{2}/) ?? [])[0]
+    if (/pack|trip/.test(text)) {
+      const city = (raw.match(/(?:to|for)\s+([A-Z][\w ]+?)(?:\s+(?:for|from|on)\b|[.,?!]|$)/) ?? [])[1] ?? 'Chicago'
+      return { content: null, toolCalls: [{ id: id(), name: 'plan_trip', arguments: JSON.stringify({ destination: city.trim(), days: 3 }) }] }
+    }
+    const ev = text.match(/(drinks|dinner|date|gym|run|yoga|interview|client|wedding|party)[^.?!]*/)
+    if (ev) {
+      return { content: null, toolCalls: [
+        { id: id(), name: 'add_event', arguments: JSON.stringify({ title: ev[0].trim(), ...(date ? { date } : {}) }) },
+        { id: id(), name: 'plan_outfit', arguments: JSON.stringify(date ? { date } : {}) },
+      ] }
+    }
+    if (/wear|outfit|look/.test(text)) return { content: null, toolCalls: [{ id: id(), name: 'plan_outfit', arguments: JSON.stringify(date ? { date } : {}) }] }
+    return { content: 'Tell me what’s on today — “drinks after work”, “pack for Chicago” — and I’ll sort the clothes.', toolCalls: [] }
+  },
+}
