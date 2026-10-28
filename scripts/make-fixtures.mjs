@@ -31,7 +31,7 @@ writeFileSync('public/fixtures/render-tryon.svg', flat)
 
 // e2e "closet photo": six pieces on a rail, laid out on the mock segmenter's 3×2 grid
 const photo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800"><rect width="1200" height="800" fill="#D8D2C6"/>` +
-  [['coat', '#2B3A55'], ['knit', '#C9B79C'], ['pants', '#3A4A6B'], ['shoe', '#7A5236'], ['shirt', '#ECE8DE'], ['pants', '#4B4A46']]
+  [['coat', '#2B3A55'], ['knit', '#C9B79C'], ['pants', '#3A4A6B'], ['shoe', '#7A5236'], ['boot', '#262422'], ['pants', '#4B4A46']]
     .map(([s, f], i) => place(s, f, (i % 3) * 400 + 40, Math.floor(i / 3) * 400 + 40, 3.2)).join('') + '</svg>'
 mkdirSync('tests/fixtures', { recursive: true })
 writeFileSync('tests/fixtures/closet.jpg', await sharp(Buffer.from(photo)).jpeg({ quality: 85 }).toBuffer())
