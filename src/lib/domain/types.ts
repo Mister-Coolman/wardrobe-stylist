@@ -59,3 +59,5 @@ export interface ScanJob {
 }
 
 export interface WearLog { id: string; userId: string; date: string; outfitId: string; eventId: string | null; people: string[] }
+
+export interface Poll { slug: string; userId: string; outfitIds: string[]; date: string; eventId: string | null; createdAt: string }

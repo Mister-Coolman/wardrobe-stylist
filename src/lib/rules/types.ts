@@ -10,7 +10,11 @@ export interface DayContext {
 }
 /** garmentId → uses so far in the trip */
 export interface TripUsage { counts: Record<string, number> }
-export interface RuleContext { garments: Map<string, Garment>; day: DayContext; profile: Profile; trip?: TripUsage }
+export interface RuleContext {
+  garments: Map<string, Garment>; day: DayContext; profile: Profile; trip?: TripUsage
+  /** stretch: friends' pick for this day, e.g. { garmentIds, score: '5–2' } */
+  poll?: { garmentIds: string[]; score: string }
+}
 export interface Rule {
   id: string
   kind: 'hard' | 'soft'

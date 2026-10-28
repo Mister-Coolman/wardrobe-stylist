@@ -11,6 +11,7 @@ import { GapCard } from './GapCard'
 import { LookHero } from './LookHero'
 import { MissingPieces } from './MissingPieces'
 import { PieceList } from './PieceList'
+import { PollButton } from './PollButton'
 import { RenderModePicker } from './RenderModePicker'
 
 const STEPS = ['Checking the forecast…', 'Reading your calendar…', 'Picking pieces…', 'Laying it out…']
@@ -151,6 +152,10 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
               added={plan.day.events.filter((e) => e.source === 'user').map((e) => e.title)}
               onAdd={(title) => call('event', { ...json({ title, date, weather: manual }), path: '/api/events' })}
               onDismiss={() => setAskDone(true)} />
+          )}
+          {process.env.NEXT_PUBLIC_FEATURE_POLL === '1' && (
+            <PollButton key={r.outfit.id} date={plan.day.date} currentOutfitId={r.outfit.id}
+              onWear={(outfitId) => call('another', { ...json({ outfitId }), path: '/api/today/select' })} />
           )}
           <GapCard />
         </>

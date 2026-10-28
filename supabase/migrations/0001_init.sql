@@ -107,6 +107,7 @@ create table polls (
   slug text primary key,
   user_id text not null,
   outfit_ids uuid[] not null,
+  date date not null,
   event_id text,
   created_at timestamptz not null default now()
 );

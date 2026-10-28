@@ -1,4 +1,4 @@
-import type { CalendarEvent, Garment, Outfit, Profile, ScanJob, Trip } from '@/lib/domain/types'
+import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
 import { DEFAULT_WEAR_LIMITS, limitFor } from '@/lib/domain/wearLimits'
 
 /** Typed data access, every call scoped by userId (except background scan-job updates). */
@@ -24,6 +24,12 @@ export interface Repo {
   saveTrip(t: Omit<Trip, 'id'>): Promise<Trip>
   getTrip(userId: string, id: string): Promise<Trip | null>
   listTrips(userId: string): Promise<Trip[]>
+  /** Stretch (Task 19). getPoll / vote / tally are public: anyone with the link can see and vote. */
+  createPoll(userId: string, outfitIds: string[], date: string, eventId?: string): Promise<Poll>
+  getPoll(slug: string): Promise<Poll | null>
+  latestPollFor(userId: string, date: string): Promise<Poll | null>
+  vote(slug: string, outfitId: string, voterKey: string): Promise<'ok' | 'duplicate' | 'invalid'>
+  tally(slug: string): Promise<Record<string, number>>
 }
 
 /** Ids of the outfit's pieces that hit their wear limit with this wear. */

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import type { CalendarEvent, Garment, Outfit, Profile, ScanJob, Trip } from '@/lib/domain/types'
+import { nanoid } from 'nanoid'
+import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
 import type { Repo } from './repo'
 import { laundryAfterWear } from './repo'
 
@@ -69,6 +70,27 @@ export function createSupabaseRepo(): Repo {
     async saveTrip(t) { return fromRow<Trip>(ok(await db.from('trips').insert(toRow(t)).select().single()))! },
     async getTrip(userId, id) { return fromRow<Trip>(ok(await db.from('trips').select().eq('id', id).eq('user_id', userId).maybeSingle())) },
     async listTrips(userId) { return (ok(await db.from('trips').select().eq('user_id', userId).order('start_date')) ?? []).map((r) => fromRow<Trip>(r)!) },
+
+    async createPoll(userId, outfitIds, date, eventId) {
+      return fromRow<Poll>(ok(await db.from('polls').insert({ slug: nanoid(8), user_id: userId, outfit_ids: outfitIds, date, event_id: eventId ?? null }).select().single()), [])!
+    },
+    async getPoll(slug) { return fromRow<Poll>(ok(await db.from('polls').select().eq('slug', slug).maybeSingle()), []) },
+    async latestPollFor(userId, date) {
+      return fromRow<Poll>(ok(await db.from('polls').select().eq('user_id', userId).eq('date', date).order('created_at', { ascending: false }).limit(1).maybeSingle()), [])
+    },
+    async vote(slug, outfitId, voterKey) {
+      const poll = await repo.getPoll(slug)
+      if (!poll || !poll.outfitIds.includes(outfitId)) return 'invalid'
+      const { error } = await db.from('poll_votes').insert({ slug, outfit_id: outfitId, voter_key: voterKey })
+      if (error?.code === '23505') return 'duplicate'
+      if (error) throw new Error(error.message)
+      return 'ok'
+    },
+    async tally(slug) {
+      const out: Record<string, number> = {}
+      for (const v of ok(await db.from('poll_votes').select('outfit_id').eq('slug', slug)) ?? []) out[v.outfit_id] = (out[v.outfit_id] ?? 0) + 1
+      return out
+    },
   }
   return repo
 }

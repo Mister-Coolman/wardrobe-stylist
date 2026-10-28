@@ -1,15 +1,17 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { CalendarEvent, Garment, Outfit, Profile, ScanJob, Trip, WearLog } from '@/lib/domain/types'
+import { nanoid } from 'nanoid'
+import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip, WearLog } from '@/lib/domain/types'
 import type { Repo } from './repo'
 import { laundryAfterWear } from './repo'
 
 interface Db {
   profiles: Profile[]; garments: Garment[]; outfits: (Outfit & { createdAt: number })[]; wearLogs: WearLog[]
   events: CalendarEvent[]; trips: Trip[]; scanJobs: ScanJob[]
+  polls: Poll[]; pollVotes: { slug: string; outfitId: string; voterKey: string }[]
 }
-const empty = (): Db => ({ profiles: [], garments: [], outfits: [], wearLogs: [], events: [], trips: [], scanJobs: [] })
+const empty = (): Db => ({ profiles: [], garments: [], outfits: [], wearLogs: [], events: [], trips: [], scanJobs: [], polls: [], pollVotes: [] })
 
 /** JSON-file store for development and tests until Supabase is set up. Read-modify-write per call. */
 export function createLocalRepo(path: string): Repo {
@@ -86,6 +88,32 @@ export function createLocalRepo(path: string): Repo {
     async saveTrip(t) { return tx((db) => { const out = { ...t, id: randomUUID() }; db.trips.push(out); return clone(out) }) },
     async getTrip(userId, id) { return clone(load().trips.find((t) => t.id === id && t.userId === userId) ?? null) },
     async listTrips(userId) { return clone(load().trips.filter((t) => t.userId === userId).sort((a, b) => a.startDate.localeCompare(b.startDate))) },
+
+    async createPoll(userId, outfitIds, date, eventId) {
+      return tx((db) => {
+        const poll: Poll = { slug: nanoid(8), userId, outfitIds, date, eventId: eventId ?? null, createdAt: new Date(Date.now() + (seq++ % 1000)).toISOString() }
+        db.polls.push(poll)
+        return clone(poll)
+      })
+    },
+    async getPoll(slug) { return clone(load().polls.find((p) => p.slug === slug) ?? null) },
+    async latestPollFor(userId, date) {
+      return clone(load().polls.filter((p) => p.userId === userId && p.date === date).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null)
+    },
+    async vote(slug, outfitId, voterKey) {
+      return tx((db) => {
+        const poll = db.polls.find((p) => p.slug === slug)
+        if (!poll || !poll.outfitIds.includes(outfitId)) return 'invalid'
+        if (db.pollVotes.some((v) => v.slug === slug && v.voterKey === voterKey)) return 'duplicate'
+        db.pollVotes.push({ slug, outfitId, voterKey })
+        return 'ok'
+      })
+    },
+    async tally(slug) {
+      const out: Record<string, number> = {}
+      for (const v of load().pollVotes.filter((x) => x.slug === slug)) out[v.outfitId] = (out[v.outfitId] ?? 0) + 1
+      return out
+    },
   }
 }
 
