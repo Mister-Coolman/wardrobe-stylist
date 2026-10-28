@@ -60,6 +60,7 @@ export function createLocalRepo(path: string): Repo {
       tx((db) => {
         const outfit = db.outfits.find((o) => o.id === outfitId && o.userId === userId)
         if (!outfit) throw new Error('outfit not found')
+        if (db.wearLogs.some((w) => w.userId === userId && w.outfitId === outfitId && w.date === date)) return
         const pieces = db.garments.filter((g) => g.userId === userId && outfit.garmentIds.includes(g.id))
         const toLaundry = new Set(laundryAfterWear(pieces, db.profiles.find((p) => p.userId === userId) ?? null))
         for (const g of pieces) {
@@ -70,6 +71,10 @@ export function createLocalRepo(path: string): Repo {
         }
         db.wearLogs.push({ id: randomUUID(), userId, date, outfitId, eventId: eventId ?? null, people })
       })
+    },
+
+    async hasWorn(userId, outfitId, date) {
+      return load().wearLogs.some((w) => w.userId === userId && w.outfitId === outfitId && w.date === date)
     },
 
     async listUserEvents(userId, date) { return clone(load().events.filter((e) => e.userId === userId && e.date === date)) },

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
     try {
       jpeg = await sharp(Buffer.from(await file.arrayBuffer())).rotate().resize(1600, 1600, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer()
     } catch { return Response.json({ error: 'not_an_image' }, { status: 400 }) }
-    const url = await getStorage().put(`${userKey(u.userId)}/person/${Date.now()}.jpg`, jpeg, 'image/jpeg')
+    const url = await getStorage().put(`${userKey(u.userId)}/person/${randomUUID()}.jpg`, jpeg, 'image/jpeg')
     const repo = await getRepo()
     await repo.upsertProfile({ ...(await profileFor(repo, u.userId)), personPhotoUrl: url })
     return Response.json({ personPhotoUrl: url })

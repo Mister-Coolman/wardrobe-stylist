@@ -6,6 +6,7 @@ import { FORMALITY, plural } from '@/lib/ui/format'
 import { Button } from '@/components/ui/Button'
 import { GarmentEditor } from '@/components/closet/GarmentEditor'
 import { GarmentTile } from '@/components/closet/GarmentTile'
+import { isStalled, thinToBudget, UPLOAD_BUDGET } from '@/lib/ui/scanUpload'
 import { samplePhoto, sampleVideo } from './FrameSampler'
 
 type Mode = 'sweep' | 'holdup' | 'photo'
@@ -24,6 +25,7 @@ export function ScanFlow() {
   const [editing, setEditing] = useState<Garment | null>(null)
   const [adding, setAdding] = useState(false)
   const jobId = useRef<string | null>(null)
+  const lastChange = useRef<{ key: string; since: number }>({ key: '', since: 0 })
 
   async function start(file: File) {
     try {
@@ -31,12 +33,13 @@ export function ScanFlow() {
       if (mode === 'photo') frames = [await samplePhoto(file)]
       else { setPhase({ kind: 'preparing', done: 0, total: 1 }); frames = await sampleVideo(file, (done, total) => setPhase({ kind: 'preparing', done, total })) }
       setPhase({ kind: 'uploading' })
+      // frames only (the video stays on the phone), thinned to fit one request
       const form = new FormData()
-      frames.forEach((f, i) => form.append('frames', f, `frame-${i}.jpg`))
-      if (mode !== 'photo') form.append('video', file)
+      thinToBudget(frames.map((f) => f.size), UPLOAD_BUDGET).forEach((i) => form.append('frames', frames[i], `frame-${i}.jpg`))
       const res = await fetch('/api/scan', { method: 'POST', body: form })
       if (!res.ok) throw new Error('Upload failed — check your connection and try again.')
       jobId.current = (await res.json()).id
+      lastChange.current = { key: 'start', since: Date.now() }
       setPhase({ kind: 'scanning', job: null })
     } catch (e) {
       setPhase({ kind: 'error', message: e instanceof Error ? e.message : 'Something went wrong. Try again.' })
@@ -51,7 +54,12 @@ export function ScanFlow() {
       const { job, garments } = (await res.json()) as { job: ScanJob; garments: Garment[] }
       if (job.status === 'review') setPhase({ kind: 'review', garments })
       else if (job.status === 'failed') setPhase({ kind: 'error', message: job.error ?? 'The scan failed. Try again.' })
-      else setPhase({ kind: 'scanning', job })
+      else {
+        const key = `${job.status}:${job.progress}`
+        if (key !== lastChange.current.key) lastChange.current = { key, since: Date.now() }
+        if (isStalled(lastChange.current, key, Date.now())) setPhase({ kind: 'error', message: 'The scan stopped partway — try again, or take a single photo.' })
+        else setPhase({ kind: 'scanning', job })
+      }
     }, 1500)
     return () => clearTimeout(t)
   }, [phase])

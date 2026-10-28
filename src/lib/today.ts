@@ -25,7 +25,7 @@ const FIXTURE_WEATHER: Weather = { tempHighC: 14, tempLowC: 9, rainProbability: 
 export interface TodayPlan {
   day: DayContext
   calendarConnected: boolean
-  result: { ok: true; bestEffort: boolean; outfit: Outfit; pieces: Garment[]; lookNumber: number } | Extract<PlanOutfitResult, { ok: false }>
+  result: { ok: true; bestEffort: boolean; outfit: Outfit; pieces: Garment[]; lookNumber: number; worn: boolean } | Extract<PlanOutfitResult, { ok: false }>
 }
 
 export async function weatherFor(profile: Profile, date: string, manual?: ManualWeather) {
@@ -64,7 +64,7 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
 
   if (!opts.fresh && shown.length) {
     const latest = shown[shown.length - 1]
-    return { day, calendarConnected, result: { ok: true, bestEffort: latest.ruleReport.some((r) => !r.passed), outfit: latest, pieces: piecesOf(latest), lookNumber: shown.length } }
+    return { day, calendarConnected, result: { ok: true, bestEffort: latest.ruleReport.some((r) => !r.passed), outfit: latest, pieces: piecesOf(latest), lookNumber: shown.length, worn: await repo.hasWorn(user.userId, latest.id, day.date) } }
   }
   const poll = pollsEnabled() ? await friendsPick(repo, user.userId, day.date) : undefined
   const useStyle = process.env.NEXT_PUBLIC_FEATURE_STYLE === '1' && !!profile.styleProfile
@@ -75,7 +75,7 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
     try { r.outfit.renderUrl = await persistRender(user.userId, r.outfit.renderUrl) } catch { r.outfit.renderUrl = null; r.outfit.renderMode = 'none' }
   }
   const outfit = await repo.saveOutfit({ ...r.outfit, userId: user.userId })
-  return { day, calendarConnected, result: { ok: true, bestEffort: r.bestEffort, outfit, pieces: piecesOf(outfit), lookNumber: shown.length + 1 } }
+  return { day, calendarConnected, result: { ok: true, bestEffort: r.bestEffort, outfit, pieces: piecesOf(outfit), lookNumber: shown.length + 1, worn: false } }
 }
 
 /** The winning look's pieces and score from the day's latest poll, if friends have picked one. */

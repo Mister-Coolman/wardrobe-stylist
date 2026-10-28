@@ -21,6 +21,13 @@ export function pathFromUrl(url: string): string {
   return p
 }
 
+/** The storage path for /api/media/<segments…>, or null unless every segment is plain and the first is the user's key. */
+export function safeMediaPath(segments: string[], key: string): string | null {
+  if (segments[0] !== key || segments.length < 2) return null
+  if (segments.some((s) => !s || s === '.' || s === '..' || /[/\\\0]/.test(s))) return null
+  return segments.join('/')
+}
+
 export function createMemoryStorage(): StorageLike {
   const files = new Map<string, Buffer>()
   return {

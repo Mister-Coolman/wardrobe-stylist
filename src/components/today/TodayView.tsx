@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Garment, RenderMode } from '@/lib/domain/types'
 import type { TodayPlan } from '@/lib/today'
+import { applyRender } from '@/lib/ui/todayState'
 import { Button } from '@/components/ui/Button'
 import { Tag } from '@/components/ui/Tag'
 import { AnythingElse } from './AnythingElse'
@@ -44,13 +45,19 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
       setPlan(next)
       if (next.result.ok) setMode(next.result.outfit.renderMode)
       setRender({ busy: false })
-      setWorn('idle')
+      setWorn(next.result.ok && next.result.worn ? 'done' : 'idle')
     } catch {
       setError(kind === 'event' ? 'Couldn’t add that. Try again.' : 'Couldn’t put a look together just now. Try again.')
     } finally { setBusy(null) }
   }, [])
 
   useEffect(() => { void call('load') }, [call])
+  // the chat sheet plans outfits and adds events behind this screen's back
+  useEffect(() => {
+    const reload = () => void call('load')
+    window.addEventListener('outfit-planned', reload)
+    return () => window.removeEventListener('outfit-planned', reload)
+  }, [call])
   useEffect(() => {
     if (!busy) return
     const t = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 900)
@@ -70,7 +77,9 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
     setRender({ busy: true })
     const res = await fetch('/api/render', json({ outfitId: r.outfit.id, mode: m })).catch(() => null)
     const out = res?.ok ? await res.json() as { renderMode: RenderMode; renderUrl: string | null; note?: string; error?: string } : { renderMode: 'none' as const, renderUrl: null, error: 'render_failed' }
-    setPlan((p) => p && p.result.ok ? { ...p, result: { ...p.result, outfit: { ...p.result.outfit, renderMode: out.renderMode, renderUrl: out.renderUrl } } } : p)
+    let current = true
+    setPlan((p) => { if (!p) return p; const next = applyRender(p, r.outfit.id, out); current = next !== p; return next })
+    if (!current) return
     setMode(out.error ? m : out.renderMode)
     setRender({ busy: false, note: out.note, failed: out.error ? m : undefined })
   }
@@ -142,13 +151,13 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
               {worn === 'done' ? 'Logged — enjoy the day' : 'I wore this'}
             </Button>
           </div>
-          <Button variant="secondary" className="mt-3" loading={busy === 'another'} disabled={!!busy}
+          <Button variant="secondary" className="mt-3" loading={busy === 'another'} disabled={!!busy || render.busy}
             onClick={() => call('another', json({ date, weather: manual }))}>Another look</Button>
 
           <PieceList outfit={r.outfit} pieces={r.pieces} />
           <FittingNotes outfit={r.outfit} pieces={r.pieces} wardrobe={wardrobe} bestEffort={r.bestEffort} />
           {!askDone && (
-            <AnythingElse busy={!!busy}
+            <AnythingElse busy={!!busy || render.busy}
               added={plan.day.events.filter((e) => e.source === 'user').map((e) => e.title)}
               onAdd={(title) => call('event', { ...json({ title, date, weather: manual }), path: '/api/events' })}
               onDismiss={() => setAskDone(true)} />

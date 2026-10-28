@@ -135,6 +135,7 @@ declare ids text[];
 begin
   select garment_ids into ids from outfits where id = p_outfit and user_id = p_user;
   if ids is null then raise exception 'outfit not found'; end if;
+  if exists (select 1 from wear_logs where user_id = p_user and outfit_id = p_outfit and date = p_date) then return; end if;
   insert into wear_logs (user_id, date, outfit_id, event_id, people) values (p_user, p_date, p_outfit, p_event, coalesce(p_people, '{}'));
   update garments set
     wear_count = wear_count + 1,

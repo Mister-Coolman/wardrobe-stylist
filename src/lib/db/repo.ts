@@ -14,8 +14,10 @@ export interface Repo {
   updateOutfit(userId: string, id: string, patch: Partial<Outfit>): Promise<void>
   latestOutfitFor(userId: string, date: string): Promise<Outfit | null>
   listOutfitsFor(userId: string, date: string): Promise<Outfit[]>
-  /** Logs the wear and bumps wear_count / wears_since_wash / last_worn_at in one go; pieces at their limit go to the laundry. */
+  /** Once per outfit per day: logs the wear and bumps wear_count / wears_since_wash / last_worn_at in one go; pieces at their limit go to the laundry. */
   logWear(userId: string, outfitId: string, date: string, eventId?: string, people?: string[]): Promise<void>
+  /** Whether this outfit is already logged as worn on that date (logWear is a no-op then). */
+  hasWorn(userId: string, outfitId: string, date: string): Promise<boolean>
   listUserEvents(userId: string, date: string): Promise<CalendarEvent[]>
   addUserEvent(e: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent>
   createScanJob(userId: string, mediaUrl: string, frameUrls: string[]): Promise<ScanJob>

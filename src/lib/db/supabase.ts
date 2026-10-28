@@ -56,6 +56,11 @@ export function createSupabaseRepo(): Repo {
       ok(await db.rpc('log_wear', { p_user: userId, p_outfit: outfitId, p_date: date, p_event: eventId ?? null, p_people: people, p_laundry: laundry }))
     },
 
+    async hasWorn(userId, outfitId, date) {
+      const rows = ok(await db.from('wear_logs').select('id').eq('user_id', userId).eq('outfit_id', outfitId).eq('date', date).limit(1))
+      return !!rows?.length
+    },
+
     async listUserEvents(userId, date) {
       return (ok(await db.from('events').select().eq('user_id', userId).eq('date', date).order('start_at')) ?? []).map((r) => fromRow<CalendarEvent>(r)!)
     },

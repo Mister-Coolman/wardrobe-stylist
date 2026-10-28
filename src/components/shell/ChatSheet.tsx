@@ -25,7 +25,7 @@ export function ChatSheet({ open, onClose }: { open: boolean; onClose: () => voi
       if (!res.ok) throw new Error()
       const r = (await res.json()) as { reply: string; outfitId?: string; tripId?: string }
       setLines([...next, { role: 'assistant', content: r.reply, outfitId: r.outfitId, tripId: r.tripId }])
-      if (r.outfitId) router.refresh()
+      if (r.outfitId) { window.dispatchEvent(new Event('outfit-planned')); router.refresh() }
     } catch {
       setError('Couldn’t reach your stylist. Try again.')
     } finally { setBusy(null) }

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
+import { washPatch } from '@/lib/garments'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 
 const Patch = GarmentTagsSchema.partial().extend({
@@ -23,13 +24,13 @@ export async function PATCH(req: Request) {
     const body = Body.safeParse(await req.json().catch(() => null))
     if (!body.success) return Response.json({ error: 'bad_request' }, { status: 400 })
     const repo = await getRepo()
-    if ('confirmIds' in body.data) {
-      for (const id of body.data.confirmIds) await repo.updateGarment(u.userId, id, { confirmed: true })
+    const data = body.data
+    if ('confirmIds' in data) {
+      for (const id of data.confirmIds) await repo.updateGarment(u.userId, id, { confirmed: true })
     } else {
-      const patch = body.data.patch
-      // washing resets the count
-      if (patch.status === 'clean' && patch.wearsSinceWash === undefined) patch.wearsSinceWash = 0
-      await repo.updateGarment(u.userId, body.data.id, patch)
+      const current = (await repo.listGarments(u.userId)).find((g) => g.id === data.id)
+      if (!current) return Response.json({ error: 'not_found' }, { status: 404 })
+      await repo.updateGarment(u.userId, current.id, washPatch(current, data.patch))
     }
     return Response.json({ ok: true })
   })
