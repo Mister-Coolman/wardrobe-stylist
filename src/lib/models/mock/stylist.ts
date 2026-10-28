@@ -100,6 +100,10 @@ export const mockStylist: Stylist = {
   async suggestGaps() {
     return FIXTURE_GAPS
   },
+  async searchProduct(item) {
+    // no invented shop or price in mock mode: a shopping search for the exact piece
+    return { title: `Shop ${item.name.toLowerCase()}`, url: `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.name)}` }
+  },
   async styleFromImages(imageUrls) {
     return { summary: 'Quiet, tailored neutrals with one warm accent.', traits: ['tailored', 'minimal', 'wool'],
       palette: ['navy', 'oat', 'charcoal', 'rust'], avoid: ['logo', 'neon'], sourceImages: imageUrls }

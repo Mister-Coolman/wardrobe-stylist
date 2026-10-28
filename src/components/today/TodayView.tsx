@@ -7,6 +7,7 @@ import { Tag } from '@/components/ui/Tag'
 import { AnythingElse } from './AnythingElse'
 import { DayStrip } from './DayStrip'
 import { FittingNotes } from './FittingNotes'
+import { GapCard } from './GapCard'
 import { LookHero } from './LookHero'
 import { MissingPieces } from './MissingPieces'
 import { PieceList } from './PieceList'
@@ -151,6 +152,7 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
               onAdd={(title) => call('event', { ...json({ title, date, weather: manual }), path: '/api/events' })}
               onDismiss={() => setAskDone(true)} />
           )}
+          <GapCard />
         </>
       )}
     </>

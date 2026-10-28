@@ -43,3 +43,16 @@ test('Another look shows a different outfit', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Look 02 —/ })).toBeVisible({ timeout: 30_000 })
   expect(await page.getByRole('list', { name: 'Pieces' }).textContent()).not.toBe(first)
 })
+
+test('gap card shows a computed suggestion and can be dismissed', async ({ page }) => {
+  await signIn(page)
+  await seedCloset(page)
+  await page.goto('/today')
+  const card = page.getByRole('region', { name: 'Closet gap' })
+  await expect(card).toContainText(/would make \d+ new outfits? possible/, { timeout: 30_000 })
+  await card.getByRole('button', { name: 'Not now' }).click()
+  await expect(card).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /Look 01/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('region', { name: 'Closet gap' })).toHaveCount(0)
+})

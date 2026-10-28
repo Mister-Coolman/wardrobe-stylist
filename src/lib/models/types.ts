@@ -37,6 +37,8 @@ export interface Stylist {
   revise(input: ProposeInput & { rejected: { candidate: Candidate; violations: Violation[] }[] }): Promise<Candidate[]>
   suggestGaps(wardrobe: Garment[]): Promise<GarmentTags[]>
   styleFromImages?(imageUrls: string[]): Promise<StyleProfile>
+  /** A real place to buy the item (Muse Spark + web search when real). */
+  searchProduct?(item: GarmentTags): Promise<{ title: string; url: string; price?: string } | null>
 }
 
 export interface Renderer { render(req: { mode: 'tryon' | 'flatlay'; cutoutUrls: string[]; personPhotoUrl?: string }): Promise<{ url: string }> }
