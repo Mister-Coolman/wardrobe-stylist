@@ -80,7 +80,7 @@ In `.env.local`, `MODELS=mock` works with no keys. Set `DEV_USER_EMAIL` to sign 
 | Setting | Needed for |
 |---|---|
 | `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in and calendar. The scope is `calendar.readonly`. |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Postgres and storage (`supabase/migrations/0001_init.sql`). Without them, data lives in `.data/`. |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Postgres and storage (`supabase/migrations/0001_init.sql`). Without them, data lives in `.data/`. |
 | `MODELS=real`, `META_API_BASE_URL`, `META_API_KEY` | The Meta Model API |
 | `NEXT_PUBLIC_FEATURE_POLL=1`, `NEXT_PUBLIC_FEATURE_STYLE=1` | The stretch features |
 

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { supabaseServerKey } from './supabaseKey'
 import { nanoid } from 'nanoid'
 import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
 import type { Repo } from './repo'
@@ -18,7 +19,7 @@ function fromRow<T>(r: Record<string, unknown> | null, drop: string[] = ['create
 
 /** Postgres-backed repo. Server-only: uses the service-role key, every query filtered by user_id. */
 export function createSupabaseRepo(): Repo {
-  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })
+  const db = createClient(process.env.SUPABASE_URL!, supabaseServerKey(), { auth: { persistSession: false } })
   const ok = <T>({ data, error }: { data: T; error: { message: string } | null }): T => { if (error) throw new Error(error.message); return data }
 
   const repo: Repo = {

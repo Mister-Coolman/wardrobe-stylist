@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Microphone } from '@phosphor-icons/react'
 import { Sheet } from '@/components/ui/Sheet'
+import { toWav } from './toWav'
 
 interface Line { role: 'user' | 'assistant'; content: string; outfitId?: string; tripId?: string }
 
@@ -43,7 +44,9 @@ export function ChatSheet({ open, onClose }: { open: boolean; onClose: () => voi
         stream.getTracks().forEach((t) => t.stop())
         setBusy('transcribe')
         const form = new FormData()
-        form.append('audio', new Blob(chunks, { type: mr.mimeType || 'audio/webm' }), 'voice.webm')
+        const wav = await toWav(new Blob(chunks, { type: mr.mimeType || 'audio/webm' })).catch(() => null)
+        if (!wav) { setBusy(null); return setError('Didn’t catch that. Try again or type it.') }
+        form.append('audio', wav, 'voice.wav')
         const res = await fetch('/api/transcribe', { method: 'POST', body: form }).catch(() => null)
         setBusy(null)
         if (!res?.ok) return setError('Didn’t catch that. Try again or type it.')
