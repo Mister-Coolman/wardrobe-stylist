@@ -35,9 +35,15 @@ export interface Sighting { frameIndex: number; box: Box; share: number; color: 
 const VIDEO_MIN_SHARE = 0.25
 const VIDEO_MIN_WIDTH = 0.5
 
+/** Held right up to the camera, a piece fills the frame edge to edge: fabric with no outline, and a poor cutout. */
+const CLOSE_UP_SHARE = 0.6
+const EDGE = 0.01
+const touchesAllEdges = (b: Box) => b[0] <= EDGE && b[1] <= EDGE && b[2] >= 1 - EDGE && b[3] >= 1 - EDGE
+
 /** A single photo of the whole closet keeps every piece it finds; in a video, only pieces shown whole. */
 export function isWholeGarment(s: Sighting, media: 'photo' | 'video'): boolean {
   if (media === 'photo') return true
+  if (s.share >= CLOSE_UP_SHARE && touchesAllEdges(s.box)) return false
   return s.share >= VIDEO_MIN_SHARE && s.box[2] - s.box[0] >= VIDEO_MIN_WIDTH
 }
 

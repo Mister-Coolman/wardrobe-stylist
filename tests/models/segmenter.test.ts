@@ -77,6 +77,13 @@ test('isWholeGarment: in a video, only a piece pulled forward (big and wide) cou
   expect(isWholeGarment(s(0, [0.05, 0.05, 0.27, 0.43], 0.05), 'photo')).toBe(true)
 })
 
+test('isWholeGarment: a close-up that fills the frame edge to edge is not a whole garment', () => {
+  // measured on a hold-up clip: close-ups covered ≥ 60% of the frame and touched all four edges; whole pieces held up stayed under
+  expect(isWholeGarment(s(0, [0, 0, 1, 1], 0.62), 'video')).toBe(false)
+  expect(isWholeGarment(s(0, [0, 0, 1, 1], 0.55), 'video')).toBe(true)      // held up close, sleeves past the edges
+  expect(isWholeGarment(s(0, [0, 0.07, 1, 0.98], 0.61), 'video')).toBe(true) // big, but its hem and collar are in frame
+})
+
 test('linkTracks: flipping through, the next piece lands in the same spot, so color decides', () => {
   const front: Sighting['box'] = [0.1, 0.05, 0.85, 0.95]
   const tracks = linkTracks([

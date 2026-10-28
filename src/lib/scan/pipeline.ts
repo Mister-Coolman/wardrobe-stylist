@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
-import type { Garment } from '@/lib/domain/types'
+import type { Garment, ScanJob } from '@/lib/domain/types'
 import type { Repo } from '@/lib/db/repo'
-import type { GarmentTags, Models } from '@/lib/models/types'
+import type { FrameMask, GarmentTags, Models } from '@/lib/models/types'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 import type { StorageLike } from '@/lib/storage'
 import { userKey } from '@/lib/storage'
-import { bestFrame, colorDistance, cutout, cutoutColor, sharpnessOf, type RGB } from './cutout'
+import { bestFrame, colorDistance, cutout, cutoutColor, sharpnessUnder, type RGB } from './cutout'
 
 export const NO_CLOTHES = 'No clothes found — try holding each piece up to the camera.'
 export const SCAN_FAILED = 'The scan stopped partway — try again, or take a single photo.'
@@ -31,13 +31,13 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
 
     const frames = new Map<number, Buffer>()
     const frameAt = async (i: number) => { if (!frames.has(i)) frames.set(i, await storage.read(job.frameUrls[i])); return frames.get(i)! }
-    const sharpness = new Map<number, number>()
-    for (const i of new Set(tracks.flatMap((t) => t.masks.map((m) => m.frameIndex)))) sharpness.set(i, await sharpnessOf(await frameAt(i)))
+    const sharpness = new Map<FrameMask, number>()
+    for (const m of tracks.flatMap((t) => t.masks)) sharpness.set(m, await sharpnessUnder(await frameAt(m.frameIndex), m.maskPng))
 
     await repo.updateScanJob(jobId, { status: 'tagging', foundCount: tracks.length })
     const cut: Omit<Found, 'tags'>[] = []
     for (const track of tracks) {
-      const best = bestFrame(track, (i) => sharpness.get(i) ?? 1)
+      const best = bestFrame(track, (m) => sharpness.get(m) ?? 1)
       let png: Buffer
       try { png = await cutout(await frameAt(best.frameIndex), best.maskPng) } catch { continue }
       const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
@@ -66,6 +66,12 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
     console.error('scan failed', e)
     await repo.updateScanJob(jobId, { status: 'failed', error: SCAN_FAILED }).catch(() => {})
   }
+}
+
+/** The unconfirmed pieces this scan produced: each piece's photo is one of the job's frames. */
+export function piecesFromScan(job: Pick<ScanJob, 'frameUrls'>, unconfirmed: Garment[]): Garment[] {
+  const frames = new Set(job.frameUrls)
+  return unconfirmed.filter((g) => frames.has(g.photoUrl))
 }
 
 async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promise<GarmentTags> {

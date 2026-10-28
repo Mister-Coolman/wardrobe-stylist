@@ -11,8 +11,8 @@ import { samplePhoto, sampleVideo } from './FrameSampler'
 
 type Mode = 'sweep' | 'holdup' | 'photo'
 const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: 'sweep', label: 'Flip through', hint: 'One rail or shelf at a time. Pull each piece forward so it fills the screen for a second, then the next. About thirty seconds a section; scan again for the next.' },
-  { id: 'holdup', label: 'Hold-up', hint: 'Hold each piece up to the camera for a second, then the next. Best for folded clothes.' },
+  { id: 'holdup', label: 'Hold-up', hint: 'Take each piece off the hanger and hold it up against a door or wall for a second, the whole piece in frame, then the next. Cleanest cutouts.' },
+  { id: 'sweep', label: 'Flip through', hint: 'Quicker, rougher cutouts. One rail or shelf at a time: pull each piece forward so it fills the screen for a second, then the next. Scan again for the next section.' },
   { id: 'photo', label: 'Photo', hint: 'One photo of a few pieces laid flat or hung apart. Quickest way to try it.' },
 ]
 type Phase = { kind: 'pick' } | { kind: 'preparing'; done: number; total: number } | { kind: 'uploading' }
@@ -20,7 +20,7 @@ type Phase = { kind: 'pick' } | { kind: 'preparing'; done: number; total: number
 
 export function ScanFlow() {
   const router = useRouter()
-  const [mode, setMode] = useState<Mode>('sweep')
+  const [mode, setMode] = useState<Mode>('holdup')
   const [phase, setPhase] = useState<Phase>({ kind: 'pick' })
   const [editing, setEditing] = useState<Garment | null>(null)
   const [adding, setAdding] = useState(false)

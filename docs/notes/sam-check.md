@@ -68,8 +68,20 @@ Two new clips filmed with the new instructions, polos and tees, run through thei
 
 - **Hold-up cutouts are clearly better:** flat, whole, evenly lit, nothing bleeding in from neighbours. Use it for the demo.
 - **Flip-through cutouts are dim and occluded** (a neighbouring shirt or the arm crossing the piece), which also produces the duplicates and odd tags.
-- **Hold-up's junk has simple causes:** a sighting that fills the whole frame is too close to be a whole garment, and a blurred, single-frame sighting is a piece in motion. Neither is filtered yet.
-- The review screen listed 19 pieces after the hold-up scan because it also shows unconfirmed pieces from the earlier scan (a known deferred bug); scanning section by section makes it matter.
+- Hold-up's junk: two close-ups (the piece filling the frame edge to edge) and one motion-blurred frame.
+- The review screen listed 19 pieces after the hold-up scan because it also showed unconfirmed pieces from the earlier scan.
+
+### Fixes and rerun
+
+- **Close-ups dropped:** in a video, a sighting covering ≥ 60% of the frame and touching all four edges is not a whole garment. On the hold-up clip that was exactly the close-ups; nothing in either flip-through video comes near 60%.
+- **Best frame by the garment's own sharpness:** the blurred frame scored as sharp because the wood door behind it was in focus, and won the track. Sharpness is now the Laplacian spread under the mask only (`sharpnessUnder`).
+- **Review shows only this scan's pieces** (`piecesFromScan`: a piece's photo is one of the job's frames), so "Add N pieces" confirms only those.
+- **Hold-up is the first, default tab**, with *the whole piece in frame* in its hint; Flip through says it's quicker with rougher cutouts.
+
+| Clip | Pieces in clip | Returned | Clean, distinct | Duplicates | Junk | Missed | Time |
+|---|---|---|---|---|---|---|---|
+| Hold-up | 6–7 | 6 | 6 | 0 | 0 | 0–1 (a navy polo seen only as a close-up, possibly the black polo) | 25 s |
+| Flip through | ~9 | 12 | 9 | 3 (beige tee, red polo, cream polo) | 0 | 0 | 60 s |
 
 ## Open
 

@@ -7,8 +7,8 @@ import { createLocalRepo } from '@/lib/db/local'
 import { getModels } from '@/lib/models'
 import type { FrameMask, SegmentTrack, Segmenter, Tagger } from '@/lib/models'
 import { FIXTURE_TAGS } from '@/lib/models/fixtures/garments'
-import { bestFrame, cutout } from '@/lib/scan/cutout'
-import { NO_CLOTHES, runScan } from '@/lib/scan/pipeline'
+import { bestFrame, cutout, sharpnessUnder } from '@/lib/scan/cutout'
+import { NO_CLOTHES, piecesFromScan, runScan } from '@/lib/scan/pipeline'
 import { createMemoryStorage } from '@/lib/storage'
 
 const mask = async (x: number, y: number, w: number, h: number, W = 100, H = 100) =>
@@ -75,6 +75,17 @@ describe('runScan', () => {
     expect(await repo.listGarments('u1')).toHaveLength(2)
   })
 
+  test('review shows only the pieces from this scan, not unconfirmed ones left by an earlier scan', async () => {
+    const { repo, storage, job, models } = await setup([await track('a', [0, 0, 40, 40])])
+    const earlier = await repo.createScanJob('u1', '', [await storage.put('u/frames/old.jpg', await frame(), 'image/jpeg')])
+    await repo.insertGarments([{ ...FIXTURE_TAGS[0], userId: 'u1', status: 'clean', wearLimitOverride: null, wearsSinceWash: 0, wearCount: 0,
+      lastWornAt: null, cutoutUrl: '/x.png', photoUrl: earlier.frameUrls[0], confirmed: false }])
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    const unconfirmed = await repo.listGarments('u1', { confirmed: false })
+    expect(unconfirmed).toHaveLength(2)
+    expect(piecesFromScan(job, unconfirmed).map((g) => g.photoUrl)).toEqual([job.frameUrls[0]])
+  })
+
   test('zero tracks → failed with the retry message', async () => {
     const { repo, storage, job, models } = await setup([])
     await runScan(job.id, { userId: 'u1', models, repo, storage })
@@ -94,8 +105,15 @@ describe('bestFrame and cutout', () => {
   test('bestFrame maximizes area × sharpness', () => {
     const m = (frameIndex: number, area: number): FrameMask => ({ frameIndex, area, maskPng: Buffer.from(''), bbox: [0, 0, 1, 1] })
     const t: SegmentTrack = { trackId: 't', masks: [m(0, 100), m(1, 80), m(2, 120)] }
-    const sharp = (i: number) => [1, 2, 0.5][i]
+    const sharp = (x: FrameMask) => [1, 2, 0.5][x.frameIndex]
     expect(bestFrame(t, sharp).frameIndex).toBe(1)
+  })
+  test('sharpnessUnder measures only the garment: a blurred piece in front of a sharp background scores low', async () => {
+    // left half: fine checkerboard (in focus); right half: flat (a blurred shirt)
+    const checks = Array.from({ length: 50 }, (_, y) => Array.from({ length: 25 }, (_, x) => ((x + y) % 2 ? `<rect x="${x * 2}" y="${y * 2}" width="2" height="2" fill="white"/>` : '')).join('')).join('')
+    const f = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="black"/>${checks}<rect x="50" width="50" height="100" fill="#556b2f"/></svg>`)).jpeg().toBuffer()
+    const onSharp = await sharpnessUnder(f, await mask(5, 5, 40, 90)), onBlur = await sharpnessUnder(f, await mask(55, 5, 40, 90))
+    expect(onSharp).toBeGreaterThan(onBlur * 5)
   })
   test('cutout makes a transparent PNG trimmed near the mask', async () => {
     const png = await cutout(await frame(), await mask(10, 10, 40, 20))

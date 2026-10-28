@@ -2,14 +2,26 @@ import sharp from 'sharp'
 import type { FrameMask, SegmentTrack } from '@/lib/models/types'
 
 /** The sighting with the largest area × sharpness. */
-export function bestFrame(track: SegmentTrack, sharpness: (frameIndex: number) => number): FrameMask {
-  return track.masks.reduce((best, m) => (m.area * sharpness(m.frameIndex) > best.area * sharpness(best.frameIndex) ? m : best))
+export function bestFrame(track: SegmentTrack, sharpness: (m: FrameMask) => number): FrameMask {
+  return track.masks.reduce((best, m) => (m.area * sharpness(m) > best.area * sharpness(best) ? m : best))
 }
 
-/** Laplacian standard deviation — higher is sharper. */
-export async function sharpnessOf(frame: Buffer): Promise<number> {
-  const { channels } = await sharp(frame).greyscale().convolve({ width: 3, height: 3, kernel: [0, 1, 0, 1, -4, 1, 0, 1, 0] }).stats()
-  return channels[0].stdev || 1e-6
+const LAPLACIAN = { width: 3, height: 3, kernel: [0, 1, 0, 1, -4, 1, 0, 1, 0], offset: 128 }
+
+/** Laplacian standard deviation over the garment's pixels only — higher is sharper. A piece moving past a sharp
+ *  background (a wood door, a wall) would otherwise score as in focus. */
+export async function sharpnessUnder(frame: Buffer, mask: Buffer): Promise<number> {
+  const { data: lap, info } = await sharp(frame).greyscale().convolve(LAPLACIAN).raw().toBuffer({ resolveWithObject: true })
+  const alpha = await sharp(mask).resize(info.width, info.height, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
+  let n = 0, sum = 0, sq = 0
+  for (let i = 0; i < alpha.length; i++) {
+    if (alpha[i] <= 127) continue
+    const v = lap[i * info.channels]
+    n++; sum += v; sq += v * v
+  }
+  if (!n) return 1e-6
+  const mean = sum / n
+  return Math.sqrt(Math.max(0, sq / n - mean * mean)) || 1e-6
 }
 
 /** Apply the mask as alpha, trim to its bounding box plus 4% padding, PNG. */
