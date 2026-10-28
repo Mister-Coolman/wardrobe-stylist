@@ -4,6 +4,7 @@ import type { Profile } from '@/lib/domain/types'
 import { Button } from '@/components/ui/Button'
 import { PersonPhoto } from './PersonPhoto'
 import { RenderModeChoice } from './RenderModeChoice'
+import { StyleProfileEditor } from './StyleProfileEditor'
 import { WearLimitsEditor } from './WearLimitsEditor'
 
 type Status = { section: string; text: string; error?: boolean } | null
@@ -59,6 +60,8 @@ export function SettingsView({ profile, email }: { profile: Profile; email: stri
         <Button variant="secondary" className="mt-4" loading={busy === 'limits'} onClick={() => save('limits', { wearLimits: p.wearLimits })}>Save rewear limits</Button>
         {note('limits')}
       </section>
+
+      {process.env.NEXT_PUBLIC_FEATURE_STYLE === '1' && <StyleProfileEditor initial={p.styleProfile} />}
 
       <form method="post" action="/api/sign-out" className="mt-12 border-t border-rule pt-4">
         <button className="min-h-11 underline underline-offset-[3px]">Sign out</button>

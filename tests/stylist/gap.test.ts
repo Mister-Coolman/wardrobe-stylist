@@ -48,3 +48,10 @@ describe('closetGaps', () => {
       .toEqual([[4, false, false], [2, true, false], [2, false, true]])
   })
 })
+
+test('ties go to the piece that matches the style profile', async () => {
+  const navyBoots = tags({ name: 'Navy suede-free boots', category: 'shoes', subcategory: 'boots', colors: ['navy'] })
+  const styled = { ...profile, styleProfile: { summary: '', traits: [], palette: ['navy'], avoid: [], sourceImages: [] } }
+  const g = await closetGaps({ wardrobe: closet, profile: styled, stylist: stylist([boots, navyBoots]), days: [rainy], productSearch: noProduct })
+  expect(g?.item.name).toBe('Navy suede-free boots')
+})

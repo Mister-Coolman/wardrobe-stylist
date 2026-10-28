@@ -3,7 +3,7 @@ import { cookies, headers } from 'next/headers'
 import { getRepo } from '@/lib/db/repo'
 import { pollResult, pollsEnabled, voterKey } from '@/lib/polls'
 
-export const VOTER_COOKIE = 'ws_voter'
+const VOTER_COOKIE = 'ws_voter'
 
 /** Public: anyone with the link votes once (cookie id + ip). */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {

@@ -2,6 +2,7 @@ import type { Garment, Profile } from '@/lib/domain/types'
 import type { GarmentTags, Stylist } from '@/lib/models/types'
 import { dailyRules, runRules } from '@/lib/rules/registry'
 import type { DayContext, RuleContext } from '@/lib/rules/types'
+import { styleMatch } from '@/lib/rules/styleMatch'
 
 export const MAX_COMBOS = 5000
 const HARD = dailyRules.filter((r) => r.kind === 'hard')
@@ -51,13 +52,16 @@ export async function closetGaps(args: {
 }): Promise<Gap | null> {
   const candidates = await args.stylist.suggestGaps(args.wardrobe)
   const before = args.days.map((d) => countValidOutfits(args.wardrobe, d, args.profile))
-  let best: { item: GarmentTags; newOutfits: number } | null = null
+  let best: { item: GarmentTags; newOutfits: number; style: number } | null = null
   for (const [i, item] of candidates.entries()) {
     const extra: Garment = { ...item, id: `gap-${i}`, userId: args.profile.userId, status: 'clean', wearLimitOverride: null, wearsSinceWash: 0,
       wearCount: 0, lastWornAt: null, cutoutUrl: '', photoUrl: '', confirmed: true }
     const n = args.days.reduce((s, d, j) => s + countValidOutfits([...args.wardrobe, extra], d, args.profile) - before[j], 0)
-    if (n > 0 && (!best || n > best.newOutfits)) best = { item, newOutfits: n }
+    // ties go to the piece closest to the user's style profile
+    const style = styleMatch.score!({ garmentIds: [extra.id], rationale: {}, title: '' },
+      { garments: new Map([[extra.id, extra]]), day: args.days[0], profile: args.profile })
+    if (n > 0 && (!best || n > best.newOutfits || (n === best.newOutfits && style > best.style))) best = { item, newOutfits: n, style }
   }
   if (!best) return null
-  return { ...best, product: await args.productSearch(best.item).catch(() => null) }
+  return { item: best.item, newOutfits: best.newOutfits, product: await args.productSearch(best.item).catch(() => null) }
 }

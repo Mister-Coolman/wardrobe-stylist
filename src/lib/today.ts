@@ -13,6 +13,7 @@ import { planOutfit } from '@/lib/stylist/loop'
 import { pollResult, pollsEnabled } from '@/lib/polls'
 import { dailyRules } from '@/lib/rules/registry'
 import { pollWinner } from '@/lib/rules/pollWinner'
+import { styleMatch } from '@/lib/rules/styleMatch'
 import type { PlanOutfitResult } from '@/lib/stylist/loop'
 import type { SessionUser } from '@/lib/session'
 
@@ -66,8 +67,9 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
     return { day, calendarConnected, result: { ok: true, bestEffort: latest.ruleReport.some((r) => !r.passed), outfit: latest, pieces: piecesOf(latest), lookNumber: shown.length } }
   }
   const poll = pollsEnabled() ? await friendsPick(repo, user.userId, day.date) : undefined
-  const r = await planOutfit({ day, wardrobe, profile, models: getModels(), renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds),
-    ...(poll ? { poll, rules: [...dailyRules, pollWinner] } : {}) })
+  const useStyle = process.env.NEXT_PUBLIC_FEATURE_STYLE === '1' && !!profile.styleProfile
+  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : [])]
+  const r = await planOutfit({ day, wardrobe, profile, models: getModels(), renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds), poll, rules })
   if (!r.ok) return { day, calendarConnected, result: r }
   if (r.outfit.renderUrl) {
     try { r.outfit.renderUrl = await persistRender(user.userId, r.outfit.renderUrl) } catch { r.outfit.renderUrl = null; r.outfit.renderMode = 'none' }
