@@ -3,8 +3,9 @@ import { currentUser, devLoginEmail } from '@/lib/session'
 import { DevLogin } from './DevLogin'
 import { GoogleSignIn } from './GoogleSignIn'
 
-export default async function Onboarding() {
-  if (await currentUser()) redirect('/today')
+export default async function Onboarding({ searchParams }: { searchParams: Promise<{ connect?: string }> }) {
+  const { connect } = await searchParams
+  if ((await currentUser()) && !connect) redirect('/today')
   const dev = devLoginEmail()
   return (
     <main className="mx-auto flex min-h-dvh max-w-[560px] flex-col justify-end gap-8 px-5 pb-[calc(48px+env(safe-area-inset-bottom))]">

@@ -6,7 +6,7 @@ import { getModels } from '@/lib/models'
 import { runScan } from '@/lib/scan/pipeline'
 import { getStorage, userKey } from '@/lib/storage'
 
-export const MAX_FRAMES = 120
+const MAX_FRAMES = 120
 
 /** multipart: frames (JPEGs sampled client-side at 2 fps, or one photo), optional video. Returns the job id at once. */
 export async function POST(req: Request) {
