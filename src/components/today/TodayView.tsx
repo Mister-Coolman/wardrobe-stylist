@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import type { Garment } from '@/lib/domain/types'
+import type { Garment, RenderMode } from '@/lib/domain/types'
 import type { TodayPlan } from '@/lib/today'
 import { Button } from '@/components/ui/Button'
 import { Tag } from '@/components/ui/Tag'
@@ -10,6 +10,7 @@ import { FittingNotes } from './FittingNotes'
 import { LookHero } from './LookHero'
 import { MissingPieces } from './MissingPieces'
 import { PieceList } from './PieceList'
+import { RenderModePicker } from './RenderModePicker'
 
 const STEPS = ['Checking the forecast…', 'Reading your calendar…', 'Picking pieces…', 'Laying it out…']
 type Manual = 'warm' | 'mild' | 'cold'
@@ -29,13 +30,18 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
   const [manual, setManual] = useState<Manual | undefined>()
   const [worn, setWorn] = useState<'idle' | 'busy' | 'done'>('idle')
   const [askDone, setAskDone] = useState(false)
+  const [mode, setMode] = useState<RenderMode | null>(null)
+  const [render, setRender] = useState<{ busy: boolean; note?: string; failed?: RenderMode }>({ busy: false })
 
   const call = useCallback(async (kind: 'load' | 'another' | 'event', init?: RequestInit & { path?: string }) => {
     setBusy(kind); setError(null); setStep(0)
     try {
       const res = await fetch(init?.path ?? '/api/today', init)
       if (!res.ok) throw new Error()
-      setPlan(await res.json())
+      const next = (await res.json()) as TodayPlan
+      setPlan(next)
+      if (next.result.ok) setMode(next.result.outfit.renderMode)
+      setRender({ busy: false })
       setWorn('idle')
     } catch {
       setError(kind === 'event' ? 'Couldn’t add that. Try again.' : 'Couldn’t put a look together just now. Try again.')
@@ -48,6 +54,24 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
     const t = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 900)
     return () => clearInterval(t)
   }, [busy])
+
+  async function applyMode(m: RenderMode) {
+    if (!plan?.result.ok) return
+    const r = plan.result
+    setMode(m)
+    if (m === 'none') {
+      setPlan({ ...plan, result: { ...r, outfit: { ...r.outfit, renderMode: 'none', renderUrl: null } } })
+      setRender({ busy: false })
+      void fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ renderMode: 'none' }) })
+      return
+    }
+    setRender({ busy: true })
+    const res = await fetch('/api/render', json({ outfitId: r.outfit.id, mode: m })).catch(() => null)
+    const out = res?.ok ? await res.json() as { renderMode: RenderMode; renderUrl: string | null; note?: string; error?: string } : { renderMode: 'none' as const, renderUrl: null, error: 'render_failed' }
+    setPlan((p) => p && p.result.ok ? { ...p, result: { ...p.result, outfit: { ...p.result.outfit, renderMode: out.renderMode, renderUrl: out.renderUrl } } } : p)
+    setMode(out.error ? m : out.renderMode)
+    setRender({ busy: false, note: out.note, failed: out.error ? m : undefined })
+  }
 
   const json = (body: object): RequestInit => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const date = plan?.day.date
@@ -88,9 +112,20 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
         <>
           <h1 className="display mt-6 text-3xl">Look {String(r.lookNumber).padStart(2, '0')} — {r.outfit.title}</h1>
           {plan.day.changeSuggestion && <p className="mt-2 text-sm text-warn">{plan.day.changeSuggestion}</p>}
-          <div className={`mt-6 ${busy && busy !== 'load' ? 'opacity-50' : ''}`}>
+          <div className="mt-4">
+            <RenderModePicker value={mode ?? r.outfit.renderMode} disabled={!!busy || render.busy} onChange={applyMode} />
+          </div>
+          <div className={`mt-2 ${(busy && busy !== 'load') || render.busy ? 'opacity-50' : ''}`}>
             <LookHero mode={r.outfit.renderMode} url={r.outfit.renderUrl} pieces={r.pieces} />
           </div>
+          {render.busy && <p aria-live="polite" className="mt-3 text-sm text-ink-muted">Laying it out…</p>}
+          {render.note && <p className="mt-3 text-sm text-ink-muted">{render.note}</p>}
+          {render.failed && (
+            <p role="alert" className="mt-3 text-sm">
+              <span className="text-error">Couldn’t render the look. Showing the pieces instead.</span>{' '}
+              <button type="button" className="min-h-11 underline underline-offset-[3px]" onClick={() => applyMode(render.failed!)}>Try again</button>
+            </p>
+          )}
           {busy && <p aria-live="polite" className="mt-3 text-sm text-ink-muted">{STEPS[step]}</p>}
           {error && <p role="alert" className="mt-3 text-sm text-error">{error}</p>}
 

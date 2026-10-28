@@ -6,6 +6,7 @@ import { CalendarAuthError, fetchCalendarEvents } from '@/lib/integrations/calen
 import { fetchWeather, MANUAL_WEATHER } from '@/lib/integrations/weather'
 import { getModels } from '@/lib/models'
 import { profileFor } from '@/lib/profile'
+import { persistRender } from '@/lib/render'
 import type { DayContext } from '@/lib/rules/types'
 import { buildDayContext } from '@/lib/stylist/dayContext'
 import { planOutfit } from '@/lib/stylist/loop'
@@ -63,6 +64,9 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   }
   const r = await planOutfit({ day, wardrobe, profile, models: getModels(), renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds) })
   if (!r.ok) return { day, calendarConnected, result: r }
+  if (r.outfit.renderUrl) {
+    try { r.outfit.renderUrl = await persistRender(user.userId, r.outfit.renderUrl) } catch { r.outfit.renderUrl = null; r.outfit.renderMode = 'none' }
+  }
   const outfit = await repo.saveOutfit({ ...r.outfit, userId: user.userId })
   return { day, calendarConnected, result: { ok: true, bestEffort: r.bestEffort, outfit, pieces: piecesOf(outfit), lookNumber: shown.length + 1 } }
 }

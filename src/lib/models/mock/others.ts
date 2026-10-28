@@ -40,9 +40,14 @@ export const mockTagger: Tagger = {
 }
 
 export const mockRenderer: Renderer = {
-  async render({ mode }) {
+  async render({ mode, cutoutUrls }) {
     if (process.env.MOCK_RENDER_FAIL === '1') throw new Error('mock render failure')
-    return { url: mode === 'tryon' ? '/fixtures/render-tryon.svg' : '/fixtures/render-flatlay.svg' }
+    try {
+      const { composeFlatlay } = await import('./flatlay')
+      return { url: await composeFlatlay(cutoutUrls) }
+    } catch {
+      return { url: mode === 'tryon' ? '/fixtures/render-tryon.svg' : '/fixtures/render-flatlay.svg' }
+    }
   },
 }
 
