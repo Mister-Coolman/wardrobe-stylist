@@ -57,6 +57,20 @@ The `sameItem` check alone, on 10 hand-labelled pairs from this video: 9/10 at `
 
 The Sweep mode is now **Flip through**: *one rail or shelf at a time; pull each piece forward so it fills the screen for a second.*
 
+## Flip-through vs Hold-up (28 Oct)
+
+Two new clips filmed with the new instructions, polos and tees, run through their scan tabs.
+
+| Clip | Pieces in clip | Returned | Good | Duplicates | Junk | Missed | Time |
+|---|---|---|---|---|---|---|---|
+| Flip through, 32 s, 51 frames | ~10 | 11 | 7 | 3 | 1 (arm + dark shirt, tagged "track pants") | 2 (dark green and heather-blue polos) | 62 s |
+| Hold-up, 36 s, 39 frames | 7 | 8 | 5 | 0 | 3 (two frame-filling close-ups, one motion blur) | 0 (green polo only as a close-up) | 38 s |
+
+- **Hold-up cutouts are clearly better:** flat, whole, evenly lit, nothing bleeding in from neighbours. Use it for the demo.
+- **Flip-through cutouts are dim and occluded** (a neighbouring shirt or the arm crossing the piece), which also produces the duplicates and odd tags.
+- **Hold-up's junk has simple causes:** a sighting that fills the whole frame is too close to be a whole garment, and a blurred, single-frame sighting is a piece in motion. Neither is filtered yet.
+- The review screen listed 19 pieces after the hold-up scan because it also shows unconfirmed pieces from the earlier scan (a known deferred bug); scanning section by section makes it matter.
+
 ## Open
 
 - The fixtures are flat illustrations. On them the tagger sometimes misreads shoes (a loafer as a "beret", a boot as "socks"), and SAM missed the loafer (confidence 0.52 when it was found) in one pan crop. A real phone video of a closet rail is still the test that matters.
