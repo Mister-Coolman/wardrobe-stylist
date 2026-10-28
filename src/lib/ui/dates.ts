@@ -1,0 +1,5 @@
+const d = (iso: string) => new Date(`${iso}T12:00:00Z`)
+export const weekday = (iso: string) => d(iso).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' })
+export const shortDay = (iso: string) => d(iso).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })
+export const dayMonth = (iso: string) => d(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+export const range = (a: string, b: string) => (a === b ? `${shortDay(a)} ${dayMonth(a)}` : `${shortDay(a)} ${dayMonth(a)} – ${shortDay(b)} ${dayMonth(b)}`)

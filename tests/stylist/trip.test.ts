@@ -76,3 +76,9 @@ describe('detectTrips', () => {
       .toEqual([{ destination: 'Lisbon', startDate: '2026-11-10', endDate: '2026-11-13' }])
   })
 })
+
+test('no two trip days get the identical outfit when the closet allows variety', async () => {
+  const t = await planTrip({ destination: 'Chicago', startDate: '2026-10-29', endDate: '2026-10-31', profile, wardrobe, events: [], models, weatherFor: mild, geocode })
+  const keys = t.outfits.map((o) => [...o!.garmentIds].sort().join('+'))
+  expect(new Set(keys).size).toBe(3)
+})

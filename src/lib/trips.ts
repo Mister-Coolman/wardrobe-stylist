@@ -9,6 +9,9 @@ import { profileFor } from '@/lib/profile'
 import { planTrip } from '@/lib/stylist/trip'
 import type { SessionUser } from '@/lib/session'
 
+/** e2e (WEATHER=fixture): no network for geocoding or forecasts. */
+export const fixtureGeocode = async (place: string) => ({ lat: 41.88, lon: -87.63, name: place.trim().replace(/^\w/, (c) => c.toUpperCase()) })
+
 const FIXTURE_TRIP_WEATHER = { tempHighC: 12, tempLowC: 6, rainProbability: 20, windKph: 30, summary: 'Windy' }
 
 export interface TripRequest { destination: string; startDate?: string; endDate?: string; days?: number }
@@ -25,7 +28,7 @@ export async function createTrip(repo: Repo, user: SessionUser, req: TripRequest
     ? await fetchCalendarRange(user.googleAccessToken, startDate, endDate, profile.tz, user.userId).catch(() => [])
     : []
   const plan = await planTrip({
-    destination: req.destination, startDate, endDate, profile, wardrobe, events, models: deps.models, geocode: deps.geocode,
+    destination: req.destination, startDate, endDate, profile, wardrobe, events, models: deps.models, geocode: deps.geocode ?? (process.env.WEATHER === 'fixture' ? fixtureGeocode : undefined),
     weatherFor: async (lat, lon, date) => (process.env.WEATHER === 'fixture' ? FIXTURE_TRIP_WEATHER : fetchWeather(lat, lon, date, profile.tz)),
   })
   const { outfits, ...trip } = plan

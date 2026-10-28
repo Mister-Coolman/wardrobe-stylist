@@ -43,7 +43,10 @@ export interface Outfit extends Candidate {
   revisionLog: RevisionEntry[]; renderMode: RenderMode; renderUrl: string | null; source: 'agent' | 'user'
 }
 
-export interface DayPlan { date: string; outfitId: string | null; note: string }
+export interface DayPlan {
+  date: string; outfitId: string | null; note: string
+  weather?: Pick<Weather, 'tempHighC' | 'tempLowC' | 'rainProbability' | 'windKph' | 'summary'>
+}
 export interface Trip {
   id: string; userId: string; destination: string; lat: number; lon: number; startDate: string; endDate: string
   dayPlans: DayPlan[]; packingList: { garmentId: string; days: number }[]; warnings: string[]

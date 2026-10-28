@@ -38,10 +38,11 @@ export async function planTrip(args: {
     const events = args.events.filter((e) => e.date === date).map((e) => ({ ...e, location: null }))
     const day = await buildDayContext({ date, profile: { ...args.profile, homeLat: lat, homeLon: lon }, calendarEvents: events, userEvents: [],
       stylist: args.models.stylist, weatherFor: (la, lo) => args.weatherFor(la, lo, date), geocode: async () => null })
-    const r = await planOutfit({ day, wardrobe, profile: args.profile, models: args.models, rules: tripRules, trip: { counts: { ...usage.counts } }, renderMode: 'none' })
+    const r = await planOutfit({ day, wardrobe, profile: args.profile, models: args.models, rules: tripRules, trip: { counts: { ...usage.counts } }, renderMode: 'none',
+      avoidOutfits: outfits.filter((o): o is OutfitDraft => !!o).map((o) => o.garmentIds) })
     const timed = day.events.filter((e) => !e.allDay).map((e) => e.title)
     if (!r.ok) {
-      dayPlans.push({ date, outfitId: null, note: `Nothing packable — missing ${r.missing.join(', ')}` })
+      dayPlans.push({ date, outfitId: null, note: `Nothing packable — missing ${r.missing.join(', ')}`, weather: day.weather })
       outfits.push(null)
       continue
     }
@@ -53,7 +54,7 @@ export async function planTrip(args: {
       })
       for (const g of over) if (!short.has(g.subcategory)) short.set(g.subcategory, shortfall(g, wardrobe, days.length, args.profile))
     }
-    dayPlans.push({ date, outfitId: null, note: timed.length ? timed.join(' · ') : r.outfit.title })
+    dayPlans.push({ date, outfitId: null, note: timed.length ? timed.join(' · ') : r.outfit.title, weather: day.weather })
     outfits.push(r.outfit)
   }
 
