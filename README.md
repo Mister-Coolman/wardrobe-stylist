@@ -105,6 +105,9 @@ npm run check:slop
 - `npm test`: unit tests for rules, the outfit loop, trips, gaps, scan, agent and repo.
 - `npm run test:e2e`: browser tests in mock mode, including the demo walkthrough in `tests/e2e/demo.spec.ts`.
 - `npm run check:slop`: a grep for the UI style guide's banned patterns.
+- Live checks, which cost money or touch your project, run only when asked:
+  - `META_CONTRACT=1 npx vitest run tests/models/real.contract.test.ts` calls each Meta model once.
+  - `SUPABASE_CONTRACT=1 npx vitest run tests/db/repo.test.ts` runs the repo tests against your Supabase project as test users `u1` and `someone-else`, deleting their rows before and after.
 
 ## Stack
 
