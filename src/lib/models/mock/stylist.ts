@@ -1,5 +1,6 @@
+import { DEFAULT_WEAR_LIMITS } from '@/lib/domain/wearLimits'
 import type { Candidate, Garment, Level, Profile } from '@/lib/domain/types'
-import { dailyRules, runRules } from '@/lib/rules/registry'
+import { dailyRules, runRules, tripRules } from '@/lib/rules/registry'
 import { RAIN_THRESHOLD } from '@/lib/rules/weather'
 import type { RuleContext } from '@/lib/rules/types'
 import { FIXTURE_GAPS } from '../fixtures/garments'
@@ -11,14 +12,15 @@ const KEYWORDS: [RegExp, Level][] = [
   [/gym|run|yoga|workout|climb|hike/i, 1],
 ]
 
-const MOCK_PROFILE = { wearLimits: {} } as Profile
+const MOCK_PROFILE = { wearLimits: DEFAULT_WEAR_LIMITS } as Profile
 const key = (ids: string[]) => [...ids].sort().join('+')
 
 /** Enumerate combos and rank them with the real rules — a stand-in for the model's judgment. */
 function ranked(input: ProposeInput, avoid: Set<string>, avoidPieces: Set<string>): { ids: string[]; bad: number }[] {
   const gs = input.wardrobe
   const by = (c: Garment['category']) => gs.filter((g) => g.category === c)
-  const ctx: RuleContext = { garments: new Map(gs.map((g) => [g.id, g])), day: input.day, profile: MOCK_PROFILE }
+  const ctx: RuleContext = { garments: new Map(gs.map((g) => [g.id, g])), day: input.day, profile: MOCK_PROFILE, trip: input.trip }
+  const rules = input.trip ? tripRules : dailyRules
   const outer = [null, ...by('outerwear')]
   const tops = by('top')
   const layers: (Garment[])[] = [...tops.map((t) => [t]),
@@ -28,10 +30,10 @@ function ranked(input: ProposeInput, avoid: Set<string>, avoidPieces: Set<string
   for (const base of bases) for (const shoe of by('shoes')) for (const o of outer) {
     const ids = [...(o ? [o.id] : []), ...base.map((g) => g.id), shoe.id]
     if (avoid.has(key(ids))) continue
-    const { violations } = runRules({ garmentIds: ids, rationale: {}, title: '' }, ctx, dailyRules)
+    const { violations, softScore } = runRules({ garmentIds: ids, rationale: {}, title: '' }, ctx, rules)
     const reused = ids.filter((id) => avoidPieces.has(id)).length
     const worn = ids.reduce((s, id) => s + (ctx.garments.get(id)!.wearCount ?? 0), 0)
-    out.push({ ids, bad: violations.length + reused, tie: worn + ids.length * 0.1 })
+    out.push({ ids, bad: violations.length + reused, tie: worn + ids.length * 0.1 - softScore * 10 })
     if (out.length > 4000) break
   }
   return out.sort((a, b) => a.bad - b.bad || a.tie - b.tie)

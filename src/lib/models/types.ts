@@ -1,5 +1,5 @@
 import type { CalendarEvent, Candidate, Garment, Level, StyleProfile } from '@/lib/domain/types'
-import type { DayContext, Violation } from '@/lib/rules/types'
+import type { DayContext, TripUsage, Violation } from '@/lib/rules/types'
 
 export class ModelError extends Error {
   constructor(public adapter: string, public kind: 'timeout' | 'bad_output' | 'http' | 'unavailable', msg: string) {
@@ -28,6 +28,8 @@ export interface ProposeInput {
   day: DayContext; wardrobe: Garment[]; count: number; extraGuidance?: string; styleProfile?: StyleProfile | null
   /** garment-id sets already shown today ("Another look") */
   avoidOutfits?: string[][]
+  /** on a trip: how often each piece has been worn so far */
+  trip?: TripUsage
 }
 export interface Stylist {
   classifyEvents(events: CalendarEvent[]): Promise<Record<string, Level>>

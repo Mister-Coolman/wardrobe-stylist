@@ -46,7 +46,7 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
   const wardrobe = input.wardrobe.filter((g) => g.confirmed)
   const rules = input.rules ?? dailyRules
   const ctx: RuleContext = { garments: new Map(wardrobe.map((g) => [g.id, g])), day: input.day, profile: input.profile, trip: input.trip }
-  const base: ProposeInput = { day: input.day, wardrobe, count: CANDIDATES, styleProfile: input.profile.styleProfile, avoidOutfits: input.avoidOutfits }
+  const base: ProposeInput = { day: input.day, wardrobe, count: CANDIDATES, styleProfile: input.profile.styleProfile, avoidOutfits: input.avoidOutfits, trip: input.trip }
   const revisionLog: RevisionEntry[] = []
   const all: Checked[] = []
   let rejected: RevisionEntry['rejected'] = []

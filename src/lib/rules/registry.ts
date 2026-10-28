@@ -1,11 +1,14 @@
 import type { Candidate } from '@/lib/domain/types'
 import { availability } from './availability'
+import { capsuleReuse } from './capsuleReuse'
 import { completeness } from './completeness'
 import { formality } from './formality'
 import type { Rule, RuleContext, RuleResult, Violation } from './types'
 import { weather } from './weather'
+import { wearLimit } from './wearLimit'
 
 export const dailyRules: Rule[] = [completeness, formality, weather, availability]
+export const tripRules: Rule[] = [...dailyRules, wearLimit, capsuleReuse]
 
 export function runRules(c: Candidate, ctx: RuleContext, rules: Rule[]): { violations: Violation[]; results: RuleResult[]; softScore: number } {
   const violations: Violation[] = []
