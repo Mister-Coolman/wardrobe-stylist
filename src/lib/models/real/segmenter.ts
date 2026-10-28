@@ -1,8 +1,10 @@
 // SAM 3.1 via /v1/responses: one image call per sampled frame with a noun-phrase prompt,
-// output parsed with @meta-sam/parser. Sightings are linked across neighbouring sampled frames by
-// box overlap; the scan pipeline's tag-based dedupe merges whatever linking misses.
+// output parsed with @meta-sam/parser. In a video only pieces pulled forward count (see isWholeGarment);
+// sightings are linked across neighbouring frames by box overlap, and the scan pipeline's tag-based
+// dedupe merges whatever linking misses. Measurements: docs/notes/sam-check.md.
 import { decodeMaskToRaster, parseImageStream, recordsOfKind } from '@meta-sam/parser'
 import sharp from 'sharp'
+import { colorDistance, type RGB } from '@/lib/scan/cutout'
 import { getStorage } from '@/lib/storage'
 import type { FrameMask, Segmenter, SegmentTrack } from '../types'
 import { ModelError, withTimeout } from '../types'
@@ -10,18 +12,34 @@ import { meta } from './client'
 
 const SAM = 'sam-3.1'
 const PROMPT = 'clothing'
-const MAX_SAMPLED = 8
-const CONCURRENCY = 4
+/** every uploaded frame of a 30–40 s section; 44 frames take about 10 s */
+const MAX_SAMPLED = 60
+const CONCURRENCY = 6
 const MAX_EDGE = 1280
 const MIN_CONFIDENCE = 0.4
 /** masks smaller than this share of the frame are buttons, tags and hangers */
 const MIN_AREA = 0.01
 const LINK_IOU = 0.5
+/** Flipping through a rail, each new piece lands where the last one was: position alone can't tell them apart. */
+/** mean-RGB distance; on a real rail 22 kept a blue tee and a navy one apart (docs/notes/sam-check.md) */
+const LINK_MAX_COLOR = 22
 const FRAME_MS = 60_000
 
 /** box as [left, top, right, bottom], each 0–1 of the frame */
 type Box = [number, number, number, number]
-export interface Sighting { frameIndex: number; box: Box; mask: FrameMask }
+/** share: the mask's area as a fraction of the frame; color: its mean RGB */
+export interface Sighting { frameIndex: number; box: Box; share: number; color: RGB; mask: FrameMask }
+
+/** On a packed rail most of what SAM finds is sleeves and the edges of hanging shirts. A piece pulled
+ *  forward to the camera fills a quarter of the frame or more and over half its width. */
+const VIDEO_MIN_SHARE = 0.25
+const VIDEO_MIN_WIDTH = 0.5
+
+/** A single photo of the whole closet keeps every piece it finds; in a video, only pieces shown whole. */
+export function isWholeGarment(s: Sighting, media: 'photo' | 'video'): boolean {
+  if (media === 'photo') return true
+  return s.share >= VIDEO_MIN_SHARE && s.box[2] - s.box[0] >= VIDEO_MIN_WIDTH
+}
 
 /** At most n indices spread evenly over count frames, first and last included. */
 export function sampleIndices(count: number, n = MAX_SAMPLED): number[] {
@@ -42,10 +60,13 @@ const shift = (b: Box, [dx, dy]: [number, number]): Box => [b[0] + dx, b[1] + dy
 const center = (b: Box): [number, number] => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]
 const sameSize = (a: Box, b: Box) => [[a[2] - a[0], b[2] - b[0]], [a[3] - a[1], b[3] - b[1]]].every(([x, y]) => x / y > 0.75 && x / y < 1.33)
 
-/** Greedy one-to-one pairs of prev → cur whose boxes overlap once prev is shifted by the offset. */
-function matchesAt(prev: Box[], cur: Box[], offset: [number, number]): [number, number][] {
+/** Greedy one-to-one pairs of prev → cur of the same color whose boxes overlap once prev is shifted by the offset. */
+function matchesAt(prev: Sighting[], cur: Sighting[], offset: [number, number]): [number, number][] {
   const pairs: [number, number, number][] = []
-  prev.forEach((p, i) => cur.forEach((c, j) => { const v = iou(shift(p, offset), c); if (v >= LINK_IOU) pairs.push([i, j, v]) }))
+  prev.forEach((p, i) => cur.forEach((c, j) => {
+    const v = iou(shift(p.box, offset), c.box)
+    if (v >= LINK_IOU && colorDistance(p.color, c.color) <= LINK_MAX_COLOR) pairs.push([i, j, v])
+  }))
   const usedP = new Set<number>(), usedC = new Set<number>(), out: [number, number][] = []
   for (const [i, j] of pairs.sort((a, b) => b[2] - a[2])) {
     if (usedP.has(i) || usedC.has(j)) continue
@@ -55,11 +76,11 @@ function matchesAt(prev: Box[], cur: Box[], offset: [number, number]): [number, 
 }
 
 /** The camera's shift between two sampled frames: the offset most pieces agree on. A pan needs two pieces to vouch for it. */
-function bestMatches(prev: Box[], cur: Box[]): [number, number][] {
+function bestMatches(prev: Sighting[], cur: Sighting[]): [number, number][] {
   let best = matchesAt(prev, cur, [0, 0])
   for (const p of prev) for (const c of cur) {
-    if (!sameSize(p, c)) continue
-    const [px, py] = center(p), [cx, cy] = center(c)
+    if (!sameSize(p.box, c.box)) continue
+    const [px, py] = center(p.box), [cx, cy] = center(c.box)
     const m = matchesAt(prev, cur, [cx - px, cy - py])
     if (m.length >= 2 && m.length > best.length) best = m
   }
@@ -69,11 +90,11 @@ function bestMatches(prev: Box[], cur: Box[]): [number, number][] {
 interface SightingTrack { trackId: string; sightings: Sighting[] }
 
 /** frames: sightings per sampled frame, in scan order. Each sighting joins the track it continues from the previous sampled frame. */
-export function linkSightings(frames: Sighting[][]): SightingTrack[] {
+function linkSightings(frames: Sighting[][]): SightingTrack[] {
   const tracks: SightingTrack[] = []
   let prev: { track: SightingTrack; s: Sighting }[] = []
   for (const sightings of frames) {
-    const pairs = new Map(bestMatches(prev.map((p) => p.s.box), sightings.map((x) => x.box)).map(([i, j]) => [j, i]))
+    const pairs = new Map(bestMatches(prev.map((p) => p.s), sightings).map(([i, j]) => [j, i]))
     prev = sightings.map((s, j) => {
       const from = pairs.get(j)
       const track = from === undefined ? (tracks.push({ trackId: `sam-${tracks.length}`, sightings: [] }), tracks.at(-1)!) : prev[from].track
@@ -86,15 +107,6 @@ export function linkSightings(frames: Sighting[][]): SightingTrack[] {
 
 export function linkTracks(frames: Sighting[][]): SegmentTrack[] {
   return linkSightings(frames).map((t) => ({ trackId: t.trackId, masks: t.sightings.map((s) => s.mask) }))
-}
-
-const EDGE = 0.01
-const touchesEdge = (b: Box) => b[0] <= EDGE || b[1] <= EDGE || b[2] >= 1 - EDGE || b[3] >= 1 - EDGE
-
-/** In a pan, pieces slide out of frame: a small track only ever seen cut off is a fragment of something seen whole elsewhere. */
-export function dropEdgeFragments<T extends SightingTrack>(tracks: T[], sampledFrames: number): T[] {
-  if (sampledFrames < 2) return tracks
-  return tracks.filter((t) => t.sightings.some((s) => !touchesEdge(s.box) || (s.box[2] - s.box[0]) * (s.box[3] - s.box[1]) >= 0.5))
 }
 
 /** SAM returns a box-sized raster; cutout() wants a full-frame greyscale mask. */
@@ -111,10 +123,24 @@ export async function maskPng(raster: Uint8Array, size: { width: number; height:
   return sharp(out, { raw: { width: W, height: H, channels: 1 } }).toColourspace('b-w').png().toBuffer()
 }
 
+/** Mean RGB of the frame under a box-sized mask. */
+export function meanColor(rgb: Buffer, W: number, raster: Uint8Array, rw: number, at: { left: number; top: number }): RGB {
+  const sum: RGB = [0, 0, 0]
+  let n = 0
+  for (let i = 0; i < raster.length; i++) {
+    if (!raster[i]) continue
+    const p = ((at.top + Math.floor(i / rw)) * W + at.left + (i % rw)) * 3
+    if (p + 2 >= rgb.length) continue
+    sum[0] += rgb[p]; sum[1] += rgb[p + 1]; sum[2] += rgb[p + 2]; n++
+  }
+  return n ? [sum[0] / n, sum[1] / n, sum[2] / n] : sum
+}
+
 async function segmentFrame(url: string, frameIndex: number): Promise<Sighting[]> {
   const img = await sharp(await getStorage().read(url)).rotate().resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 }).toBuffer({ resolveWithObject: true })
   const { width: W, height: H } = img.info
+  const rgb = await sharp(img.data).removeAlpha().raw().toBuffer()
   const run = async () => {
     const stream = await meta().responses.create({
       model: SAM, stream: true, metadata: { include_confidence: 'true' },
@@ -135,7 +161,7 @@ async function segmentFrame(url: string, frameIndex: number): Promise<Sighting[]
     if (area < MIN_AREA * W * H) continue
     const b = m.bounds
     out.push({
-      frameIndex, box: [b.left / W, b.top / H, b.right / W, b.bottom / H],
+      frameIndex, box: [b.left / W, b.top / H, b.right / W, b.bottom / H], share: area / (W * H), color: meanColor(rgb, W, raster, m.mask.width, b),
       mask: { frameIndex, area, bbox: [b.left, b.top, b.right - b.left, b.bottom - b.top], maskPng: await maskPng(raster, m.mask, b, W, H) },
     })
   }
@@ -157,8 +183,8 @@ export const realSegmenter: Segmenter = {
     if (picks.length && failures === picks.length) {
       throw lastError instanceof ModelError ? lastError : new ModelError('segmenter', 'http', lastError instanceof Error ? lastError.message : 'every frame failed')
     }
+    const media = frameUrls.length > 1 ? 'video' : 'photo'
     // a failed frame breaks the chain rather than shifting neighbours together
-    return dropEdgeFragments(linkSightings(results.map((r) => r ?? [])), picks.length)
-      .map((t) => ({ trackId: t.trackId, masks: t.sightings.map((s) => s.mask) }))
+    return linkTracks(results.map((r) => (r ?? []).filter((s) => isWholeGarment(s, media))))
   },
 }

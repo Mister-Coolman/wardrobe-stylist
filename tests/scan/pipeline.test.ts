@@ -15,16 +15,19 @@ const mask = async (x: number, y: number, w: number, h: number, W = 100, H = 100
   sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="black"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white"/></svg>`)).greyscale().png().toBuffer()
 const frame = () => sharp({ create: { width: 100, height: 100, channels: 3, background: { r: 120, g: 90, b: 60 } } }).jpeg().toBuffer()
 
-async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS) {
+/** left half red, right half blue */
+const twoColorFrame = () => sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="50" height="100" fill="#c02020"/><rect x="50" width="50" height="100" fill="#2030c0"/></svg>')).jpeg().toBuffer()
+
+async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?: Buffer; sameItem?: Tagger['sameItem'] } = {}) {
   const repo = createLocalRepo(join(mkdtempSync(join(tmpdir(), 'scan-')), 'db.json'))
   const storage = createMemoryStorage()
-  const frameUrl = await storage.put('u/frames/0.jpg', await frame(), 'image/jpeg')
+  const frameUrl = await storage.put('u/frames/0.jpg', opts.frame ?? await frame(), 'image/jpeg')
   const job = await repo.createScanJob('u1', frameUrl, [frameUrl])
   const segmenter: Segmenter = { segment: async () => tracks }
   const byUrl = new Map<string, number>()
   const tagger: Tagger = {
     tag: async (u) => { if (!byUrl.has(u)) byUrl.set(u, byUrl.size); return tags[byUrl.get(u)!] },
-    sameItem: async (a, b) => a === b,
+    sameItem: opts.sameItem ?? (async (a, b) => a === b),
   }
   const models = { ...getModels(), segmenter, tagger }
   return { repo, storage, job, models }
@@ -48,6 +51,27 @@ describe('runScan', () => {
     const twinTees = [FIXTURE_TAGS[7], FIXTURE_TAGS[7]]
     const { repo, storage, job, models } = await setup([await track('a', [0, 0, 40, 40]), await track('b', [50, 50, 40, 40])], twinTees)
     await runScan(job.id, { userId: 'u1', models, repo, storage })
+    expect(await repo.listGarments('u1')).toHaveLength(2)
+  })
+
+  test('the same piece tagged in different words in two frames is still compared, and merged', async () => {
+    const top = FIXTURE_TAGS.find((t) => t.category === 'top')!
+    const asked: string[][] = []
+    const { repo, storage, job, models } = await setup([await track('a', [0, 0, 40, 40]), await track('b', [50, 50, 40, 40])],
+      [{ ...top, subcategory: 'tshirt', colors: ['white'] }, { ...top, subcategory: 'other', colors: ['cream'] }],
+      { sameItem: async (a, b) => { asked.push([a, b]); return true } })
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    expect(asked).toHaveLength(1)
+    expect(await repo.listGarments('u1')).toHaveLength(1)
+  })
+
+  test('pieces of clearly different colors are never compared', async () => {
+    const top = FIXTURE_TAGS.find((t) => t.category === 'top')!
+    let asked = 0
+    const { repo, storage, job, models } = await setup([await track('red', [5, 10, 40, 80]), await track('blue', [55, 10, 40, 80])],
+      [top, top], { frame: await twoColorFrame(), sameItem: async () => { asked++; return true } })
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    expect(asked).toBe(0)
     expect(await repo.listGarments('u1')).toHaveLength(2)
   })
 

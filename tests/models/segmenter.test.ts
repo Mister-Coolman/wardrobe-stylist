@@ -1,8 +1,9 @@
 import sharp from 'sharp'
 import { expect, test } from 'vitest'
-import { dropEdgeFragments, iou, linkTracks, maskPng, sampleIndices, type Sighting } from '@/lib/models/real/segmenter'
+import { iou, isWholeGarment, linkTracks, maskPng, meanColor, sampleIndices, type Sighting } from '@/lib/models/real/segmenter'
 
 test('sampleIndices spreads at most n frames across the scan, first and last included', () => {
+  expect(sampleIndices(44)).toHaveLength(44)      // a 40 s video's frames all go to SAM
   expect(sampleIndices(1, 8)).toEqual([0])
   expect(sampleIndices(5, 8)).toEqual([0, 1, 2, 3, 4])
   const s = sampleIndices(120, 8)
@@ -18,7 +19,8 @@ test('iou of normalized boxes', () => {
   expect(iou([0, 0, 0.5, 0.5], [0.25, 0, 0.75, 0.5])).toBeCloseTo(1 / 3)
 })
 
-const s = (frameIndex: number, box: Sighting['box']): Sighting => ({ frameIndex, box, mask: { frameIndex, maskPng: Buffer.alloc(0), area: 1, bbox: [0, 0, 1, 1] } })
+const GREY: [number, number, number] = [128, 128, 128]
+const s = (frameIndex: number, box: Sighting['box'], share = 0.3, color = GREY): Sighting => ({ frameIndex, box, share, color, mask: { frameIndex, maskPng: Buffer.alloc(0), area: 1, bbox: [0, 0, 1, 1] } })
 
 test('linkTracks joins overlapping sightings in neighbouring sampled frames, and nothing else', () => {
   const tracks = linkTracks([
@@ -65,9 +67,28 @@ test('linkTracks does not invent a pan from a single unrelated pair', () => {
   expect(tracks).toHaveLength(2)
 })
 
-test('dropEdgeFragments: in a multi-frame scan, a small piece only ever seen cut off at the edge is dropped', () => {
-  const edge = s(0, [0, 0.4, 0.1, 0.6]), whole = s(1, [0.3, 0.3, 0.5, 0.6]), big = s(0, [0, 0, 0.8, 1])
-  const t = (id: string, ...xs: Sighting[]) => ({ trackId: id, sightings: xs })
-  expect(dropEdgeFragments([t('a', edge), t('b', edge, whole), t('c', big)], 2).map((x) => x.trackId)).toEqual(['b', 'c'])
-  expect(dropEdgeFragments([t('a', edge)], 1).map((x) => x.trackId)).toEqual(['a'])
+test('isWholeGarment: in a video, only a piece pulled forward (big and wide) counts; a photo keeps everything', () => {
+  // measured on a real packed rail: front-on shirts cover 25–55% of the frame and over half its width
+  const pulled = s(0, [0.1, 0.05, 0.85, 0.95], 0.42)
+  const sleeve = s(0, [0.5, 0.1, 0.9, 0.8], 0.2)                // a sleeve or a half-hidden shirt
+  const sliver = s(0, [0.3, 0, 0.62, 1], 0.27)                  // tall edge of a hanging shirt: narrow
+  expect([pulled, sleeve, sliver].map((x) => isWholeGarment(x, 'video'))).toEqual([true, false, false])
+  // one wide photo of a closet: each piece is small, and that's fine
+  expect(isWholeGarment(s(0, [0.05, 0.05, 0.27, 0.43], 0.05), 'photo')).toBe(true)
+})
+
+test('linkTracks: flipping through, the next piece lands in the same spot, so color decides', () => {
+  const front: Sighting['box'] = [0.1, 0.05, 0.85, 0.95]
+  const tracks = linkTracks([
+    [s(0, front, 0.4, [40, 60, 150])],      // blue tee
+    [s(1, front, 0.4, [45, 62, 140])],      // the same tee, light shifted a little
+    [s(2, front, 0.4, [30, 32, 40])],       // the navy one pulled forward next
+  ])
+  expect(tracks.map((t) => t.masks.map((m) => m.frameIndex))).toEqual([[0, 1], [2]])
+})
+
+test('meanColor averages the frame only under the mask', () => {
+  // 3×1 frame: red, green, blue; a 2×1 mask at x=1 covering just the blue pixel
+  const rgb = Buffer.from([255, 0, 0, 0, 255, 0, 0, 0, 255])
+  expect(meanColor(rgb, 3, new Uint8Array([0, 1]), 2, { left: 1, top: 0 })).toEqual([0, 0, 255])
 })

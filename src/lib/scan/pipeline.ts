@@ -5,7 +5,7 @@ import type { GarmentTags, Models } from '@/lib/models/types'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 import type { StorageLike } from '@/lib/storage'
 import { userKey } from '@/lib/storage'
-import { bestFrame, cutout, sharpnessOf } from './cutout'
+import { bestFrame, colorDistance, cutout, cutoutColor, sharpnessOf, type RGB } from './cutout'
 
 export const NO_CLOTHES = 'No clothes found — try holding each piece up to the camera.'
 export const SCAN_FAILED = 'The scan stopped partway — try again, or take a single photo.'
@@ -14,7 +14,10 @@ const UNTAGGED: GarmentTags = { name: 'Untagged piece', category: 'top', subcate
 
 const TAG_CONCURRENCY = 4
 
-interface Found { tags: GarmentTags; cutoutUrl: string; photoUrl: string; area: number }
+interface Found { tags: GarmentTags; cutoutUrl: string; photoUrl: string; area: number; color: RGB }
+
+/** Cutouts further apart than this in mean color are different pieces; nearer ones go to the tagger to decide. */
+const DEDUPE_MAX_COLOR = 45
 
 /** segment → best frame → cutout → tag → dedupe → insert unconfirmed. Never throws; failures land on the job. */
 export async function runScan(jobId: string, deps: { userId: string; models: Pick<Models, 'segmenter' | 'tagger'>; repo: Repo; storage: StorageLike }): Promise<void> {
@@ -39,7 +42,7 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
       try { png = await cutout(await frameAt(best.frameIndex), best.maskPng) } catch { continue }
       const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
       const cutoutUrl = await storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
-      cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], area: best.area })
+      cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], area: best.area, color: await cutoutColor(png) })
     }
     // tag a few at a time; results keep scan order
     const found: Found[] = new Array(cut.length)
@@ -75,17 +78,14 @@ async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promis
   return UNTAGGED
 }
 
-/** Same category + subcategory + a shared color → ask the tagger; duplicates keep the larger mask. */
+/** Same category and close in color → ask the tagger (against every such piece at once); duplicates keep the larger mask.
+ *  Color comes from the pixels, not the tags: one shirt can be tagged "white" in one frame and "cream" in the next. */
 async function dedupe(found: Found[], models: Pick<Models, 'tagger'>): Promise<Found[]> {
   const kept: Found[] = []
   for (const f of [...found].sort((a, b) => b.area - a.area)) {
-    let dup = false
-    for (const k of kept) {
-      const similar = k.tags.category === f.tags.category && k.tags.subcategory === f.tags.subcategory &&
-        k.tags.colors.some((c) => f.tags.colors.includes(c))
-      if (similar && (await models.tagger.sameItem(k.cutoutUrl, f.cutoutUrl).catch(() => false))) { dup = true; break }
-    }
-    if (!dup) kept.push(f)
+    const candidates = kept.filter((k) => k.tags.category === f.tags.category && colorDistance(k.color, f.color) <= DEDUPE_MAX_COLOR)
+    const same = await Promise.all(candidates.map((k) => models.tagger.sameItem(k.cutoutUrl, f.cutoutUrl).catch(() => false)))
+    if (!same.some(Boolean)) kept.push(f)
   }
   // keep scan order for the review grid
   return found.filter((f) => kept.includes(f))

@@ -31,3 +31,18 @@ export async function cutout(frame: Buffer, mask: Buffer): Promise<Buffer> {
   }
   return sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).extract({ left, top, width, height }).png().toBuffer()
 }
+
+export type RGB = [number, number, number]
+export const colorDistance = (a: RGB, b: RGB) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+/** Mean color of a cutout's opaque pixels. */
+export async function cutoutColor(png: Buffer): Promise<RGB> {
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const sum: RGB = [0, 0, 0]
+  let n = 0
+  for (let i = 0; i < info.width * info.height; i++) {
+    if (data[i * 4 + 3] < 128) continue
+    sum[0] += data[i * 4]; sum[1] += data[i * 4 + 1]; sum[2] += data[i * 4 + 2]; n++
+  }
+  return n ? [sum[0] / n, sum[1] / n, sum[2] / n] : sum
+}

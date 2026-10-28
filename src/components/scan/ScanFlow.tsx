@@ -11,9 +11,9 @@ import { samplePhoto, sampleVideo } from './FrameSampler'
 
 type Mode = 'sweep' | 'holdup' | 'photo'
 const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: 'sweep', label: 'Sweep', hint: 'Open the closet and pan slowly from one end to the other. Thirty seconds is plenty.' },
+  { id: 'sweep', label: 'Flip through', hint: 'One rail or shelf at a time. Pull each piece forward so it fills the screen for a second, then the next. About thirty seconds a section; scan again for the next.' },
   { id: 'holdup', label: 'Hold-up', hint: 'Hold each piece up to the camera for a second, then the next. Best for folded clothes.' },
-  { id: 'photo', label: 'Photo', hint: 'One photo of a rail or a few pieces laid flat. Quickest way to try it.' },
+  { id: 'photo', label: 'Photo', hint: 'One photo of a few pieces laid flat or hung apart. Quickest way to try it.' },
 ]
 type Phase = { kind: 'pick' } | { kind: 'preparing'; done: number; total: number } | { kind: 'uploading' }
   | { kind: 'scanning'; job: ScanJob | null } | { kind: 'review'; garments: Garment[] } | { kind: 'error'; message: string }
@@ -134,12 +134,12 @@ export function ScanFlow() {
         <div className="mt-10 flex flex-col gap-3">
           {phase.kind === 'error' && <p role="alert" className="text-error">{phase.message}</p>}
           <label className="press inline-flex h-12 w-[calc(100%-72px)] cursor-pointer items-center justify-center rounded-control bg-accent font-semibold text-paper focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
-            {mode === 'photo' ? 'Take a photo' : 'Record the closet'}
+            {mode === 'photo' ? 'Take a photo' : 'Record a section'}
             <input type="file" className="sr-only" aria-label={mode === 'photo' ? 'Closet photo' : 'Closet video'}
               accept={mode === 'photo' ? 'image/*' : 'video/*'} capture="environment"
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) start(f) }} />
           </label>
-          <p className="text-sm text-ink-muted">Pieces come back as cutouts for you to check. Video stays private to your account.</p>
+          <p className="text-sm text-ink-muted">Pieces come back as cutouts for you to check. Only still frames are uploaded; the video stays on your phone.</p>
         </div>
       )}
     </>
