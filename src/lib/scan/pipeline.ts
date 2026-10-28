@@ -12,6 +12,8 @@ export const SCAN_FAILED = 'The scan stopped partway — try again, or take a si
 
 const UNTAGGED: GarmentTags = { name: 'Untagged piece', category: 'top', subcategory: 'other', colors: [], pattern: 'solid', formality: 2, warmth: 2, rainSafe: true, tags: [] }
 
+const TAG_CONCURRENCY = 4
+
 interface Found { tags: GarmentTags; cutoutUrl: string; photoUrl: string; area: number }
 
 /** segment → best frame → cutout → tag → dedupe → insert unconfirmed. Never throws; failures land on the job. */
@@ -30,16 +32,25 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
     for (const i of new Set(tracks.flatMap((t) => t.masks.map((m) => m.frameIndex)))) sharpness.set(i, await sharpnessOf(await frameAt(i)))
 
     await repo.updateScanJob(jobId, { status: 'tagging', foundCount: tracks.length })
-    const found: Found[] = []
-    for (const [n, track] of tracks.entries()) {
+    const cut: Omit<Found, 'tags'>[] = []
+    for (const track of tracks) {
       const best = bestFrame(track, (i) => sharpness.get(i) ?? 1)
       let png: Buffer
       try { png = await cutout(await frameAt(best.frameIndex), best.maskPng) } catch { continue }
       const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
       const cutoutUrl = await storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
-      found.push({ tags: await tagWithRetry(models, cutoutUrl), cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], area: best.area })
-      await repo.updateScanJob(jobId, { progress: (n + 1) / tracks.length })
+      cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], area: best.area })
     }
+    // tag a few at a time; results keep scan order
+    const found: Found[] = new Array(cut.length)
+    let next = 0, done = 0
+    await Promise.all(Array.from({ length: Math.min(TAG_CONCURRENCY, cut.length) }, async () => {
+      while (next < cut.length) {
+        const k = next++
+        found[k] = { ...cut[k], tags: await tagWithRetry(models, cut[k].cutoutUrl) }
+        await repo.updateScanJob(jobId, { progress: ++done / cut.length })
+      }
+    }))
 
     const kept = await dedupe(found, models)
     if (!kept.length) { await repo.updateScanJob(jobId, { status: 'failed', error: NO_CLOTHES }); return }

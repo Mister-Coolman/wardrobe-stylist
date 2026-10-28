@@ -1,5 +1,6 @@
 // Live Meta Model API contract tests. They cost money, so they only run with META_CONTRACT=1:
 //   META_CONTRACT=1 npx vitest run tests/models/real.contract.test.ts
+import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { realModels } from '@/lib/models/real'
 import { CandidateSchema, GarmentTagsSchema } from '@/lib/models/schemas'
@@ -12,6 +13,14 @@ const fixtureWardrobe = wardrobe.map((g) => ({ ...g, cutoutUrl: `/fixtures/garme
 
 d('Meta Model API contract', () => {
   const m = realModels()
+
+  test('segmenter: SAM 3.1 finds each garment in a closet photo', async () => {
+    const { getStorage } = await import('@/lib/storage')
+    const url = await getStorage().put('contract/closet.jpg', readFileSync('tests/fixtures/closet.jpg'), 'image/jpeg')
+    const tracks = await m.segmenter.segment([url])
+    expect(tracks.length).toBeGreaterThanOrEqual(5)
+    for (const t of tracks) expect(t.masks[0].area).toBeGreaterThan(0)
+  }, 120_000)
 
   test('tagger: a cutout comes back as schema-valid garment tags', async () => {
     const tags = await m.tagger.tag('/fixtures/garments/navy-wool-overcoat.svg')

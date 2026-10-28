@@ -22,7 +22,7 @@ export const realTagger: Tagger = {
     if (a === b) return true
     const r = await structured('tagger', z.object({ same: z.boolean() }), 'same_item', [
       { role: 'user', content: [
-        { type: 'text', text: 'Are these two cutouts the same physical garment seen twice (not just similar items)? Answer same=true only if you are confident.' },
+        { type: 'text', text: 'Both cutouts come from one scan of a single closet, so the same piece often appears more than once. Is this the same garment seen twice? Answer same=true when color, cut and details all match; same=false when anything differs (another color, length, collar, pattern).' },
         { type: 'image_url', image_url: { url: await toDataUrl(a, 512) } },
         { type: 'image_url', image_url: { url: await toDataUrl(b, 512) } },
       ] },

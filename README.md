@@ -29,12 +29,12 @@ Built for Meta's Global AI Developer Hackathon (track: **Build for Your World**)
 
 | Job | Model | Where |
 |---|---|---|
-| Find each garment in a closet video or photo | **SAM 3.1** (`sam-3-1`) | `src/lib/models/*/segmenter` |
+| Find each garment in a closet video or photo | **SAM 3.1** (`sam-3.1`) | `segmenter` |
 | Tag cutouts; propose and revise outfits; classify events; chat agent; product search | **Muse Spark** (`muse-spark-1.3`) | `tagger`, `stylist`, `chat` |
-| Try-on and flat-lay renders | **Muse Image** | `renderer` |
+| Try-on and flat-lay renders | **Muse Image** (`muse-image-1.0`) | `renderer` |
 | Voice input | **Muse Voice Transcribe** (`muse-voice-transcribe-1.0`) | `transcriber` |
 
-Every model call goes through one of these adapters in `src/lib/models/`. Each adapter has a real implementation and a mock, selected with `MODELS=real|mock`. The mocks need no keys and make no network calls, so the whole app runs offline. The real Meta adapters are the next task, once API credits arrive.
+Every model call goes through one of these adapters in `src/lib/models/`. Each adapter has a real implementation and a mock, selected with `MODELS=real|mock`. The mocks need no keys and make no network calls, so the whole app runs offline. Notes on how SAM is called and how it did on test scans: [`docs/notes/sam-check.md`](docs/notes/sam-check.md).
 
 ## How an outfit gets picked
 
