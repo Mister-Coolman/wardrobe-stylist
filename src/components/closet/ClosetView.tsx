@@ -39,7 +39,7 @@ export function ClosetView({ initial, limits, canSeed }: { initial: Garment[]; l
   const filters: [Filter, string][] = [['all', 'All'], ['tops', 'Tops'], ['bottoms', 'Bottoms'], ['shoes', 'Shoes'], ['outer', 'Outerwear'], ['laundry', laundry ? `Laundry ${laundry}` : 'Laundry']]
   return (
     <>
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between pr-12">
         <h1 className="display text-3xl">Closet</h1>
         <span className="text-sm text-ink-muted tnum">{plural(garments.length, 'piece')}</span>
       </div>
