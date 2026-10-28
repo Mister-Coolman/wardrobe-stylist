@@ -1,19 +1,10 @@
-'use client'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 
+/** Plain form POST so it works before hydration. */
 export function DevLogin({ email }: { email: string }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
   return (
-    <Button variant="secondary" loading={busy} onClick={async () => {
-      setBusy(true)
-      await fetch('/api/dev-login', { method: 'POST' })
-      router.push('/today')
-      router.refresh()
-    }}>
-      Continue as {email}
-    </Button>
+    <form method="post" action="/api/dev-login">
+      <Button variant="secondary" className="w-full" type="submit">Continue as {email}</Button>
+    </form>
   )
 }

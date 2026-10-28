@@ -21,7 +21,7 @@
   :root:not(.light) {
     --paper: #151412;
     --paper-raised: #1E1C19;
-    --studio: #24221E;
+    --studio: #D6D0C4;
     --ink: #ECE7DD;
     --ink-muted: #A39C90;
     --ink-faint: #6F695F;
@@ -38,7 +38,7 @@
 :root.dark {
   --paper: #151412;
   --paper-raised: #1E1C19;
-  --studio: #24221E;
+  --studio: #D6D0C4;
   --ink: #ECE7DD;
   --ink-muted: #A39C90;
   --ink-faint: #6F695F;
@@ -131,3 +131,19 @@ body {
   .spinner { animation-duration: 2s; }
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+dialog.sheet[open] { animation: sheet-up 360ms var(--ease-out) both; }
+dialog.sheet::backdrop { animation: fade-in 220ms var(--ease-out) both; }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { dialog.sheet[open] { animation: fade-in 220ms linear both; } }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-size: 13px; font-weight: 500; color: var(--ink-muted); }
+.input {
+  min-height: 44px; padding: 10px 12px; font-size: 16px; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 6px;
+}
+.input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

@@ -1,0 +1,139 @@
+'use client'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import type { Garment, ScanJob } from '@/lib/domain/types'
+import { FORMALITY, plural } from '@/lib/ui/format'
+import { Button } from '@/components/ui/Button'
+import { GarmentEditor } from '@/components/closet/GarmentEditor'
+import { GarmentTile } from '@/components/closet/GarmentTile'
+import { samplePhoto, sampleVideo } from './FrameSampler'
+
+type Mode = 'sweep' | 'holdup' | 'photo'
+const MODES: { id: Mode; label: string; hint: string }[] = [
+  { id: 'sweep', label: 'Sweep', hint: 'Open the closet and pan slowly from one end to the other. Thirty seconds is plenty.' },
+  { id: 'holdup', label: 'Hold-up', hint: 'Hold each piece up to the camera for a second, then the next. Best for folded clothes.' },
+  { id: 'photo', label: 'Photo', hint: 'One photo of a rail or a few pieces laid flat. Quickest way to try it.' },
+]
+type Phase = { kind: 'pick' } | { kind: 'preparing'; done: number; total: number } | { kind: 'uploading' }
+  | { kind: 'scanning'; job: ScanJob | null } | { kind: 'review'; garments: Garment[] } | { kind: 'error'; message: string }
+
+export function ScanFlow() {
+  const router = useRouter()
+  const [mode, setMode] = useState<Mode>('sweep')
+  const [phase, setPhase] = useState<Phase>({ kind: 'pick' })
+  const [editing, setEditing] = useState<Garment | null>(null)
+  const [adding, setAdding] = useState(false)
+  const jobId = useRef<string | null>(null)
+
+  async function start(file: File) {
+    try {
+      let frames: Blob[]
+      if (mode === 'photo') frames = [await samplePhoto(file)]
+      else { setPhase({ kind: 'preparing', done: 0, total: 1 }); frames = await sampleVideo(file, (done, total) => setPhase({ kind: 'preparing', done, total })) }
+      setPhase({ kind: 'uploading' })
+      const form = new FormData()
+      frames.forEach((f, i) => form.append('frames', f, `frame-${i}.jpg`))
+      if (mode !== 'photo') form.append('video', file)
+      const res = await fetch('/api/scan', { method: 'POST', body: form })
+      if (!res.ok) throw new Error('Upload failed — check your connection and try again.')
+      jobId.current = (await res.json()).id
+      setPhase({ kind: 'scanning', job: null })
+    } catch (e) {
+      setPhase({ kind: 'error', message: e instanceof Error ? e.message : 'Something went wrong. Try again.' })
+    }
+  }
+
+  useEffect(() => {
+    if (phase.kind !== 'scanning') return
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/scan/${jobId.current}`).catch(() => null)
+      if (!res?.ok) return setPhase({ kind: 'scanning', job: phase.job })
+      const { job, garments } = (await res.json()) as { job: ScanJob; garments: Garment[] }
+      if (job.status === 'review') setPhase({ kind: 'review', garments })
+      else if (job.status === 'failed') setPhase({ kind: 'error', message: job.error ?? 'The scan failed. Try again.' })
+      else setPhase({ kind: 'scanning', job })
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [phase])
+
+  async function addAll(garments: Garment[]) {
+    setAdding(true)
+    const res = await fetch('/api/garments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmIds: garments.map((g) => g.id) }) })
+    if (!res.ok) { setAdding(false); return setPhase({ kind: 'error', message: 'Couldn’t add those pieces. Try again.' }) }
+    router.push('/closet')
+    router.refresh()
+  }
+
+  if (phase.kind === 'review') {
+    const gs = phase.garments
+    const next = (list: Garment[], afterId: string) => { const i = gs.findIndex((g) => g.id === afterId); return list.find((g, j) => j >= i && g.id !== afterId) ?? null }
+    return (
+      <>
+        <p className="label text-ink-muted">Closet scan</p>
+        <h1 className="display mt-2 text-3xl">{gs.length ? `Found ${plural(gs.length, 'piece')}` : 'All sorted'}</h1>
+        <p className="mt-2 text-ink-muted">Nothing is used until you add it. Tap a piece to fix its name or details.</p>
+        <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6">
+          {gs.map((g, i) => <li key={g.id}><GarmentTile garment={g} meta={FORMALITY[g.formality]} index={i} settle onOpen={() => setEditing(g)} /></li>)}
+        </ul>
+        <div className="sticky bottom-[calc(80px+env(safe-area-inset-bottom))] mt-8 flex flex-col items-stretch gap-2 bg-paper pt-3">
+          {gs.length ? (
+            <>
+              <Button className="w-[calc(100%-72px)]" loading={adding} onClick={() => addAll(gs)}>{adding ? 'Adding…' : `Add ${plural(gs.length, 'piece')}`}</Button>
+              <Button variant="tertiary" className="self-start" onClick={() => setEditing(gs[0])}>Review one by one</Button>
+            </>
+          ) : <Button className="w-[calc(100%-72px)]" onClick={() => { router.push('/closet'); router.refresh() }}>Go to closet</Button>}
+        </div>
+        <GarmentEditor reviewing garment={editing} onClose={() => setEditing(null)}
+          onSaved={(g) => { const rest = gs.filter((x) => x.id !== g.id); setPhase({ kind: 'review', garments: rest }); setEditing(next(rest, g.id)) }}
+          onDeleted={(id) => { const rest = gs.filter((x) => x.id !== id); setPhase({ kind: 'review', garments: rest }); setEditing(next(rest, id)) }} />
+      </>
+    )
+  }
+
+  const busy = phase.kind === 'preparing' || phase.kind === 'uploading' || phase.kind === 'scanning'
+  const job = phase.kind === 'scanning' ? phase.job : null
+  const line =
+    phase.kind === 'preparing' ? `Reading the video… ${phase.done}/${phase.total}` :
+    phase.kind === 'uploading' ? 'Uploading…' :
+    !job || job.status === 'queued' ? 'Starting the scan…' :
+    job.status === 'segmenting' ? 'Looking for clothes…' :
+    `Found ${job.foundCount} · tagging ${Math.min(job.foundCount, Math.round(job.progress * job.foundCount) + 1)}/${job.foundCount}…`
+  const current = MODES.find((m) => m.id === mode)!
+
+  return (
+    <>
+      <p className="label text-ink-muted">Closet scan</p>
+      <h1 className="display mt-2 text-3xl">Film your closet once.</h1>
+      <div role="tablist" aria-label="Capture mode" className="mt-6 flex border-b border-rule">
+        {MODES.map((m) => (
+          <button key={m.id} role="tab" aria-selected={mode === m.id} disabled={busy} onClick={() => setMode(m.id)}
+            className={`min-h-11 flex-1 border-b-2 text-base ${mode === m.id ? 'border-ink font-semibold' : 'border-transparent text-ink-muted'}`}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-4 max-w-[48ch] text-ink-muted">{current.hint}</p>
+
+      {busy ? (
+        <div className="mt-10" aria-live="polite">
+          <div className="h-px w-full bg-rule"><div className="h-px bg-ink transition-[width] duration-200" style={{ width: `${job ? Math.round(job.progress * 100) : 8}%` }} /></div>
+          <p className="mt-3 text-sm text-ink-muted tnum">{line}</p>
+          <ul className="mt-6 grid grid-cols-3 gap-3" aria-hidden>
+            {Array.from({ length: Math.max(3, job?.foundCount ?? 3) }, (_, i) => <li key={i} className="aspect-square bg-studio opacity-60" />)}
+          </ul>
+        </div>
+      ) : (
+        <div className="mt-10 flex flex-col gap-3">
+          {phase.kind === 'error' && <p role="alert" className="text-error">{phase.message}</p>}
+          <label className="press inline-flex h-12 w-[calc(100%-72px)] cursor-pointer items-center justify-center rounded-control bg-accent font-semibold text-paper focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+            {mode === 'photo' ? 'Take a photo' : 'Record the closet'}
+            <input type="file" className="sr-only" aria-label={mode === 'photo' ? 'Closet photo' : 'Closet video'}
+              accept={mode === 'photo' ? 'image/*' : 'video/*'} capture="environment"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) start(f) }} />
+          </label>
+          <p className="text-sm text-ink-muted">Pieces come back as cutouts for you to check. Video stays private to your account.</p>
+        </div>
+      )}
+    </>
+  )
+}
