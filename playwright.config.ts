@@ -13,6 +13,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { MODELS: 'mock', DEV_USER_EMAIL: 'e2e@example.com', LOCAL_DB_PATH: '.data/e2e-db.json', MEDIA_DIR: '.data/e2e-media', SUPABASE_URL: '', WEATHER: 'fixture', NEXT_PUBLIC_FEATURE_POLL: '1', NEXT_PUBLIC_FEATURE_STYLE: '1' },
+    env: { NEXT_DIST_DIR: '.next/e2e', MODELS: 'mock', DEV_USER_EMAIL: 'e2e@example.com', LOCAL_DB_PATH: '.data/e2e-db.json', MEDIA_DIR: '.data/e2e-media', SUPABASE_URL: '', WEATHER: 'fixture', NEXT_PUBLIC_FEATURE_POLL: '1', NEXT_PUBLIC_FEATURE_STYLE: '1' },
   },
 })
