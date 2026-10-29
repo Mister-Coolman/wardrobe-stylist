@@ -83,6 +83,20 @@ Two new clips filmed with the new instructions, polos and tees, run through thei
 | Hold-up | 6–7 | 6 | 6 | 0 | 0 | 0–1 (a navy polo seen only as a close-up, possibly the black polo) | 25 s |
 | Flip through | ~9 | 12 | 9 | 3 (beige tee, red polo, cream polo) | 0 | 0 | 60 s |
 
+## Preprocessing and mask cleanup (28 Oct)
+
+**Frame preprocessing before SAM doesn't help.** The flip-through frames went through the full live pipeline three ways: as recorded, contrast-stretched (`normalise`, 1st–99th percentile), and CLAHE (64 px tiles, slope 3).
+
+| Frames | SAM tracks | Cards in review | Notes |
+|---|---|---|---|
+| As recorded | 18 | 11 | missed the black long-sleeve polo this time (found on the identical run the day before) |
+| Contrast-stretched | 19 | 12 | the same pieces; cutouts a little brighter |
+| CLAHE | 18 | 12 | the same pieces, plus the brown polo again, tagged "brown wool overcoat" |
+
+The spread is within run-to-run noise, and SAM already copes with a dim rail. Not shipped.
+
+**Mask cleanup is shipped (`cleanMask`):** holes up to 2% of the piece are filled, and parts under 1% of the largest are dropped. On the flip-through black graphic tee this removed every pinhole (1.8% of its area), including the white blob by the logo. It can't fix a piece cut in two by an arm: those gaps open to the edge and the fragments are real shirt. That is a recording problem, so the scan screen now lists numbered recording tips for each video mode (hanger at arm's length, whole piece with wall around it, still for a second, then out of frame, plain light wall for dark clothes, about 10 pieces a clip).
+
 ## Open
 
 - The fixtures are flat illustrations. On them the tagger sometimes misreads shoes (a loafer as a "beret", a boot as "socks"), and SAM missed the loafer (confidence 0.52 when it was found) in one pan crop. A real phone video of a closet rail is still the test that matters.

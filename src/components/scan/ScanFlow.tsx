@@ -10,10 +10,23 @@ import { isStalled, thinToBudget, UPLOAD_BUDGET } from '@/lib/ui/scanUpload'
 import { samplePhoto, sampleVideo } from './FrameSampler'
 
 type Mode = 'sweep' | 'holdup' | 'photo'
-const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: 'holdup', label: 'Hold-up', hint: 'Take each piece off the hanger and hold it up against a door or wall for a second, the whole piece in frame, then the next. Cleanest cutouts.' },
-  { id: 'sweep', label: 'Flip through', hint: 'Quicker, rougher cutouts. One rail or shelf at a time: pull each piece forward so it fills the screen for a second, then the next. Scan again for the next section.' },
-  { id: 'photo', label: 'Photo', hint: 'One photo of a few pieces laid flat or hung apart. Quickest way to try it.' },
+/** Each tip fixes a failure measured on real closet clips (docs/notes/sam-check.md): an arm or a neighbour across
+ *  the piece splits it in two, a piece filling the frame is dropped, movement blurs it, dim light muddies it. */
+const MODES: { id: Mode; label: string; hint: string; tips: string[] }[] = [
+  { id: 'holdup', label: 'Hold-up', hint: 'Cleanest cutouts. Show one piece at a time against a door or wall.', tips: [
+    'Hold it up by the hanger at arm’s length, so your hand stays off the fabric.',
+    'Get the whole piece in frame with some wall around it — not right up to the camera.',
+    'Hold still for a second or two, then move it out of frame before the next one.',
+    'A plain wall in even light works best. Show dark clothes against a light wall.',
+    'About 10 pieces per recording; record again for the next 10.',
+  ] },
+  { id: 'sweep', label: 'Flip through', hint: 'Quicker, rougher cutouts. Film one rail or shelf at a time, right where it hangs.', tips: [
+    'Pull each piece forward, clear of its neighbours, so it fills most of the screen.',
+    'Keep your arm to the side — anything across the piece cuts it in two.',
+    'Hold for a second, then push it back and pull the next one.',
+    'Turn on every light you can; a dim rail gives muddy cutouts.',
+  ] },
+  { id: 'photo', label: 'Photo', hint: 'One photo of a few pieces laid flat or hung apart. Quickest way to try it.', tips: [] },
 ]
 type Phase = { kind: 'pick' } | { kind: 'preparing'; done: number; total: number } | { kind: 'uploading' }
   | { kind: 'scanning'; job: ScanJob | null } | { kind: 'review'; garments: Garment[] } | { kind: 'error'; message: string }
@@ -121,6 +134,13 @@ export function ScanFlow() {
         ))}
       </div>
       <p className="mt-4 max-w-[48ch] text-ink-muted">{current.hint}</p>
+      {current.tips.length > 0 && !busy && (
+        <ol aria-label="How to record" className="mt-4 flex max-w-[48ch] flex-col gap-2 text-sm">
+          {current.tips.map((t, i) => (
+            <li key={t} className="flex gap-3"><span aria-hidden className="tnum text-ink-muted">{i + 1}</span><span>{t}</span></li>
+          ))}
+        </ol>
+      )}
 
       {busy ? (
         <div className="mt-10" aria-live="polite">
