@@ -18,11 +18,13 @@ const frame = () => sharp({ create: { width: 100, height: 100, channels: 3, back
 /** left half red, right half blue */
 const twoColorFrame = () => sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="50" height="100" fill="#c02020"/><rect x="50" width="50" height="100" fill="#2030c0"/></svg>')).jpeg().toBuffer()
 
-async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?: Buffer; sameItem?: Tagger['sameItem'] } = {}) {
+/** opts.frames: how many video frames the job has (each the same image); default one photo */
+async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?: Buffer; frames?: number; sameItem?: Tagger['sameItem'] } = {}) {
   const repo = createLocalRepo(join(mkdtempSync(join(tmpdir(), 'scan-')), 'db.json'))
   const storage = createMemoryStorage()
-  const frameUrl = await storage.put('u/frames/0.jpg', opts.frame ?? await frame(), 'image/jpeg')
-  const job = await repo.createScanJob('u1', frameUrl, [frameUrl])
+  const image = opts.frame ?? await frame()
+  const frameUrls = await Promise.all(Array.from({ length: opts.frames ?? 1 }, (_, i) => storage.put(`u/frames/${i}.jpg`, image, 'image/jpeg')))
+  const job = await repo.createScanJob('u1', frameUrls[0], frameUrls)
   const segmenter: Segmenter = { segment: async () => tracks }
   const byUrl = new Map<string, number>()
   const tagger: Tagger = {
@@ -32,8 +34,8 @@ async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?
   const models = { ...getModels(), segmenter, tagger }
   return { repo, storage, job, models }
 }
-const track = async (id: string, r: [number, number, number, number]): Promise<SegmentTrack> =>
-  ({ trackId: id, masks: [{ frameIndex: 0, maskPng: await mask(...r), area: r[2] * r[3], bbox: r }] })
+const track = async (id: string, r: [number, number, number, number], frames = [0]): Promise<SegmentTrack> =>
+  ({ trackId: id, masks: await Promise.all(frames.map(async (frameIndex) => ({ frameIndex, maskPng: await mask(...r), area: r[2] * r[3], bbox: r }))) })
 
 describe('runScan', () => {
   test('3 garments with one filmed twice → 3 unconfirmed garments, job in review', async () => {
@@ -73,6 +75,32 @@ describe('runScan', () => {
     await runScan(job.id, { userId: 'u1', models, repo, storage })
     expect(asked).toBe(0)
     expect(await repo.listGarments('u1')).toHaveLength(2)
+  })
+
+  test('two lookalike pieces with an empty stretch between them are different pieces, and never compared', async () => {
+    // measured on a hold-up clip: two green Nautica polos hung one after the other, the door empty for 4 frames between
+    let asked = 0
+    const { repo, storage, job, models } = await setup([await track('green', [10, 10, 60, 80], [19, 20, 21]), await track('green2', [10, 10, 60, 80], [26, 27, 28])],
+      FIXTURE_TAGS, { frames: 30, sameItem: async () => { asked++; return true } })
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    expect(asked).toBe(0)
+    expect(await repo.listGarments('u1')).toHaveLength(2)
+  })
+
+  test('a piece picked up again right after itself is compared even when blur changed its colour, and the view held longest kept', async () => {
+    // measured: a red polo caught half in frame, close and blurred, for one frame while being hung; then hanging still
+    // for four. The blurred half covered more of the frame, so area would keep the wrong one.
+    const top = FIXTURE_TAGS.find((t) => t.category === 'top')!
+    const checks = Array.from({ length: 50 }, (_, y) => Array.from({ length: 25 }, (_, x) => ((x + y) % 2 ? `<rect x="${x * 2}" y="${y * 2}" width="2" height="2" fill="#ff8080"/>` : '')).join('')).join('')
+    const crispLeftBlurredRight = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="50" height="100" fill="#c02020"/>${checks}<rect x="50" width="50" height="100" fill="#e04060"/></svg>`)).jpeg({ quality: 100 }).toBuffer()
+    const asked: string[][] = []
+    const { repo, storage, job, models } = await setup([await track('blurred half', [50, 0, 50, 100], [33]), await track('hanging', [5, 10, 40, 80], [34, 35, 36])],
+      [top, { ...top, category: 'outerwear' }], { frame: crispLeftBlurredRight, frames: 40, sameItem: async (a, b) => { asked.push([a, b]); return true } })
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    expect(asked).toHaveLength(1)
+    const gs = await repo.listGarments('u1')
+    expect(gs).toHaveLength(1)
+    expect(gs[0].photoUrl).not.toBe(job.frameUrls[33])
   })
 
   test('review shows only the pieces from this scan, not unconfirmed ones left by an earlier scan', async () => {

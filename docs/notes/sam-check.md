@@ -111,6 +111,27 @@ Rerun on both clips:
 
 Tried and not shipped: shadow softening (side light on a rail flattened into painted-looking fabric) and straightening (hold-up pieces are already upright).
 
+## Hold-up on a door hook, and a time-aware duplicate check (29 Oct)
+
+`holdup2.MOV`, 36 s, 38 frames: each shirt hung on a hook on the door, then taken down, with the door empty for a few frames between shirts. The clip showed 5 shirts: a blue tee, a blue polo, two green polos and a red polo.
+
+First run: 4 of 5. Both problems came from the duplicate check:
+- **Two green polos merged.** They were separate tracks, at frames 19–21 and 26–29. Their mean colours were 19.5 apart (under 45), and `sameItem` wrongly answered yes for two Nautica polos in different greens.
+- **The red polo appeared twice.** One card was the real shirt; the other was half the shirt, blurred, caught for one frame while it was being hung. The blur shifted its colour (60 apart), so the two were never compared.
+
+The new rule is in `mightBeSame`:
+- Pieces seen in the same frames are compared as before, gated by category and colour.
+- Pieces seen one after another are compared only when the second starts within 2 frames of the first ending, and then whatever their colours.
+- When two are merged, the one seen in the most frames is kept. Area × sharpness was tried first and kept the blurred half: it covered 449k px against 312k, and plain red fabric scores about as sharp blurred as not (3.4 against 3.6–4.8).
+
+| Clip | Before | After |
+|---|---|---|
+| holdup2 | 5 cards: 4 pieces, 1 junk, 1 missed | 5 of 5, all clean |
+| holdup | 6 clean | 6 clean |
+| Flip through | 12 cards (9 distinct + 3 duplicates) | 11 cards: the red duplicate is gone; a dark green probably appears twice, and one black polo may be a duplicate |
+
+Blue still gets named black (navy under warm light, against a wood door). One tap fixes it in review.
+
 ## Open
 
 - The fixtures are flat illustrations. On them the tagger sometimes misreads shoes (a loafer as a "beret", a boot as "socks"), and SAM missed the loafer (confidence 0.52 when it was found) in one pan crop. A real phone video of a closet rail is still the test that matters.

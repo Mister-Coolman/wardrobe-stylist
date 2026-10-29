@@ -14,10 +14,17 @@ const UNTAGGED: GarmentTags = { name: 'Untagged piece', category: 'top', subcate
 
 const TAG_CONCURRENCY = 4
 
-interface Found { tags: GarmentTags; cutoutUrl: string; photoUrl: string; area: number; color: RGB }
+/** first, last: the frames the piece was seen in, as indices into the scan's frames */
+/** seen: frames the piece was found in; quality: its best frame's area × sharpness, as bestFrame ranks them */
+interface Found { tags: GarmentTags; cutoutUrl: string; photoUrl: string; seen: number; quality: number; color: RGB; first: number; last: number }
 
 /** Cutouts further apart than this in mean color are different pieces; nearer ones go to the tagger to decide. */
 const DEDUPE_MAX_COLOR = 45
+/** In a video, pieces are shown one after another. A piece picked up again within this many frames of the last one
+ *  (a tracking break, a blurred frame while it's hung) may be the same and is always checked; after a longer stretch
+ *  it's the next piece, however alike. Measured on a hold-up clip: 4 empty frames between two green polos, none
+ *  between a red polo's blurred half and the red polo (docs/notes/sam-check.md). */
+const DEDUPE_MAX_GAP = 2
 
 /** segment → best frame → cutout → tag → dedupe → insert unconfirmed. Never throws; failures land on the job. */
 export async function runScan(jobId: string, deps: { userId: string; models: Pick<Models, 'segmenter' | 'tagger'>; repo: Repo; storage: StorageLike }): Promise<void> {
@@ -40,12 +47,13 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
     const hangers = new Map(await Promise.all([...new Set(bests.map((b) => b.frameIndex))].map(async (i) =>
       [i, await models.segmenter.hangers?.(job.frameUrls[i]).catch(() => []) ?? []] as const)))
     const cut: Omit<Found, 'tags'>[] = []
-    for (const best of bests) {
+    for (const [t, best] of bests.entries()) {
+      const seen = tracks[t].masks.map((m) => m.frameIndex)
       let png: Buffer
       try { png = await cutout(await frameAt(best.frameIndex), best.maskPng, { minus: hangers.get(best.frameIndex) }) } catch { continue }
       const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
       const cutoutUrl = await storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
-      cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], area: best.area, color: await cutoutColor(png) })
+      cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], seen: seen.length, quality: best.area * (sharpness.get(best) ?? 1), color: await cutoutColor(png), first: Math.min(...seen), last: Math.max(...seen) })
     }
     // tag a few at a time; results keep scan order
     const found: Found[] = new Array(cut.length)
@@ -89,10 +97,19 @@ async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promis
 
 /** Same category and close in color → ask the tagger (against every such piece at once); duplicates keep the larger mask.
  *  Color comes from the pixels, not the tags: one shirt can be tagged "white" in one frame and "cream" in the next. */
+/** Seen in the same frames (a photo, or two masks of one piece): compare when category and color are close.
+ *  Seen one after the other: compare only when the second follows the first closely, whatever its color. */
+function mightBeSame(a: Found, b: Found): boolean {
+  if (a.first <= b.last && b.first <= a.last) return a.tags.category === b.tags.category && colorDistance(a.color, b.color) <= DEDUPE_MAX_COLOR
+  return Math.max(a.first, b.first) - Math.min(a.last, b.last) <= DEDUPE_MAX_GAP
+}
+
 async function dedupe(found: Found[], models: Pick<Models, 'tagger'>): Promise<Found[]> {
   const kept: Found[] = []
-  for (const f of [...found].sort((a, b) => b.area - a.area)) {
-    const candidates = kept.filter((k) => k.tags.category === f.tags.category && colorDistance(k.color, f.color) <= DEDUPE_MAX_COLOR)
+  // the view held longest wins, then the clearest. Measured: a red polo caught blurred and half in frame while being hung
+  // covered more of the frame than the polo hanging still, and plain fabric scores about as sharp blurred as not.
+  for (const f of [...found].sort((a, b) => b.seen - a.seen || b.quality - a.quality)) {
+    const candidates = kept.filter((k) => mightBeSame(k, f))
     const same = await Promise.all(candidates.map((k) => models.tagger.sameItem(k.cutoutUrl, f.cutoutUrl).catch(() => false)))
     if (!same.some(Boolean)) kept.push(f)
   }
