@@ -12,6 +12,7 @@ import { meta } from './client'
 
 const SAM = 'sam-3.1'
 const PROMPT = 'clothing'
+const HANGER_PROMPT = 'hanger'
 /** every uploaded frame of a 30–40 s section; 44 frames take about 10 s */
 const MAX_SAMPLED = 60
 const CONCURRENCY = 6
@@ -142,39 +143,53 @@ export function meanColor(rgb: Buffer, W: number, raster: Uint8Array, rw: number
   return n ? [sum[0] / n, sum[1] / n, sum[2] / n] : sum
 }
 
-async function segmentFrame(url: string, frameIndex: number): Promise<Sighting[]> {
+interface SamFrame { W: number; H: number; rgb: Buffer; masks: { raster: Uint8Array; size: { width: number; height: number }; bounds: { left: number; top: number; right: number; bottom: number }; area: number }[] }
+
+/** One SAM image call: the frame as SAM saw it (upright, ≤ MAX_EDGE) and its confident masks, box-sized. */
+async function samFrame(url: string, prompt: string): Promise<SamFrame> {
   const img = await sharp(await getStorage().read(url)).rotate().resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 }).toBuffer({ resolveWithObject: true })
   const { width: W, height: H } = img.info
-  const rgb = await sharp(img.data).removeAlpha().raw().toBuffer()
   const run = async () => {
     const stream = await meta().responses.create({
       model: SAM, stream: true, metadata: { include_confidence: 'true' },
       input: [{ role: 'user', content: [
-        { type: 'input_text', text: PROMPT },
+        { type: 'input_text', text: prompt },
         { type: 'input_image', image_url: `data:image/jpeg;base64,${img.data.toString('base64')}`, detail: 'auto' },
       ] }],
     })
     return parseImageStream(stream).finalResult
   }
   const result = await withTimeout(run(), FRAME_MS, 'segmenter')
-  if (result.outcome.status !== 'completed') throw new ModelError('segmenter', 'bad_output', `frame ${frameIndex}: ${JSON.stringify(result.outcome)}`)
-  const out: Sighting[] = []
-  for (const m of recordsOfKind(result.records, 'mask')) {
-    if (m.confidence !== undefined && m.confidence < MIN_CONFIDENCE) continue
+  if (result.outcome.status !== 'completed') throw new ModelError('segmenter', 'bad_output', `${url}: ${JSON.stringify(result.outcome)}`)
+  const masks = recordsOfKind(result.records, 'mask').filter((m) => m.confidence === undefined || m.confidence >= MIN_CONFIDENCE).map((m) => {
     const raster = decodeMaskToRaster(m.mask)
-    const area = raster.reduce((s, v) => s + v, 0)
+    return { raster, size: m.mask, bounds: m.bounds, area: raster.reduce((s, v) => s + v, 0) }
+  })
+  return { W, H, rgb: await sharp(img.data).removeAlpha().raw().toBuffer(), masks }
+}
+
+async function segmentFrame(url: string, frameIndex: number): Promise<Sighting[]> {
+  const { W, H, rgb, masks } = await samFrame(url, PROMPT)
+  const out: Sighting[] = []
+  for (const { raster, size, bounds: b, area } of masks) {
     if (area < MIN_AREA * W * H) continue
-    const b = m.bounds
     out.push({
-      frameIndex, box: [b.left / W, b.top / H, b.right / W, b.bottom / H], share: area / (W * H), color: meanColor(rgb, W, raster, m.mask.width, b),
-      mask: { frameIndex, area, bbox: [b.left, b.top, b.right - b.left, b.bottom - b.top], maskPng: await maskPng(raster, m.mask, b, W, H) },
+      frameIndex, box: [b.left / W, b.top / H, b.right / W, b.bottom / H], share: area / (W * H), color: meanColor(rgb, W, raster, size.width, b),
+      mask: { frameIndex, area, bbox: [b.left, b.top, b.right - b.left, b.bottom - b.top], maskPng: await maskPng(raster, size, b, W, H) },
     })
   }
   return out
 }
 
+/** Hangers in one frame as full-frame masks. SAM's "clothing" mask takes in the hanger it hangs from. */
+export async function hangerMasks(url: string): Promise<Buffer[]> {
+  const { W, H, masks } = await samFrame(url, HANGER_PROMPT)
+  return Promise.all(masks.map((m) => maskPng(m.raster, m.size, m.bounds, W, H)))
+}
+
 export const realSegmenter: Segmenter = {
+  hangers: hangerMasks,
   async segment(frameUrls) {
     const picks = sampleIndices(frameUrls.length)
     const results: (Sighting[] | null)[] = new Array(picks.length).fill(null)

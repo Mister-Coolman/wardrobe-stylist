@@ -19,7 +19,11 @@ export function withTimeout<T>(p: Promise<T>, ms: number, adapter: string): Prom
 
 export interface FrameMask { frameIndex: number; maskPng: Buffer; area: number; bbox: [number, number, number, number] }
 export interface SegmentTrack { trackId: string; masks: FrameMask[] }
-export interface Segmenter { segment(frameUrls: string[]): Promise<SegmentTrack[]> }
+export interface Segmenter {
+  segment(frameUrls: string[]): Promise<SegmentTrack[]>
+  /** Full-frame masks of hangers in one frame, to cut out of a garment's mask. */
+  hangers?(frameUrl: string): Promise<Buffer[]>
+}
 
 export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags'>
 export interface Tagger { tag(cutoutUrl: string): Promise<GarmentTags>; sameItem(a: string, b: string): Promise<boolean> }

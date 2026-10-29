@@ -86,6 +86,15 @@ describe('runScan', () => {
     expect(piecesFromScan(job, unconfirmed).map((g) => g.photoUrl)).toEqual([job.frameUrls[0]])
   })
 
+  test('hangers are asked for once per chosen frame, and a failed hanger call still makes the cutout', async () => {
+    const { repo, storage, job, models } = await setup([await track('a', [0, 0, 40, 40]), await track('b', [50, 50, 40, 40])])
+    const asked: string[] = []
+    models.segmenter = { ...models.segmenter, hangers: async (u) => { asked.push(u); throw new Error('sam down') } }
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    expect(asked).toEqual([job.frameUrls[0]])
+    expect(await repo.listGarments('u1')).toHaveLength(2)
+  })
+
   test('zero tracks → failed with the retry message', async () => {
     const { repo, storage, job, models } = await setup([])
     await runScan(job.id, { userId: 'u1', models, repo, storage })
@@ -164,3 +173,56 @@ describe('cleanMask', () => {
     expect(transparentInside).toHaveLength(0)
   })
 })
+
+describe('cutout finishing', () => {
+  const svg = (body: string, W = 100, H = 100) => sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${body}</svg>`))
+  const rgbaOf = async (png: Buffer) => sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  /** mean RGB of fully opaque pixels */
+  const opaqueMean = async (png: Buffer) => {
+    const { data, info } = await rgbaOf(png)
+    const sum = [0, 0, 0]; let n = 0
+    for (let i = 0; i < info.width * info.height; i++) if (data[i * 4 + 3] === 255) { sum[0] += data[i * 4]; sum[1] += data[i * 4 + 1]; sum[2] += data[i * 4 + 2]; n++ }
+    return sum.map((v) => v / n)
+  }
+  const piece = (fill: string, wall: string) => svg(`<rect width="100" height="100" fill="${wall}"/><rect x="30" y="20" width="40" height="60" fill="${fill}"/>`).jpeg({ quality: 100 }).toBuffer()
+  const pieceMask = () => mask(30, 20, 40, 60)
+
+  test('a hanger mask is cut out, and the hook above the collar goes with it', async () => {
+    const shirtAndHook = await svg('<rect width="100" height="100" fill="black"/><rect x="20" y="30" width="60" height="60" fill="white"/><rect x="47" y="5" width="6" height="25" fill="white"/>').greyscale().png().toBuffer()
+    const hanger = await svg('<rect width="100" height="100" fill="black"/><rect x="40" y="0" width="20" height="31" fill="white"/>').greyscale().png().toBuffer()
+    const withHook = await sharp(await cutout(await frame(), shirtAndHook)).metadata()
+    const without = await sharp(await cutout(await frame(), shirtAndHook, { minus: [hanger] })).metadata()
+    expect(withHook.height).toBeGreaterThan(85)
+    expect(without.height).toBeLessThan(72) // 60 px of shirt + padding
+  })
+
+  test('edges are softened: the outline is partly transparent, the inside fully opaque', async () => {
+    const { data, info } = await rgbaOf(await cutout(await frame(), await pieceMask()))
+    const alphas = Array.from({ length: info.width * info.height }, (_, i) => data[i * 4 + 3])
+    expect(alphas.some((a) => a > 0 && a < 255)).toBe(true)
+    expect(alphas[Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)]).toBe(255)
+  })
+
+  test('a warm cast measured on a plain light wall is taken out of the piece', async () => {
+    // a grey shirt on a white wall, both under orange lamp light
+    const [r, g, b] = await opaqueMean(await cutout(await piece('rgb(120,100,75)', 'rgb(235,200,150)'), await pieceMask()))
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThan(12)
+  })
+
+  test('a dim room is brightened, judged by the wall, and a black piece stays dark', async () => {
+    const before = (await opaqueMean(await cutout(await piece('rgb(90,90,90)', 'rgb(200,200,200)'), await pieceMask())))[0]
+    const dim = (await opaqueMean(await cutout(await piece('rgb(45,45,45)', 'rgb(110,110,110)'), await pieceMask())))[0]
+    expect(dim).toBeGreaterThan(60)
+    expect(dim).toBeLessThan(before + 15)
+    const black = (await opaqueMean(await cutout(await piece('rgb(15,15,15)', 'rgb(110,110,110)'), await pieceMask())))[0]
+    expect(black).toBeLessThan(40)
+  })
+
+  test('busy or colourful surroundings (a wood door, the next shirt) leave the colours alone', async () => {
+    const stripes = Array.from({ length: 25 }, (_, i) => `<rect x="${i * 4}" width="2" height="100" fill="${i % 2 ? '#3b2412' : '#c8945a'}"/>`).join('')
+    const busy = await svg(`<rect width="100" height="100" fill="#7a4a24"/>${stripes}<rect x="30" y="20" width="40" height="60" fill="rgb(150,40,40)"/>`).jpeg({ quality: 100 }).toBuffer()
+    const [r, g, b] = await opaqueMean(await cutout(busy, await pieceMask()))
+    expect([r, g, b].map((v) => Math.round(v / 10))).toEqual([15, 4, 4])
+  })
+})
+

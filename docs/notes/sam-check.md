@@ -97,6 +97,20 @@ The spread is within run-to-run noise, and SAM already copes with a dim rail. No
 
 **Mask cleanup is shipped (`cleanMask`):** holes up to 2% of the piece are filled, and parts under 1% of the largest are dropped. On the flip-through black graphic tee this removed every pinhole (1.8% of its area), including the white blob by the logo. It can't fix a piece cut in two by an arm: those gaps open to the edge and the fragments are real shirt. That is a recording problem, so the scan screen now lists numbered recording tips for each video mode (hanger at arm's length, whole piece with wall around it, still for a second, then out of frame, plain light wall for dark clothes, about 10 pieces a clip).
 
+## Cutout finishing (29 Oct)
+
+Each cutout now gets three finishing steps:
+- **Hangers subtracted.** SAM's "clothing" mask takes in the hanger. A second SAM call per chosen frame, with the prompt "hanger", is subtracted, and the hook left above the collar is dropped as a speck. "Clothes hanger", "coat hanger" and "plastic hanger" found exactly the same hangers.
+- **Softened edge.** The mask is pulled in one pixel and feathered, so no rim of wall or door colour shows.
+- **Light corrected against the wall.** The band 1–4% of the frame outside the piece is the reference. Only a plain, light, near-neutral band counts: luma ≥ 60, spread ≤ 15%, saturation ≤ 0.4. Per-channel gains make that band neutral grey, and a dim room is lifted up to 1.8× with highlights rolled off above 200. A wood door or the next shirt fails the check, and then nothing changes.
+
+Rerun on both clips:
+- **Flip-through:** hooks gone from most pieces, pinholes filled, no door-coloured rims. 11 cards this run against 12 before; the black Izod polo was missed, which is within the run-to-run spread seen above.
+- **Hold-up:** unchanged. SAM found no hanger in 4 of 6 chosen frames, including the beige one inside the black pique polo's collar, and the dark closet background never qualifies as a wall.
+- **The light correction is untested on a real clip;** it needs a recording against a light wall.
+
+Tried and not shipped: shadow softening (side light on a rail flattened into painted-looking fabric) and straightening (hold-up pieces are already upright).
+
 ## Open
 
 - The fixtures are flat illustrations. On them the tagger sometimes misreads shoes (a loafer as a "beret", a boot as "socks"), and SAM missed the loafer (confidence 0.52 when it was found) in one pan crop. A real phone video of a closet rail is still the test that matters.

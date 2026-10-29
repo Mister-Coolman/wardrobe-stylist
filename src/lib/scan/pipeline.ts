@@ -35,11 +35,14 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
     for (const m of tracks.flatMap((t) => t.masks)) sharpness.set(m, await sharpnessUnder(await frameAt(m.frameIndex), m.maskPng))
 
     await repo.updateScanJob(jobId, { status: 'tagging', foundCount: tracks.length })
+    const bests = tracks.map((t) => bestFrame(t, (m) => sharpness.get(m) ?? 1))
+    // hangers in each chosen frame, fetched together; without them the cutout just keeps its hook
+    const hangers = new Map(await Promise.all([...new Set(bests.map((b) => b.frameIndex))].map(async (i) =>
+      [i, await models.segmenter.hangers?.(job.frameUrls[i]).catch(() => []) ?? []] as const)))
     const cut: Omit<Found, 'tags'>[] = []
-    for (const track of tracks) {
-      const best = bestFrame(track, (m) => sharpness.get(m) ?? 1)
+    for (const best of bests) {
       let png: Buffer
-      try { png = await cutout(await frameAt(best.frameIndex), best.maskPng) } catch { continue }
+      try { png = await cutout(await frameAt(best.frameIndex), best.maskPng, { minus: hangers.get(best.frameIndex) }) } catch { continue }
       const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
       const cutoutUrl = await storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
       cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], area: best.area, color: await cutoutColor(png) })
