@@ -1,14 +1,8 @@
 'use client'
-import { useState } from 'react'
-import { ChatSheet } from './ChatSheet'
+import { usePathname } from 'next/navigation'
 import { MicButton } from './MicButton'
 
+/** The mic on every page opens the stylist thread; on the thread itself the composer has its own. */
 export function ChatLauncher() {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <MicButton onPress={() => setOpen(true)} />
-      <ChatSheet open={open} onClose={() => setOpen(false)} />
-    </>
-  )
+  return usePathname().startsWith('/stylist') ? null : <MicButton />
 }

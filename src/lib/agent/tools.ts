@@ -180,7 +180,7 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       ctx.cards.push({ kind: 'listings', products })
       ctx.lastListings = products
       return { count: products.length, listings: products.map((p, i) => `${i + 1}. ${p.title} (${[p.store, p.price].filter(Boolean).join(', ')})`),
-        summary: `Found ${products.length} listings. Reply with a number to add one.` }
+        summary: `Found ${products.length === 1 ? 'one listing' : `${products.length} listings`}. Pick one to add it, or reply with its number.` }
     }
     case 'add_listing': {
       const p = ctx.lastListings?.[(a.number as number) - 1]

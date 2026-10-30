@@ -1,9 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CoatHanger, Suitcase, Sun } from '@phosphor-icons/react'
+import { ChatCircle, CoatHanger, Suitcase, Sun } from '@phosphor-icons/react'
 
 const ITEMS = [
+  { href: '/stylist', label: 'Stylist', Icon: ChatCircle },
   { href: '/today', label: 'Today', Icon: Sun },
   { href: '/closet', label: 'Closet', Icon: CoatHanger },
   { href: '/trips', label: 'Trips', Icon: Suitcase },

@@ -5,7 +5,7 @@ import { GoogleSignIn } from './GoogleSignIn'
 
 export default async function Onboarding({ searchParams }: { searchParams: Promise<{ connect?: string }> }) {
   const { connect } = await searchParams
-  if ((await currentUser()) && !connect) redirect('/today')
+  if ((await currentUser()) && !connect) redirect('/stylist')
   const dev = devLoginEmail()
   return (
     <main className="mx-auto flex min-h-dvh max-w-[560px] flex-col justify-end gap-8 px-5 pb-[calc(48px+env(safe-area-inset-bottom))]">
