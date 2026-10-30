@@ -42,3 +42,11 @@ test('temperatures show in °F for a US home by default, and switch to °C in se
   await page.goto('/today')
   await expect(page.getByTestId('day-strip')).toContainText(/14°\s→\s9°/, { timeout: 30_000 })
 })
+
+test('Settings gives a WhatsApp link code and the number to send it to', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Get a code' }).click()
+  await expect(page.getByLabel(/^Code \d( \d){5}$/)).toBeVisible()
+  await expect(page.getByText('Send this code to +1 555 0100 on WhatsApp within 10 minutes.', { exact: false })).toBeVisible()
+})

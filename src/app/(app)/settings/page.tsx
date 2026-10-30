@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
   const u = await requireUser()
-  return <SettingsView profile={await profileFor(await getRepo(), u.userId)} email={u.email} />
+  return <SettingsView profile={await profileFor(await getRepo(), u.userId)} email={u.email} whatsapp={!!process.env.WHATSAPP_TOKEN} />
 }

@@ -6,12 +6,13 @@ import { PersonPhoto } from './PersonPhoto'
 import { RenderModeChoice } from './RenderModeChoice'
 import { StyleProfileEditor } from './StyleProfileEditor'
 import { StylistNotes } from './StylistNotes'
+import { WhatsappLink } from './WhatsappLink'
 import { unitFor } from '@/lib/ui/temperature'
 import { WearLimitsEditor } from './WearLimitsEditor'
 
 type Status = { section: string; text: string; error?: boolean } | null
 
-export function SettingsView({ profile, email }: { profile: Profile; email: string }) {
+export function SettingsView({ profile, email, whatsapp = false }: { profile: Profile; email: string; whatsapp?: boolean }) {
   const [p, setP] = useState(profile)
   const [city, setCity] = useState(profile.homeCity)
   const [status, setStatus] = useState<Status>(null)
@@ -69,6 +70,13 @@ export function SettingsView({ profile, email }: { profile: Profile; email: stri
         <h2 className="label text-ink-muted">Try-on photo</h2>
         <div className="mt-3"><PersonPhoto url={p.personPhotoUrl} onChange={(u) => setP({ ...p, personPhotoUrl: u })} /></div>
       </section>
+
+      {whatsapp && (
+        <section className="mt-10">
+          <h2 className="label text-ink-muted">Text your stylist on WhatsApp</h2>
+          <div className="mt-3"><WhatsappLink linked={!!p.whatsappId} /></div>
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="label text-ink-muted">What your stylist knows</h2>
