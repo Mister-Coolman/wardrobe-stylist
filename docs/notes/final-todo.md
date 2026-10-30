@@ -5,6 +5,11 @@ Submission: Wed 4 Nov, 9 PM.
 ## Must do
 
 - [x] **Deploy to Vercel:** https://wardrobe-stylist-tan.vercel.app (CLI deploys; the GitHub connection failed).
+- [ ] **Stylist thread live** (built 30 Oct; plan `docs/superpowers/plans/2026-10-30-stylist-thread.md`):
+  - [ ] Run `supabase/migrations/0004_messages.sql` in the Supabase SQL editor before deploying.
+  - [ ] Add `CRON_SECRET` to Vercel (morning note at 11:00 UTC).
+  - [ ] Deploy, then on the phone: a look, a swap by swipe-reply, "spilled coffee on …", a store add, a photo add, "match this look".
+  - [ ] WhatsApp: follow `docs/notes/whatsapp-setup.md`, link, text "drinks after work", check the same messages show in the app.
 - [ ] **Check calendar live** on the deployed URL: events come in and set the day's dress code. Google sign-in works there.
 - [ ] **Full phone rehearsal** on the deployed app: onboarding → hold-up scan → Online add → Today → trip. The scan and review have been run on the phone.
 - [ ] **Record the 3-minute demo video** using Hold-up.
