@@ -28,11 +28,9 @@ export async function renderOutfit(outfit: Outfit, pieces: Garment[], profile: P
   if (mode === 'none') return { renderMode: 'none', renderUrl: null }
   let note: string | undefined
   if (mode === 'tryon' && !profile.personPhotoUrl) { mode = 'flatlay'; note = TRYON_NEEDS_PHOTO }
-  const order = ['outerwear', 'top', 'onepiece', 'bottom', 'shoes', 'accessory']
-  const cutoutUrls = [...pieces].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category)).map((g) => g.cutoutUrl)
   try {
     if (opts.forceFail) throw new Error('forced render failure')
-    const { url } = await withTimeout(getModels().renderer.render({ mode, cutoutUrls, personPhotoUrl: profile.personPhotoUrl ?? undefined }), RENDER_TIMEOUT_MS, 'renderer')
+    const { url } = await withTimeout(getModels().renderer.render({ mode, pieces, personPhotoUrl: profile.personPhotoUrl ?? undefined }), RENDER_TIMEOUT_MS, 'renderer')
     return { renderMode: mode, renderUrl: await persistRender(profile.userId, url), note }
   } catch (e) {
     console.error('render failed', e)

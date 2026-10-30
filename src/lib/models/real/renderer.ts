@@ -1,18 +1,40 @@
 // muse-image-1.0 via POST /v1/images/edits (JSON body, 1–10 input images, b64_json out).
+// The model redraws what it's given, so the prompt names every image with its piece: a colour left only to the
+// picture drifts (heather blue came back grey), and a fixed layout line asking for shoes made it invent a pair.
 import { RENDER_TIMEOUT_MS } from '../types'
-import type { Renderer } from '../types'
+import { renderOrder } from '../types'
+import type { Renderer, RenderPiece } from '../types'
 import { metaFetch, toDataUrl } from './client'
 
-const FLATLAY = 'Arrange exactly these clothing pieces as an overhead flat-lay photograph on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows, nothing else in frame. Outerwear top left, top beside it, bottoms below, shoes at the bottom. Keep every garment’s colour, fabric and details exactly as shown. No people, no text, no props.'
-const TRYON = 'The first image is a person. Dress this exact person in exactly the clothing pieces shown in the other images, keeping their face, body, pose and the garments’ colours and details unchanged. Full-length photo, plain light background, natural light. No text.'
+// colours come from the name: the owner may have corrected it ("Heather blue…") while the tagged colours still say grey
+const describe = (p: RenderPiece) => [p.category, p.fit && `${p.fit} fit`, p.brand, p.tags.join(', ')].filter(Boolean).join('; ')
+
+function layout(pieces: RenderPiece[]): string {
+  const has = (c: string) => pieces.some((p) => p.category === c)
+  const rows = [has('outerwear') && 'outerwear top left', (has('top') || has('onepiece')) && `${has('outerwear') ? 'tops beside it' : 'tops across the top'}`,
+    has('bottom') && 'bottoms below, laid straight with the legs pointing down', has('shoes') && 'shoes at the bottom', has('accessory') && 'accessories to the side']
+  return `Lay them out: ${rows.filter(Boolean).join(', ')}.${has('shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'}`
+}
+
+/** The instruction for one outfit. In a try-on the person is image 1, so the pieces start at image 2. */
+export function renderPrompt(mode: 'tryon' | 'flatlay', pieces: RenderPiece[]): string {
+  const first = mode === 'tryon' ? 2 : 1
+  const list = renderOrder(pieces).map((p, i) => `Image ${i + first}: ${p.name} (${describe(p)})`).join('\n')
+  const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Where a name gives a colour, show that colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything.'
+  if (mode === 'tryon') {
+    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}\n${keep}${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. No text.`
+  }
+  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Nothing else in frame: no people, props, text or extra clothing.`
+}
 
 export const realRenderer: Renderer = {
-  async render({ mode, cutoutUrls, personPhotoUrl }) {
-    const sources = mode === 'tryon' && personPhotoUrl ? [personPhotoUrl, ...cutoutUrls] : cutoutUrls
-    const images = await Promise.all(sources.slice(0, 10).map(async (u) => ({ image_url: await toDataUrl(u, 768) })))
+  async render({ mode, pieces, personPhotoUrl }) {
+    const ordered = renderOrder(pieces)
+    const sources = mode === 'tryon' && personPhotoUrl ? [personPhotoUrl, ...ordered.map((p) => p.cutoutUrl)] : ordered.map((p) => p.cutoutUrl)
+    const images = await Promise.all(sources.slice(0, 10).map(async (u) => ({ image_url: await toDataUrl(u, 1024) })))
     const res = await metaFetch('renderer', '/images/edits', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'muse-image-1.0', prompt: mode === 'tryon' && personPhotoUrl ? TRYON : FLATLAY, images, n: 1,
+      body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && personPhotoUrl ? 'tryon' : 'flatlay', ordered), images, n: 1,
         size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low' }),
     }, RENDER_TIMEOUT_MS)
     const j = (await res.json()) as { data?: { b64_json?: string; url?: string }[] }

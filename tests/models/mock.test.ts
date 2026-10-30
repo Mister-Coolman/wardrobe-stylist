@@ -47,7 +47,7 @@ describe('other mocks', () => {
   const m = getModels()
   test('transcriber returns the fixture string', async () => expect(await m.transcriber.transcribe(Buffer.from(''), 'audio/webm')).toBe('drinks after work'))
   test('renderer returns a fixture url per mode', async () => {
-    expect((await m.renderer.render({ mode: 'flatlay', cutoutUrls: ['a'] })).url).toMatch(/^\/fixtures\//)
+    expect((await m.renderer.render({ mode: 'flatlay', pieces: [{ cutoutUrl: 'a', name: 'A', category: 'top', subcategory: 'shirt', colors: [], tags: [] }] })).url).toMatch(/^\/fixtures\//)
   })
   test('segmenter returns tracks with masks, including one duplicate', async () => {
     const tracks = await m.segmenter.segment(['/f/0.jpg'])

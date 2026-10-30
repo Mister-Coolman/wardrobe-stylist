@@ -56,7 +56,10 @@ d('Meta Model API contract', () => {
   }, 60_000)
 
   test('renderer: a flat lay comes back as an image', async () => {
-    const { url } = await m.renderer.render({ mode: 'flatlay', cutoutUrls: ['/fixtures/garments/navy-wool-overcoat.svg', '/fixtures/garments/selvedge-jeans.svg', '/fixtures/garments/black-leather-boots.svg'] })
+    const { url } = await m.renderer.render({ mode: 'flatlay', pieces: [
+      { cutoutUrl: '/fixtures/garments/navy-wool-overcoat.svg', name: 'Navy wool overcoat', category: 'outerwear', subcategory: 'coat', colors: ['navy'], tags: ['wool'] },
+      { cutoutUrl: '/fixtures/garments/selvedge-jeans.svg', name: 'Selvedge jeans', category: 'bottom', subcategory: 'jeans', colors: ['indigo'], tags: ['denim'] },
+      { cutoutUrl: '/fixtures/garments/black-leather-boots.svg', name: 'Black leather boots', category: 'shoes', subcategory: 'boots', colors: ['black'], tags: ['leather'] }] })
     expect(url).toMatch(/^(data:image\/|https:)/)
   }, 120_000)
 })

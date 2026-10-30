@@ -56,6 +56,14 @@ describe('planOutfit', () => {
     expect(cats).not.toContain('shoes')
   })
 
+  test('when the stylist keeps failing, the closest-fit fallback still finds a shoe-less outfit', async () => {
+    const junk = [{ garmentIds: ['ghost'], rationale: {}, title: 'Ghost' }]
+    const stylist = stub({ propose: async () => junk, revise: async () => junk })
+    const r = await planOutfit({ day: day(), wardrobe: wardrobe.filter((g) => g.category !== 'shoes'), profile, models: { ...models, stylist } })
+    if (!r.ok) throw new Error('expected an outfit')
+    expect(r.outfit.ruleReport.find((x) => x.ruleId === 'completeness')?.passed).toBe(true)
+  })
+
   test('everything in the laundry → insufficient_wardrobe naming every core category', async () => {
     const r = await planOutfit({ day: day(), wardrobe: wardrobe.map((g) => ({ ...g, status: 'laundry' as const })), profile, models })
     expect(r).toEqual({ ok: false, reason: 'insufficient_wardrobe', missing: ['top', 'bottom'] })

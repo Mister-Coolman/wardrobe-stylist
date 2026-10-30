@@ -45,7 +45,12 @@ export interface Stylist {
   searchProduct?(item: GarmentTags): Promise<{ title: string; url: string; price?: string } | null>
 }
 
-export interface Renderer { render(req: { mode: 'tryon' | 'flatlay'; cutoutUrls: string[]; personPhotoUrl?: string }): Promise<{ url: string }> }
+/** What the renderer is told about each piece, beside its cutout */
+export type RenderPiece = Pick<Garment, 'cutoutUrl' | 'name' | 'category' | 'subcategory' | 'colors' | 'tags' | 'brand' | 'fit'>
+const RENDER_ORDER = ['outerwear', 'top', 'onepiece', 'bottom', 'shoes', 'accessory']
+/** Outerwear, tops, bottoms, shoes: the order pieces go to the renderer and sit in a flat lay */
+export const renderOrder = <P extends Pick<Garment, 'category'>>(pieces: P[]) => [...pieces].sort((a, b) => RENDER_ORDER.indexOf(a.category) - RENDER_ORDER.indexOf(b.category))
+export interface Renderer { render(req: { mode: 'tryon' | 'flatlay'; pieces: RenderPiece[]; personPhotoUrl?: string }): Promise<{ url: string }> }
 export interface Transcriber { transcribe(audio: Buffer, mime: string): Promise<string> }
 
 // OpenAI chat-completions shapes

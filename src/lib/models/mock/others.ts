@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import { FIXTURE_TAGS } from '../fixtures/garments'
 import type { ChatModel, Renderer, SegmentTrack, Segmenter, Tagger, Transcriber } from '../types'
+import { renderOrder } from '../types'
 
 // Mask grid the mock "finds" in any frame: 3×2 regions of a 120×80 mask, plus a second sighting of region 0.
 const REGIONS: [number, number, number, number][] = [
@@ -40,11 +41,11 @@ export const mockTagger: Tagger = {
 }
 
 export const mockRenderer: Renderer = {
-  async render({ mode, cutoutUrls }) {
+  async render({ mode, pieces }) {
     if (process.env.MOCK_RENDER_FAIL === '1') throw new Error('mock render failure')
     try {
       const { composeFlatlay } = await import('./flatlay')
-      return { url: await composeFlatlay(cutoutUrls) }
+      return { url: await composeFlatlay(renderOrder(pieces).map((p) => p.cutoutUrl)) }
     } catch {
       return { url: mode === 'tryon' ? '/fixtures/render-tryon.svg' : '/fixtures/render-flatlay.svg' }
     }

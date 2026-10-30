@@ -110,16 +110,18 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
 const CORE = new Set(['top', 'bottom', 'onepiece', 'shoes'])
 const corePieces = (c: Candidate, ctx: RuleContext) => c.garmentIds.filter((id) => CORE.has(ctx.garments.get(id)?.category ?? '')).length
 
-/** Deterministic top × bottom × shoes (± outerwear) search, fewest hard violations first. */
+/** Deterministic top × bottom (× shoes when there are any, ± outerwear) search, fewest hard violations first. */
 function fallback(ctx: RuleContext, rules: Rule[]): Checked | undefined {
   const gs = [...ctx.garments.values()].filter((g) => g.status === 'clean')
   const by = (c: string) => gs.filter((g) => g.category === c)
   const bases = [...by('top').flatMap((t) => by('bottom').map((b) => [t.id, b.id])), ...by('onepiece').map((o) => [o.id])]
   let best: Checked | undefined
   let n = 0
-  for (const base of bases) for (const shoe of by('shoes')) for (const o of [null, ...by('outerwear')]) {
+  // shoes are optional: a closet of tops and bottoms still gets outfits
+  const shoes: (string | null)[] = by('shoes').length ? by('shoes').map((s) => s.id) : [null]
+  for (const base of bases) for (const shoe of shoes) for (const o of [null, ...by('outerwear')]) {
     if (++n > 2000) return best
-    const candidate: Candidate = { garmentIds: [...(o ? [o.id] : []), ...base, shoe.id], rationale: {}, title: 'Closest fit from your closet' }
+    const candidate: Candidate = { garmentIds: [...(o ? [o.id] : []), ...base, ...(shoe ? [shoe] : [])], rationale: {}, title: 'Closest fit from your closet' }
     const res = runRules(candidate, ctx, rules)
     if (!best || res.violations.length < best.violations.length) best = { candidate, ...res, order: n }
     if (!res.violations.length) return best
@@ -131,10 +133,10 @@ async function render(input: PlanOutfitInput, c: Candidate, ctx: RuleContext): P
   let mode = input.renderMode ?? input.profile.renderMode
   if (mode === 'tryon' && !input.profile.personPhotoUrl) mode = 'flatlay'
   if (mode === 'none') return { renderMode: 'none', renderUrl: null }
-  const cutoutUrls = c.garmentIds.map((id) => ctx.garments.get(id)?.cutoutUrl).filter((u): u is string => !!u)
+  const pieces = c.garmentIds.map((id) => ctx.garments.get(id)).filter((g): g is Garment => !!g)
   try {
     const { url } = await withTimeout(
-      input.models.renderer.render({ mode, cutoutUrls, personPhotoUrl: input.profile.personPhotoUrl ?? undefined }),
+      input.models.renderer.render({ mode, pieces, personPhotoUrl: input.profile.personPhotoUrl ?? undefined }),
       RENDER_TIMEOUT_MS, 'renderer')
     return { renderMode: mode, renderUrl: url }
   } catch {
