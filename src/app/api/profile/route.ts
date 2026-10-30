@@ -11,7 +11,7 @@ const LIMIT_KEYS = Object.keys(DEFAULT_WEAR_LIMITS).concat(['shirt', 'dress_shir
 const Patch = z.object({
   homeCity: z.string().trim().min(1).max(80),
   tz: z.string().refine(validTz, 'unknown time zone'),
-  renderMode: z.enum(['tryon', 'flatlay', 'none']),
+  renderMode: z.enum(['tryon', 'mannequin', 'flatlay', 'none']),
   tempUnit: z.enum(['C', 'F']),
   styleProfile: z.object({ summary: z.string().max(300), traits: z.array(z.string().max(40)).max(12), palette: z.array(z.string().max(30)).max(12),
     avoid: z.array(z.string().max(40)).max(12), sourceImages: z.array(z.string()).max(12) }).nullable(),

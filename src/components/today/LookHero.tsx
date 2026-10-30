@@ -9,7 +9,7 @@ export function LookHero({ mode, url, pieces }: { mode: RenderMode; url: string 
     return (
       <div className="-mx-5 aspect-[4/5] bg-studio">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={`The look, ${mode === 'tryon' ? 'worn' : 'laid flat'}`} className="settle-in h-full w-full object-cover" />
+        <img src={url} alt={`The look, ${mode === 'tryon' ? 'worn' : mode === 'mannequin' ? 'on a mannequin' : 'laid flat'}`} className="settle-in h-full w-full object-cover" />
       </div>
     )
   }

@@ -22,7 +22,7 @@ export interface Garment {
 
 /** null = unlimited */
 export type WearLimits = Partial<Record<Subcategory | Category, number | null>>
-export type RenderMode = 'tryon' | 'flatlay' | 'none'
+export type RenderMode = 'tryon' | 'mannequin' | 'flatlay' | 'none'
 
 export interface StyleProfile { summary: string; traits: string[]; palette: string[]; avoid: string[]; sourceImages: string[] }
 

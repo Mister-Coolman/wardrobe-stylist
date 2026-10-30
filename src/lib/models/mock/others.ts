@@ -67,6 +67,7 @@ export function mockListing(title: string): ListingDetails {
 export const mockRenderer: Renderer = {
   async render({ mode, pieces }) {
     if (process.env.MOCK_RENDER_FAIL === '1') throw new Error('mock render failure')
+    if (mode === 'mannequin') return { url: '/fixtures/render-mannequin.svg' }
     try {
       const { composeFlatlay } = await import('./flatlay')
       return { url: await composeFlatlay(renderOrder(pieces).map((p) => p.cutoutUrl)) }

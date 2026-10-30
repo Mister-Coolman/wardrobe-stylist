@@ -36,3 +36,14 @@ test('try-on: the person is image 1 and the pieces follow it', () => {
 test('pieces go outerwear, tops, bottoms, shoes', () => {
   expect(renderOrder([boots, jeans, polo]).map((p) => p.category)).toEqual(['top', 'bottom', 'shoes'])
 })
+
+test('mannequin: names every piece, asks for a featureless mannequin, says no shoes when there are none', () => {
+  const p = renderPrompt('mannequin', [quarterZip, jeans])
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
+  expect(p).toContain('Image 2: Dark indigo jeans (bottom; slim fit; denim)')
+  expect(p).toMatch(/featureless matte white mannequin \(no face, no hair, no skin\)/)
+  expect(p).toContain('exactly these 2 pieces')
+  expect(p).toContain('There are no shoes in this outfit: show no shoes.')
+  expect(p).toMatch(/where a name gives a colour, show that colour/i)
+  expect(renderPrompt('mannequin', [quarterZip, jeans, boots])).not.toMatch(/no shoes/)
+})

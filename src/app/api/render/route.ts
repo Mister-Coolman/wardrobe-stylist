@@ -5,7 +5,7 @@ import { getRepo } from '@/lib/db/repo'
 import { profileFor } from '@/lib/profile'
 import { renderOutfit } from '@/lib/render'
 
-const Body = z.object({ outfitId: z.string(), mode: z.enum(['tryon', 'flatlay', 'none']) })
+const Body = z.object({ outfitId: z.string(), mode: z.enum(['tryon', 'mannequin', 'flatlay', 'none']) })
 
 /** Re-renders an outfit in a mode; failure returns renderMode none so the pieces show instead. */
 export async function POST(req: Request) {

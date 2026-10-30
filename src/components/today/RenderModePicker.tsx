@@ -1,7 +1,7 @@
 'use client'
 import type { RenderMode } from '@/lib/domain/types'
 
-const MODES: [RenderMode, string][] = [['tryon', 'Try-on'], ['flatlay', 'Flat lay'], ['none', 'Pieces']]
+const MODES: [RenderMode, string][] = [['flatlay', 'Flat lay'], ['mannequin', 'On a mannequin'], ['tryon', 'Try-on'], ['none', 'Pieces']]
 
 /** Text-only segmented control (style guide §6). */
 export function RenderModePicker({ value, onChange, disabled }: { value: RenderMode; onChange: (m: RenderMode) => void; disabled?: boolean }) {

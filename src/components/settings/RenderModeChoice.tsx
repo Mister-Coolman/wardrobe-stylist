@@ -3,6 +3,7 @@ import type { RenderMode } from '@/lib/domain/types'
 
 const OPTIONS: [RenderMode, string, string][] = [
   ['flatlay', 'Flat lay', 'Your pieces laid out on paper, like a lookbook page.'],
+  ['mannequin', 'On a mannequin', 'Your pieces on a plain mannequin — how they sit together, no photo needed.'],
   ['tryon', 'Try-on', 'The outfit on you — needs a full-length photo.'],
   ['none', 'Pieces', 'Just the cutouts. Fastest.'],
 ]

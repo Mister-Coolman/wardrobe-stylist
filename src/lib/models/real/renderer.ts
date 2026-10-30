@@ -16,13 +16,18 @@ function layout(pieces: RenderPiece[]): string {
   return `Lay them out: ${rows.filter(Boolean).join(', ')}.${has('shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'}`
 }
 
+const noShoes = (pieces: RenderPiece[]) => pieces.some((p) => p.category === 'shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'
+
 /** The instruction for one outfit. In a try-on the person is image 1, so the pieces start at image 2. */
-export function renderPrompt(mode: 'tryon' | 'flatlay', pieces: RenderPiece[]): string {
+export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: RenderPiece[]): string {
   const first = mode === 'tryon' ? 2 : 1
   const list = renderOrder(pieces).map((p, i) => `Image ${i + first}: ${p.name} (${describe(p)})`).join('\n')
   const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Where a name gives a colour, show that colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything.'
   if (mode === 'tryon') {
     return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}\n${keep}${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. No text.`
+  }
+  if (mode === 'mannequin') {
+    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) standing on a plain light background, dressed in exactly these ${pieces.length} pieces, worn as they would be:\n${list}\n${keep}${noShoes(pieces)} No text.`
   }
   return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Nothing else in frame: no people, props, text or extra clothing.`
 }
@@ -34,7 +39,7 @@ export const realRenderer: Renderer = {
     const images = await Promise.all(sources.slice(0, 10).map(async (u) => ({ image_url: await toDataUrl(u, 1024) })))
     const res = await metaFetch('renderer', '/images/edits', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && personPhotoUrl ? 'tryon' : 'flatlay', ordered), images, n: 1,
+      body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && !personPhotoUrl ? 'flatlay' : mode, ordered), images, n: 1,
         size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low' }),
     }, RENDER_TIMEOUT_MS)
     const j = (await res.json()) as { data?: { b64_json?: string; url?: string }[] }

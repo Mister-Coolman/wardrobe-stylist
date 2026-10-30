@@ -1,4 +1,4 @@
-import type { CalendarEvent, Candidate, Garment, Level, StyleProfile } from '@/lib/domain/types'
+import type { CalendarEvent, Candidate, Garment, Level, RenderMode, StyleProfile } from '@/lib/domain/types'
 import type { DayContext, TripUsage, Violation } from '@/lib/rules/types'
 
 export class ModelError extends Error {
@@ -63,7 +63,7 @@ export type RenderPiece = Pick<Garment, 'cutoutUrl' | 'name' | 'category' | 'sub
 const RENDER_ORDER = ['outerwear', 'top', 'onepiece', 'bottom', 'shoes', 'accessory']
 /** Outerwear, tops, bottoms, shoes: the order pieces go to the renderer and sit in a flat lay */
 export const renderOrder = <P extends Pick<Garment, 'category'>>(pieces: P[]) => [...pieces].sort((a, b) => RENDER_ORDER.indexOf(a.category) - RENDER_ORDER.indexOf(b.category))
-export interface Renderer { render(req: { mode: 'tryon' | 'flatlay'; pieces: RenderPiece[]; personPhotoUrl?: string }): Promise<{ url: string }> }
+export interface Renderer { render(req: { mode: Exclude<RenderMode, 'none'>; pieces: RenderPiece[]; personPhotoUrl?: string }): Promise<{ url: string }> }
 export interface Transcriber { transcribe(audio: Buffer, mime: string): Promise<string> }
 
 // OpenAI chat-completions shapes
