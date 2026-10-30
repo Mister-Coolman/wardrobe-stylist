@@ -182,6 +182,54 @@
 - [ ] **Step 4: Run the tests.** `npx vitest run` and `npx tsc --noEmit` should PASS.
 - [ ] **Step 5: Commit:** `feat: stylist tools for swaps, closet edits and store search`.
 
+### Task 3b: What your stylist knows
+
+**Files:**
+- Create: `src/lib/rules/likedPairs.ts`, `src/components/settings/StylistNotes.tsx`
+- Modify: `src/lib/domain/types.ts` (`Profile.stylistNotes?: StylistNote[]`; `interface StylistNote { id: string; text: string; pieceIds: string[] }`), `src/lib/agent/tools.ts`, `src/lib/agent/thread.ts` (system prompt lists the notes), `src/lib/models/types.ts` (`ProposeInput.notes?: string[]`), both stylists, `src/lib/stylist/loop.ts` + `src/lib/today.ts` (pass the notes; add `likedPairs` to the daily soft rules), `src/app/api/profile/route.ts` (accept `stylistNotes`), `src/components/settings/SettingsView.tsx`, `src/lib/models/mock/others.ts` (`mockChat`: /^(i like|remember|in general)/ → `remember`; /^forget/ → `forget`)
+- Test: `tests/rules/rules.test.ts`, `tests/agent/tools.test.ts`, `tests/e2e/stylist.spec.ts`
+
+**Interfaces:**
+- **Tools:**
+  - `remember({ text: string ≤ 200, pieceIds?: string[] })` refuses past 30 notes, saying "Too many notes — forget one first."
+  - `forget({ id })`.
+- **`likedPairs`:** a soft rule. `score` = the number of notes whose `pieceIds` (2 or more) are all in the candidate. `note` = "A pairing you like". It never fails a candidate.
+- **The real stylist:** the brief gains `preferences: notes.map(n => n.text)`, and `RULES` adds "Honour the owner's standing preferences unless a rule above forbids it."
+
+- [ ] **Step 1: Write failing tests:**
+  - `likedPairs scores a candidate holding a remembered pair, and not one holding half of it`;
+  - `remember adds a note with piece ids; forget removes it; the 31st is refused`;
+  - `notes reach the stylist's propose input`;
+  - e2e: `"I like the oat crewneck with the white oxford" → Settings lists the note; remove it there`.
+- [ ] **Step 2: Run them.** Expected: FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run the tests.** They should PASS.
+- [ ] **Step 5: Commit:** `feat: the stylist remembers your preferences`.
+
+### Task 3c: On a mannequin
+
+**Files:**
+- Modify: `src/lib/domain/types.ts` (`RenderMode = 'tryon' | 'mannequin' | 'flatlay' | 'none'`), `src/lib/models/real/renderer.ts` (`renderPrompt('mannequin', pieces)`), `src/lib/models/types.ts` (`Renderer.render` mode union), `src/lib/models/mock/others.ts` (mannequin → `/fixtures/render-mannequin.svg`), `src/lib/render.ts`, `src/lib/stylist/loop.ts`, `src/app/api/render/route.ts`, `src/app/api/profile/route.ts`, `src/components/settings/RenderModeChoice.tsx`, `src/components/today/RenderModePicker.tsx`, `src/components/settings/OnboardingSteps.tsx`
+- Create: `public/fixtures/render-mannequin.svg`
+- Test: `tests/models/renderPrompt.test.ts`, `tests/e2e/render.spec.ts`
+
+**Interfaces:**
+- `renderPrompt('mannequin', pieces)` lists "Image N: name (…)" from image 1, plus the same `keep` sentence as the flat lay, then:
+
+  > A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) standing on a plain light background, dressed in exactly these N pieces, worn as they would be.
+
+  Add "There are no shoes in this outfit: show no shoes." when there are none. End with "No text."
+- **The picker's order and labels:** "Flat lay", "On a mannequin", "On you", "None".
+
+- [ ] **Step 1: Write failing tests:**
+  - `mannequin prompt names every piece, asks for a featureless mannequin, and says no shoes when there are none`;
+  - e2e: `choose On a mannequin on Today → the look shows the mannequin render`.
+- [ ] **Step 2: Run them.** Expected: FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run the tests.** They should PASS.
+- [ ] **Step 5: Live check:** one real mannequin render of the heather blue quarter-zip, red polo and selvedge jeans (the `render2.mts` pieces), saved to `.data/check/`. Compare it with the flat lay.
+- [ ] **Step 6: Commit:** `feat: show looks on a mannequin`.
+
 ### Task 4: Stylist tab, thread API and cards UI
 
 **Files:**

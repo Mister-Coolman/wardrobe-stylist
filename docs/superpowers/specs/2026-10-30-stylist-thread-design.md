@@ -115,6 +115,33 @@ The 7 current tools stay. These are new:
 
 **Fake chat model.** The mock chat model gets scripted phrases for each new tool, so e2e tests run without the Meta API.
 
+## 3b. What your stylist knows
+
+Standing preferences the user states in the thread are remembered and steer every look:
+- colours: "in general I like navy with olive";
+- pairings: "this sweater with this shirt is a combination I like";
+- rules: "I run warm", "never suggest shorts", "keep it smart on Mondays".
+
+**Storage:** `profiles.stylist_notes`, a jsonb list of `{ id, text, pieceIds: string[] }`. `pieceIds` is set when the note names pieces (a pairing). There are at most 30 notes, each at most 200 characters.
+
+**Tools:**
+- `remember({ text, pieceIds? })` adds a note. Its reply says what was saved, e.g. "Noted: navy with olive."
+- `forget({ id })` removes one.
+- The current notes are listed in the agent's system prompt with their ids, so "forget the shorts thing" works.
+
+**Effect on looks:**
+- Every note's text goes to the outfit planner in the brief, as "The owner's standing preferences".
+- A new soft rule, `likedPairs`, scores a candidate up for each remembered pairing it contains in full. It's soft, so the weather, dress-code and laundry rules still win.
+
+**Settings** gets a "What your stylist knows" list of the notes, each with a remove button and an add field. It's the same data, so a note added in Settings shows up in the thread's behaviour.
+
+## 3c. On a mannequin
+
+A third way to see a look, between the flat lay and a try-on on your own photo: the pieces dressed on a plain mannequin.
+- **Prompt:** muse-image gets the pieces with the same names-and-colours prompt as the flat lay. It's asked for a full-length studio photo of a featureless matte white mannequin (no face, no hair, no skin) on a plain light background, dressed in exactly these pieces, with tops tucked or untucked as the piece suggests. With no shoes in the outfit, it's told to show no shoes.
+- **Choosing it:** `RenderMode` gains `'mannequin'`, offered in Settings and on Today's picker as "On a mannequin", between Flat lay and On you. It needs no photo of the user.
+- **Migration:** the `profiles.render_mode` check constraint is updated to allow it.
+
 ## 4. Photos
 
 - The composer has a photo button. On iPhone it opens the camera or library.
@@ -201,6 +228,8 @@ The app never asks for a phone number.
 
 - the `messages` table and its row-level security policy;
 - `messages.reply_to` and `messages.wa_ids`;
+- `profiles.stylist_notes jsonb not null default '[]'`;
+- `profiles.render_mode` check constraint replaced to allow `mannequin`;
 - `profiles.whatsapp_id text unique`;
 - `profiles.whatsapp_link_code text`;
 - `profiles.whatsapp_link_expires timestamptz`.
