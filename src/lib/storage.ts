@@ -7,6 +7,8 @@ import { supabaseServerKey } from '@/lib/db/supabaseKey'
 export interface StorageLike {
   put(path: string, data: Buffer, contentType: string): Promise<string>
   read(url: string): Promise<Buffer>
+  /** A public link valid for `seconds`, for services that fetch our media (WhatsApp); null where there is none (local files). */
+  signedUrl?(url: string, seconds: number): Promise<string | null>
 }
 
 export const MEDIA_PREFIX = '/api/media/'
@@ -67,6 +69,10 @@ export function createSupabaseStorage(): StorageLike {
       const { data, error } = await (await client).download(pathFromUrl(url))
       if (error || !data) throw new Error(error?.message ?? 'missing')
       return Buffer.from(await data.arrayBuffer())
+    },
+    async signedUrl(url, seconds) {
+      const { data } = await (await client).createSignedUrl(pathFromUrl(url), seconds)
+      return data?.signedUrl ?? null
     },
   }
 }
