@@ -9,9 +9,12 @@ export type Subcategory =
 export type Level = 1 | 2 | 3 | 4 | 5
 export type GarmentStatus = 'clean' | 'worn' | 'laundry'
 
+export type Fit = 'slim' | 'classic' | 'relaxed' | 'oversized'
+/** tags: material and details ("pique", "deck polo"); brand and fit: what the owner knows, or the tagger could read */
 export interface Garment {
   id: string; userId: string; name: string; category: Category; subcategory: Subcategory
   colors: string[]; pattern: string; formality: Level; warmth: Level; rainSafe: boolean; tags: string[]
+  brand?: string | null; fit?: Fit | null
   status: GarmentStatus; wearLimitOverride: number | null; wearsSinceWash: number; wearCount: number
   lastWornAt: string | null; cutoutUrl: string; photoUrl: string; confirmed: boolean
 }

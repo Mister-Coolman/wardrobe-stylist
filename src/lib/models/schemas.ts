@@ -20,6 +20,8 @@ export const GarmentTagsSchema = z.object({
   warmth: level,
   rainSafe: z.boolean(),
   tags: z.array(z.string()),
+  brand: z.string().nullable(),
+  fit: z.enum(['slim', 'classic', 'relaxed', 'oversized']).nullable(),
 })
 
 export const StyleProfileSchema = z.object({

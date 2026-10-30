@@ -9,7 +9,9 @@ category: outerwear = anything worn over other clothes (coats, jackets, blazers,
 name: short and specific like a shop listing ("Navy wool overcoat", "Selvedge jeans") — colour + material/detail + item.
 formality 1 sporty · 2 casual · 3 smart casual · 4 smart · 5 formal. warmth 1 very light (tee) … 5 heaviest (parka).
 rainSafe false for suede, canvas sneakers, silk, linen, delicate knits; true for leather, wool coats, synthetics, denim.
-colors: plain lowercase words (navy, oat, charcoal). tags: material and notable details only.`
+colors: plain lowercase words (navy, oat, charcoal). tags: material and notable details only (pique, deck polo, embroidered logo, tapered leg).
+brand: only when a logo, label or signature mark is legible (Nautica, Uniqlo UT, Polo Ralph Lauren); otherwise null. Never guess.
+fit: slim (close to the body, tapered), classic (straight, regular), relaxed (loose, roomy) or oversized (dropped shoulders, deliberately big); null when the cutout can't show it.`
 
 export const realTagger: Tagger = {
   async tag(cutoutUrl) {

@@ -10,7 +10,7 @@ import { bestFrame, colorDistance, cutout, cutoutColor, sharpnessUnder, type RGB
 export const NO_CLOTHES = 'No clothes found — try holding each piece up to the camera.'
 export const SCAN_FAILED = 'The scan stopped partway — try again, or take a single photo.'
 
-const UNTAGGED: GarmentTags = { name: 'Untagged piece', category: 'top', subcategory: 'other', colors: [], pattern: 'solid', formality: 2, warmth: 2, rainSafe: true, tags: [] }
+const UNTAGGED: GarmentTags = { name: 'Untagged piece', category: 'top', subcategory: 'other', colors: [], pattern: 'solid', formality: 2, warmth: 2, rainSafe: true, tags: [], brand: null, fit: null }
 
 const TAG_CONCURRENCY = 4
 

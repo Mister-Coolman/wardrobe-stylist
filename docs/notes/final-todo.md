@@ -17,3 +17,5 @@ Submission: Wed 4 Nov, 9 PM.
   - Start SAM on each batch as it lands, so segmenting overlaps the upload.
   - Keep it one job, so track linking and dedupe work across batch boundaries; separate 30 s jobs would return pieces shown near a boundary twice.
   - Raise SAM (6) and tagging (4) concurrency only after measuring the Meta API's rate limits; at 30–40 pieces, tagging is the slow part.
+- [ ] **"Find it online": add a piece from the web.** Type "black Under Armour sweatpants", pick the matching product photo, and it goes through cutout and tagging like a scan, with brand and fit from the listing. muse-spark-1.3 already has a `web_search` tool (used by the gap shopping link), so it may need no separate search key. Product photos would come from each result page's `og:image`.
+

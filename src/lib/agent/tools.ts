@@ -65,8 +65,8 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     case 'search_wardrobe': {
       const q = (a.query as string | undefined)?.toLowerCase()
       const gs = (await repo.listGarments(user.userId, { confirmed: true }))
-        .filter((g) => (!a.category || g.category === a.category) && (!q || `${g.name} ${g.category} ${g.colors.join(' ')}`.toLowerCase().includes(q)))
-      return { count: gs.length, pieces: gs.slice(0, 40).map((g) => ({ id: g.id, name: g.name, category: g.category, status: g.status })),
+        .filter((g) => (!a.category || g.category === a.category) && (!q || `${g.name} ${g.category} ${g.colors.join(' ')} ${g.brand ?? ''} ${g.fit ?? ''} ${g.tags.join(' ')}`.toLowerCase().includes(q)))
+      return { count: gs.length, pieces: gs.slice(0, 40).map((g) => ({ id: g.id, name: g.name, category: g.category, status: g.status, ...(g.brand ? { brand: g.brand } : {}), ...(g.fit ? { fit: g.fit } : {}) })),
         summary: gs.length ? `${gs.length} match: ${gs.slice(0, 5).map((g) => g.name).join(', ')}` : 'Nothing like that in the closet.' }
     }
     case 'plan_outfit': {

@@ -25,7 +25,7 @@ export interface Segmenter {
   hangers?(frameUrl: string): Promise<Buffer[]>
 }
 
-export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags'>
+export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags' | 'brand' | 'fit'>
 export interface Tagger { tag(cutoutUrl: string): Promise<GarmentTags>; sameItem(a: string, b: string): Promise<boolean> }
 
 export interface ProposeInput {

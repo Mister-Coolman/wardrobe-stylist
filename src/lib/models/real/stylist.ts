@@ -15,7 +15,7 @@ const RULES = `You are a sharp personal stylist. Build complete outfits ONLY fro
 Every look needs a top and a bottom (or a one-piece), plus shoes when the wardrobe has any; add outerwear when it's cold or wet.
 Dress code is a 1–5 level (1 sporty · 2 casual · 3 smart casual · 4 smart · 5 formal); the look's least formal core piece must be at least the required level and not more than two levels above.
 Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (≥22° → 1–4, 15–21° → 2–6, 8–14° → 4–8, <8° → 7+). At 50%+ rain every piece must be rain-safe.
-Only use pieces whose status is clean. Each reason is one short, specific line ("Handles the 5pm rain"). Titles are 2–4 words ("Rain-ready client day").`
+Fit is the owner's note on how a piece sits: keep proportions balanced (slim with slim or classic; an oversized top over something slimmer). Only use pieces whose status is clean. Each reason is one short, specific line ("Handles the 5pm rain"). Titles are 2–4 words ("Rain-ready client day").`
 
 /** Short keys instead of UUIDs: models garble long ids. */
 function keyed(wardrobe: Garment[]) {
@@ -24,6 +24,7 @@ function keyed(wardrobe: Garment[]) {
   const listing = wardrobe.map((g) => ({
     key: toKey.get(g.id), name: g.name, category: g.category, subcategory: g.subcategory, colors: g.colors,
     formality: g.formality, warmth: g.warmth, rainSafe: g.rainSafe, status: g.status, tags: g.tags,
+    ...(g.brand ? { brand: g.brand } : {}), ...(g.fit ? { fit: g.fit } : {}),
   }))
   return { toKey, toId, listing }
 }
@@ -83,7 +84,7 @@ export const realStylist: Stylist = {
   async suggestGaps(wardrobe) {
     const { listing } = keyed(wardrobe)
     const r = await structured('stylist', z.object({ items: z.array(GarmentTagsSchema).max(5) }), 'closet_gaps', [
-      { role: 'system', content: 'Suggest up to 5 single pieces this person does not own that would make the most new complete outfits with what they have, across a smart dry day, a casual rainy day and a casual cold day. Be specific (colour, material, item). Never suggest something they already own.' },
+      { role: 'system', content: 'Suggest up to 5 single pieces this person does not own that would make the most new complete outfits with what they have, across a smart dry day, a casual rainy day and a casual cold day. Be specific (colour, material, item), and suit what they own: give the fit that works with the fits of their pieces, and a brand when they lean on one. Never suggest something they already own.' },
       { role: 'user', content: JSON.stringify(listing) },
     ], { ms: 60_000, effort: 'low' })
     return r.items
@@ -100,7 +101,7 @@ export const realStylist: Stylist = {
     const res = await metaFetch('stylist', '/responses', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'muse-spark-1.3', tools: [{ type: 'web_search', search_context_size: 'low' }],
-        input: `Find one place to buy this online now: ${item.name}. Reply with only the product name and price, e.g. "Acne Studios Chelsea boot — $480".` }),
+        input: `Find one place to buy this online now: ${[item.brand, item.name, item.fit ? `${item.fit} fit` : null].filter(Boolean).join(' ')}. Reply with only the product name and price, e.g. "Acne Studios Chelsea boot — $480".` }),
     }, 45_000)
     const j = (await res.json()) as { output?: { type: string; content?: { type: string; text?: string; annotations?: { type: string; url: string; title: string }[] }[] }[] }
     const text = j.output?.flatMap((o) => o.content ?? []).find((c) => c.type === 'output_text')

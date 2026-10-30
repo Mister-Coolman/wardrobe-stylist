@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-import type { Category, Garment, Level } from '@/lib/domain/types'
-import { CATEGORY, FORMALITY, WARMTH } from '@/lib/ui/format'
+import type { Category, Fit, Garment, Level } from '@/lib/domain/types'
+import { CATEGORY, FIT, FORMALITY, WARMTH } from '@/lib/ui/format'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { Tag } from '@/components/ui/Tag'
@@ -22,11 +22,14 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
   const [g, setG] = useState(garment)
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [details, setDetails] = useState(garment.tags.join(', '))
   const set = <K extends keyof Garment>(k: K, v: Garment[K]) => setG((x) => ({ ...x, [k]: v }))
 
   async function save() {
     setBusy('save'); setError(null)
-    const patch = { name: g.name, category: g.category, formality: g.formality, warmth: g.warmth, rainSafe: g.rainSafe, status: g.status, ...(reviewing ? { confirmed: true } : {}) }
+    const tags = details.split(',').map((t) => t.trim()).filter(Boolean)
+    const patch = { name: g.name, category: g.category, formality: g.formality, warmth: g.warmth, rainSafe: g.rainSafe, status: g.status,
+      brand: g.brand?.trim() || null, fit: g.fit ?? null, tags, ...(reviewing ? { confirmed: true } : {}) }
     const res = await fetch('/api/garments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: g.id, patch }) })
     setBusy(null)
     if (!res.ok) return setError('Couldn’t save that. Try again.')
@@ -57,6 +60,21 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
         <select className="input" value={g.category} onChange={(e) => set('category', e.target.value as Category)}>
           {(Object.keys(CATEGORY) as Category[]).map((c) => <option key={c} value={c}>{CATEGORY[c]}</option>)}
         </select>
+      </label>
+      <label className="field">
+        <span>Brand</span>
+        <input className="input" value={g.brand ?? ''} placeholder="e.g. Nautica" onChange={(e) => set('brand', e.target.value)} />
+      </label>
+      <fieldset className="field">
+        <span>Fit</span>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(FIT) as Fit[]).map((f) => <Tag key={f} selected={g.fit === f} onClick={() => set('fit', g.fit === f ? null : f)}>{FIT[f]}</Tag>)}
+        </div>
+      </fieldset>
+      <label className="field">
+        <span>Details</span>
+        <input className="input" value={details} placeholder="e.g. pique, deck polo, tapered" onChange={(e) => setDetails(e.target.value)} />
+        <span className="text-sm text-ink-muted">Material, cut, anything the stylist should know. Separate with commas.</span>
       </label>
       <fieldset className="field">
         <span>Dress code</span>

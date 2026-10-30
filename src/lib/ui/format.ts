@@ -1,4 +1,4 @@
-import type { Category, Garment, Level, WearLimits } from '@/lib/domain/types'
+import type { Category, Fit, Garment, Level, WearLimits } from '@/lib/domain/types'
 import { limitFor } from '@/lib/domain/wearLimits'
 
 export const FORMALITY: Record<Level, string> = { 1: 'Sporty', 2: 'Casual', 3: 'Smart casual', 4: 'Smart', 5: 'Formal' }
@@ -19,3 +19,5 @@ export function statusText(g: Garment, limits: WearLimits): string | null {
 }
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+export const FIT: Record<Fit, string> = { slim: 'Slim', classic: 'Classic', relaxed: 'Relaxed', oversized: 'Oversized' }
