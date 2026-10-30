@@ -144,9 +144,9 @@
 **Interfaces:**
 - **Consumes:** `ToolContext.cards` and `lastListings` (Task 2); `getProductSearch` and `fetchProductImage` (`src/lib/shop`); `runScan` with `listing`.
 - **Produces:**
-  - `ProposeInput` gains `keep?: string[]; drop?: string[]; wish?: string`. The real stylist puts them in the task line: "Keep pieces …; do not use …; the owner wants: …". The mock builds from `keep`, adds a clean piece of each missing core category not in `drop`, and fills the rest as now.
+  - `ProposeInput` gains `keep?: string[]; drop?: string[]; wish?: string; referenceImageUrl?: string`. With `referenceImageUrl`, the real stylist adds the image as an `image_url` part (via `toDataUrl(url, 1024)`) with "Match this look as closely as the closet allows"; the mock ignores it. The real stylist puts them in the task line: "Keep pieces …; do not use …; the owner wants: …". The mock builds from `keep`, adds a clean piece of each missing core category not in `drop`, and fills the rest as now.
   - `keepRule(keep: string[], drop: string[]): Rule` (hard): a candidate missing a kept id or containing a dropped id fails, with the message "Keep X" or "Leave out X".
-  - `planToday` opts gain `swap?: { outfitId: string; drop: string[]; wish?: string }`. It loads that outfit, sets keep = outfit ids minus drop, adds `keepRule`, and plans fresh for the outfit's date.
+  - `planToday` opts gain `wish?: string`, `referenceImageUrl?: string` and `swap?: { outfitId: string; drop: string[]; wish?: string }`. `plan_outfit` and `another_look` take `{ date?, wish? }`, so "a good fall themed outfit for Saturday" is `plan_outfit({ date: <Saturday>, wish: 'fall themed' })`. It loads that outfit, sets keep = outfit ids minus drop, adds `keepRule`, and plans fresh for the outfit's date.
   - The tools, with their Zod schemas:
     - `another_look({ date? })`;
     - `swap_piece({ outfitId, drop: string[] (ids), wish?: string })`;
@@ -250,7 +250,7 @@
   - `add_photo_piece({})`: runs `runScan` on `ctx.imageUrl` as a one-frame job and waits. It pushes a `pieces` card of the unconfirmed pieces and returns their ids and names.
   - `keep_pieces({ ids })`: confirms them and pushes an `added` card.
   - `rate_outfit({ date? })`: returns the day's weather, events and required formality. The model rates the photo it sees against these.
-  - `recreate_look({ description })`: `planToday` fresh with `wish = "Recreate this look: " + description`, and pushes an outfit card.
+  - `recreate_look({ date?, wish? })`: `planToday` fresh with `referenceImageUrl = ctx.imageUrl` (or the image of the message being replied to) and the wish, and pushes an outfit card. It returns the planned pieces plus the rule notes, so the reply can say what differs from the photo and why.
 
   Tools needing a photo return `{ error: 'no photo in this message' }` without `ctx.imageUrl`.
 - **Mock chat:** a user message with `imageUrl`:
@@ -262,6 +262,8 @@
 - [ ] **Step 1: Write failing tests:**
   - `add_photo_piece then keep_pieces adds the photo's pieces confirmed`;
   - `photo tools without a photo say so`;
+  - `recreate_look passes the photo to the stylist` (a capturing stylist sees `referenceImageUrl`);
+  - `plan_outfit with a wish passes it to the stylist, and the weather rules still apply`;
   - e2e `send a photo, "add these", "yes" → pieces in the closet` (with `tests/fixtures/closet.jpg`).
 - [ ] **Step 2: Run them.** Expected: FAIL.
 - [ ] **Step 3: Implement.** A thumbnail of the user's photo shows in their message bubble.
@@ -269,7 +271,8 @@
 - [ ] **Step 5: Live check** with `MODELS=real`, using a `.data/check` script on `samples/` photos, and record what you find in `docs/notes/sam-check.md`:
   - one shirt photo → "add this";
   - one outfit mirror selfie → "how do I look";
-  - one screenshot → "recreate this look".
+  - one screenshot → "match this look";
+  - text only → "a good fall themed outfit"; check the pieces read as fall.
 - [ ] **Step 6: Commit:** `feat: send the stylist photos`.
 
 ### Task 6: Morning note

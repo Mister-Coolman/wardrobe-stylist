@@ -107,7 +107,9 @@ The 7 current tools stay. These are new:
 | `add_listing` | Adds a listing from the last listings card, by its number, through the existing web-add pipeline. The piece is added confirmed. | added |
 | `add_photo_piece` | Turns the photo in the current message into pieces (scan pipeline, photo mode); added only after the user says yes. | added |
 | `rate_outfit` | Rates the photo in the current message against the day's weather and events. | — |
-| `recreate_look` | From a screenshot: describes the look, then plans the nearest outfit from the closet. | outfit |
+| `recreate_look` | From a photo or screenshot ("match this look"): the stylist sees the image itself and plans the nearest outfit from the closet for the given day. The reply says what it couldn't match and why ("no shorts at 8°: chinos instead"). | outfit |
+
+**Themes.** `plan_outfit`, `another_look` and `recreate_look` take an optional `wish` ("fall themed", "all black", "something for a gallery opening") and a date ("Saturday"). The wish goes to the stylist; the weather, dress-code and laundry rules still apply, so a theme can't put you in linen in the rain.
 
 **Pieces by name.** `search_wardrobe` results give each piece's id, so later tool calls use ids, never names.
 
