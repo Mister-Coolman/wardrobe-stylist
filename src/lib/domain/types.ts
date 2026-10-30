@@ -22,9 +22,12 @@ export type RenderMode = 'tryon' | 'flatlay' | 'none'
 
 export interface StyleProfile { summary: string; traits: string[]; palette: string[]; avoid: string[]; sourceImages: string[] }
 
+export type TempUnit = 'C' | 'F'
+/** tempUnit: set once the user picks one in settings; until then the time zone decides (unitFor) */
 export interface Profile {
   userId: string; homeCity: string; homeLat: number; homeLon: number; tz: string
   personPhotoUrl: string | null; renderMode: RenderMode; wearLimits: WearLimits; styleProfile: StyleProfile | null
+  tempUnit?: TempUnit | null
 }
 
 export interface CalendarEvent {

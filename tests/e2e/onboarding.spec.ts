@@ -30,3 +30,15 @@ test('settings show defaults and persist a rewear limit', async ({ page }) => {
   await page.reload()
   await expect(page.getByLabel('Jeans')).toHaveValue('3')
 })
+
+test('temperatures show in °F for a US home by default, and switch to °C in settings', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/today')
+  await expect(page.getByTestId('day-strip')).toContainText(/57°\s→\s48°/, { timeout: 30_000 })
+  await page.goto('/settings')
+  await expect(page.getByRole('radio', { name: '°F' })).toBeChecked()
+  await page.getByRole('radio', { name: '°C' }).click()
+  await expect(page.getByRole('status')).toHaveText('Saved.')
+  await page.goto('/today')
+  await expect(page.getByTestId('day-strip')).toContainText(/14°\s→\s9°/, { timeout: 30_000 })
+})

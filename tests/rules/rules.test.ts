@@ -4,7 +4,7 @@ import { formality } from '@/lib/rules/formality'
 import { weather } from '@/lib/rules/weather'
 import { availability } from '@/lib/rules/availability'
 import { dailyRules, runRules } from '@/lib/rules/registry'
-import { cand, ctx, event, weather as wx } from '../fixtures/wardrobe'
+import { cand, ctx, event, wardrobe, weather as wx } from '../fixtures/wardrobe'
 
 describe('completeness', () => {
   test('missing shoes is a violation', () => {
@@ -18,6 +18,12 @@ describe('completeness', () => {
     expect(v.find((x) => x.message === 'Unknown piece')!.garmentIds).toEqual(['ghost'])
   })
   test('top + bottom + shoes passes', () => expect(completeness.check(cand('crew', 'jeans', 'sneakers'), ctx())).toEqual([]))
+  test('without clean shoes in the closet, top + bottom is complete', () => {
+    const noShoes = wardrobe.filter((g) => g.category !== 'shoes')
+    expect(completeness.check(cand('crew', 'jeans'), ctx({}, noShoes))).toEqual([])
+    const shoesInLaundry = wardrobe.map((g) => (g.category === 'shoes' ? { ...g, status: 'laundry' as const } : g))
+    expect(completeness.check(cand('crew', 'jeans'), ctx({}, shoesInLaundry))).toEqual([])
+  })
 })
 
 describe('formality', () => {

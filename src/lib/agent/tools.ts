@@ -4,6 +4,7 @@ import type { Repo } from '@/lib/db/repo'
 import { localDate } from '@/lib/domain/dates'
 import type { Models, ToolSpec } from '@/lib/models/types'
 import { profileFor } from '@/lib/profile'
+import { degrees, unitFor } from '@/lib/ui/temperature'
 import type { SessionUser } from '@/lib/session'
 import { dayFor, planToday } from '@/lib/today'
 import { createTrip } from '@/lib/trips'
@@ -58,7 +59,8 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     }
     case 'get_weather': {
       const { day } = await dayFor(repo, user, await today(ctx, a.date))
-      return { date: day.date, ...day.weather, summary: `${day.weather.tempHighC}° high, ${day.weather.tempLowC}° low, ${day.weather.summary}` }
+      const unit = unitFor(await profileFor(repo, user.userId))
+      return { date: day.date, ...day.weather, summary: `${degrees(day.weather.tempHighC, unit)}${unit} high, ${degrees(day.weather.tempLowC, unit)}${unit} low, ${day.weather.summary}` }
     }
     case 'search_wardrobe': {
       const q = (a.query as string | undefined)?.toLowerCase()

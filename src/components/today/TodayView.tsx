@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import type { Garment, RenderMode } from '@/lib/domain/types'
+import type { Garment, RenderMode, TempUnit } from '@/lib/domain/types'
 import type { TodayPlan } from '@/lib/today'
 import { applyRender } from '@/lib/ui/todayState'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +8,7 @@ import { Tag } from '@/components/ui/Tag'
 import { AnythingElse } from './AnythingElse'
 import { DayStrip } from './DayStrip'
 import { FittingNotes } from './FittingNotes'
+import { degrees, withUnit } from '@/lib/ui/temperature'
 import { GapCard } from './GapCard'
 import { LookHero } from './LookHero'
 import { MissingPieces } from './MissingPieces'
@@ -18,14 +19,14 @@ import { RenderModePicker } from './RenderModePicker'
 const STEPS = ['Checking the forecast…', 'Reading your calendar…', 'Picking pieces…', 'Laying it out…']
 type Manual = 'warm' | 'mild' | 'cold'
 
-function headerDate(date: string, plan: TodayPlan | null) {
+function headerDate(date: string, plan: TodayPlan | null, unit: TempUnit) {
   const d = new Date(`${date}T12:00:00Z`)
   const day = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
   const w = plan?.day.weather
-  return w && w.summary !== 'unknown' ? `${day} · ${w.tempHighC}°` : day
+  return w && w.summary !== 'unknown' ? `${day} · ${degrees(w.tempHighC, unit)}` : day
 }
 
-export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
+export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempUnit }) {
   const [plan, setPlan] = useState<TodayPlan | null>(null)
   const [busy, setBusy] = useState<'load' | 'another' | 'event' | null>('load')
   const [step, setStep] = useState(0)
@@ -102,8 +103,8 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
   const r = plan.result
   return (
     <>
-      <p className="label text-ink-muted">{headerDate(plan.day.date, plan)}</p>
-      <DayStrip day={plan.day} calendarConnected={plan.calendarConnected} />
+      <p className="label text-ink-muted">{headerDate(plan.day.date, plan, unit)}</p>
+      <DayStrip day={plan.day} calendarConnected={plan.calendarConnected} unit={unit} />
       {plan.day.weather.summary === 'unknown' && (
         <div className="mt-4">
           <p className="text-sm">Couldn’t get the forecast. What’s it like out?</p>
@@ -130,7 +131,7 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
             <LookHero mode={r.outfit.renderMode} url={r.outfit.renderUrl} pieces={r.pieces} />
           </div>
           {render.busy && <p aria-live="polite" className="mt-3 text-sm text-ink-muted">Laying it out…</p>}
-          {render.note && <p className="mt-3 text-sm text-ink-muted">{render.note}</p>}
+          {render.note && <p className="mt-3 text-sm text-ink-muted">{withUnit(render.note, unit)}</p>}
           {render.failed && (
             <p role="alert" className="mt-3 text-sm">
               <span className="text-error">Couldn’t render the look. Showing the pieces instead.</span>{' '}
@@ -154,8 +155,8 @@ export function TodayView({ wardrobe }: { wardrobe: Garment[] }) {
           <Button variant="secondary" className="mt-3" loading={busy === 'another'} disabled={!!busy || render.busy}
             onClick={() => call('another', json({ date, weather: manual }))}>Another look</Button>
 
-          <PieceList outfit={r.outfit} pieces={r.pieces} />
-          <FittingNotes outfit={r.outfit} pieces={r.pieces} wardrobe={wardrobe} bestEffort={r.bestEffort} />
+          <PieceList outfit={r.outfit} pieces={r.pieces} unit={unit} />
+          <FittingNotes outfit={r.outfit} pieces={r.pieces} wardrobe={wardrobe} bestEffort={r.bestEffort} unit={unit} />
           {!askDone && (
             <AnythingElse busy={!!busy || render.busy}
               added={plan.day.events.filter((e) => e.source === 'user').map((e) => e.title)}

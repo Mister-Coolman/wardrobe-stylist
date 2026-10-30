@@ -46,14 +46,19 @@ describe('planOutfit', () => {
     expect(r.ok).toBe(true)
   })
 
-  test('no shoes → insufficient_wardrobe naming shoes', async () => {
+  test('a closet of just tops and bottoms still gets outfits, without shoes', async () => {
     const r = await planOutfit({ day: day(), wardrobe: wardrobe.filter((g) => g.category !== 'shoes'), profile, models })
-    expect(r).toEqual({ ok: false, reason: 'insufficient_wardrobe', missing: ['shoes'] })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const cats = r.outfit.garmentIds.map((id) => wardrobe.find((g) => g.id === id)!.category)
+    expect(cats).toContain('top')
+    expect(cats).toContain('bottom')
+    expect(cats).not.toContain('shoes')
   })
 
   test('everything in the laundry → insufficient_wardrobe naming every core category', async () => {
     const r = await planOutfit({ day: day(), wardrobe: wardrobe.map((g) => ({ ...g, status: 'laundry' as const })), profile, models })
-    expect(r).toEqual({ ok: false, reason: 'insufficient_wardrobe', missing: ['top', 'bottom', 'shoes'] })
+    expect(r).toEqual({ ok: false, reason: 'insufficient_wardrobe', missing: ['top', 'bottom'] })
   })
 
   test('empty closet → insufficient_wardrobe', async () => {

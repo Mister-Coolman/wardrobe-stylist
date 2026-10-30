@@ -1,7 +1,8 @@
-import type { Garment, Outfit } from '@/lib/domain/types'
+import type { Garment, Outfit, TempUnit } from '@/lib/domain/types'
+import { withUnit } from '@/lib/ui/temperature'
 
 /** The checks that ran (✓) and what got swapped on the way (↺), typeset like annotations. */
-export function FittingNotes({ outfit, pieces, wardrobe, bestEffort }: { outfit: Outfit; pieces: Garment[]; wardrobe: Garment[]; bestEffort: boolean }) {
+export function FittingNotes({ outfit, pieces, wardrobe, bestEffort, unit }: { outfit: Outfit; pieces: Garment[]; wardrobe: Garment[]; bestEffort: boolean; unit: TempUnit }) {
   const name = (id: string) => wardrobe.find((g) => g.id === id)?.name ?? 'a piece'
   const swaps: { out: string; in: string | null; why: string }[] = []
   const seen = new Set<string>()
@@ -18,14 +19,14 @@ export function FittingNotes({ outfit, pieces, wardrobe, bestEffort }: { outfit:
         {outfit.ruleReport.map((r) => (
           <li key={r.ruleId} className="flex gap-3">
             <span aria-hidden className={r.passed ? 'text-ok' : 'text-warn'}>{r.passed ? '✓' : '!'}</span>
-            <span><span className="sr-only">{r.passed ? 'Passed: ' : 'Not met: '}</span>{r.note}</span>
+            <span><span className="sr-only">{r.passed ? 'Passed: ' : 'Not met: '}</span>{withUnit(r.note, unit)}</span>
           </li>
         ))}
         {swaps.map((s) => (
           <li key={s.out} className="flex gap-3">
             <span aria-hidden className="text-warn">↺</span>
             <span>
-              <span className="sr-only">Revised: </span>Swapped <s>{s.out}</s>{s.in ? <> → {s.in}</> : null} — {lower(s.why)}
+              <span className="sr-only">Revised: </span>Swapped <s>{s.out}</s>{s.in ? <> → {s.in}</> : null} — {lower(withUnit(s.why, unit))}
             </span>
           </li>
         ))}

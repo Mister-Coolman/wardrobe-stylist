@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { PersonPhoto } from './PersonPhoto'
 import { RenderModeChoice } from './RenderModeChoice'
 import { StyleProfileEditor } from './StyleProfileEditor'
+import { unitFor } from '@/lib/ui/temperature'
 import { WearLimitsEditor } from './WearLimitsEditor'
 
 type Status = { section: string; text: string; error?: boolean } | null
@@ -41,6 +42,20 @@ export function SettingsView({ profile, email }: { profile: Profile; email: stri
         </form>
         <p className="mt-2 text-sm text-ink-muted">Time zone: {p.tz}</p>
         {note('home')}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="label text-ink-muted">Temperature</h2>
+        <div role="radiogroup" aria-label="Temperature" className="mt-3 flex gap-6">
+          {(['F', 'C'] as const).map((u) => (
+            <label key={u} className="flex min-h-11 cursor-pointer items-center gap-2">
+              <input type="radio" name="temp-unit" className="h-5 w-5 accent-[var(--ink)]" aria-label={`°${u}`} checked={unitFor(p) === u}
+                onChange={() => { setP({ ...p, tempUnit: u }); void save('unit', { tempUnit: u }) }} />
+              <span className="font-medium">°{u}</span>
+            </label>
+          ))}
+        </div>
+        {note('unit')}
       </section>
 
       <section className="mt-10">

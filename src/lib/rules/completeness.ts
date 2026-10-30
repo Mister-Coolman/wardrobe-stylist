@@ -1,5 +1,7 @@
 import type { Rule, Violation } from './types'
-import { piecesOf } from './types'
+import { piecesOf, type RuleContext } from './types'
+
+const hasCleanShoes = (ctx: RuleContext) => [...ctx.garments.values()].some((g) => g.category === 'shoes' && g.status === 'clean')
 
 export const completeness: Rule = {
   id: 'completeness',
@@ -13,10 +15,12 @@ export const completeness: Rule = {
       const missing = cats.has('top') ? 'a bottom' : cats.has('bottom') ? 'a top' : 'a top and a bottom'
       v.push({ ruleId: 'completeness', garmentIds: [], message: `Missing ${missing}` })
     }
-    if (!cats.has('shoes')) v.push({ ruleId: 'completeness', garmentIds: [], message: 'Missing shoes' })
+    // shoes only once the closet has a clean pair: a closet of tops and bottoms still gets outfits
+    if (!cats.has('shoes') && hasCleanShoes(ctx)) v.push({ ruleId: 'completeness', garmentIds: [], message: 'Missing shoes' })
     return v
   },
   note(c, ctx) {
-    return `Complete: ${piecesOf(c, ctx).length} pieces, head to shoes`
+    const pieces = piecesOf(c, ctx)
+    return `Complete: ${pieces.length} pieces${pieces.some((g) => g.category === 'shoes') ? ', head to shoes' : ''}`
   },
 }

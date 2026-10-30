@@ -27,8 +27,9 @@ function ranked(input: ProposeInput, avoid: Set<string>, avoidPieces: Set<string
     ...tops.filter((t) => t.subcategory === 'sweater').flatMap((s) => tops.filter((t) => t.id !== s.id && t.subcategory !== 'sweater').map((t) => [t, s]))]
   const bases: Garment[][] = [...layers.flatMap((l) => by('bottom').map((b) => [...l, b])), ...by('onepiece').map((o) => [o])]
   const out: { ids: string[]; bad: number; tie: number }[] = []
-  for (const base of bases) for (const shoe of by('shoes')) for (const o of outer) {
-    const ids = [...(o ? [o.id] : []), ...base.map((g) => g.id), shoe.id]
+  const shoes: (Garment | null)[] = by('shoes').length ? by('shoes') : [null]
+  for (const base of bases) for (const shoe of shoes) for (const o of outer) {
+    const ids = [...(o ? [o.id] : []), ...base.map((g) => g.id), ...(shoe ? [shoe.id] : [])]
     const { violations, softScore } = runRules({ garmentIds: ids, rationale: {}, title: '' }, ctx, rules)
     const reused = ids.filter((id) => avoidPieces.has(id)).length
     const worn = ids.reduce((s, id) => s + (ctx.garments.get(id)!.wearCount ?? 0), 0)

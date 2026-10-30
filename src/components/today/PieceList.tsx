@@ -1,6 +1,7 @@
-import type { Garment, Outfit } from '@/lib/domain/types'
+import type { Garment, Outfit, TempUnit } from '@/lib/domain/types'
+import { withUnit } from '@/lib/ui/temperature'
 
-export function PieceList({ outfit, pieces }: { outfit: Outfit; pieces: Garment[] }) {
+export function PieceList({ outfit, pieces, unit }: { outfit: Outfit; pieces: Garment[]; unit: TempUnit }) {
   return (
     <section className="mt-10">
       <h2 className="label text-ink-muted">The pieces</h2>
@@ -14,7 +15,7 @@ export function PieceList({ outfit, pieces }: { outfit: Outfit; pieces: Garment[
             </div>
             <div className="min-w-0">
               <div className="font-medium">{g.name}</div>
-              {outfit.rationale[g.id] && <div className="text-sm text-ink-muted">{outfit.rationale[g.id]}</div>}
+              {outfit.rationale[g.id] && <div className="text-sm text-ink-muted">{withUnit(outfit.rationale[g.id], unit)}</div>}
             </div>
           </li>
         ))}

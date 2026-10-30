@@ -6,7 +6,6 @@ export function MissingPieces({ missing, closetEmpty }: { missing: Category[]; c
   const list = missing.map((c) => CATEGORY_PLURAL[c])
   const words = list.length > 1 ? `${list.slice(0, -1).join(', ')} or ${list.at(-1)}` : list[0]
   const line = closetEmpty ? 'Your closet is empty. Scan it in a minute.'
-    : missing.length === 1 && missing[0] === 'shoes' ? 'No shoes yet — scan a pair to get outfits.'
     : `No clean ${words} right now — scan a few more, or it’s laundry day.`
   return (
     <div className="flex min-h-[50dvh] flex-col items-start justify-center gap-6">

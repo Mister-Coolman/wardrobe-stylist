@@ -12,7 +12,7 @@ const Looks = z.object({ looks: z.array(z.object({
 })) })
 
 const RULES = `You are a sharp personal stylist. Build complete outfits ONLY from the numbered pieces listed — refer to them by their key (p1, p2…).
-Every look needs a top and a bottom (or a one-piece) plus shoes; add outerwear when it's cold or wet.
+Every look needs a top and a bottom (or a one-piece), plus shoes when the wardrobe has any; add outerwear when it's cold or wet.
 Dress code is a 1–5 level (1 sporty · 2 casual · 3 smart casual · 4 smart · 5 formal); the look's least formal core piece must be at least the required level and not more than two levels above.
 Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (≥22° → 1–4, 15–21° → 2–6, 8–14° → 4–8, <8° → 7+). At 50%+ rain every piece must be rain-safe.
 Only use pieces whose status is clean. Each reason is one short, specific line ("Handles the 5pm rain"). Titles are 2–4 words ("Rain-ready client day").`

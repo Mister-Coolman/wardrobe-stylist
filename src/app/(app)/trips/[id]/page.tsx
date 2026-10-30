@@ -7,6 +7,7 @@ import { profileFor } from '@/lib/profile'
 import { requireUser } from '@/lib/session'
 import { range, weekday } from '@/lib/ui/dates'
 import { plural } from '@/lib/ui/format'
+import { degrees, unitFor, withUnit } from '@/lib/ui/temperature'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   const lo = ws.length ? Math.min(...ws.map((w) => w!.tempLowC)) : null
   const hi = ws.length ? Math.max(...ws.map((w) => w!.tempHighC)) : null
   const windy = ws.some((w) => w!.windKph >= 25), wet = ws.some((w) => w!.rainProbability >= 50)
-  const summary = [plural(items.length, 'piece'), lo != null ? `${lo}° to ${hi}°${wet ? ', rain' : windy ? ', windy' : ''}` : 'forecast not out yet'].join(' · ')
+  const summary = [plural(items.length, 'piece'), lo != null ? `${degrees(lo, unitFor(profile))} to ${degrees(hi!, unitFor(profile))}${wet ? ', rain' : windy ? ', windy' : ''}` : 'forecast not out yet'].join(' · ')
 
   return (
     <>
@@ -41,7 +42,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
             <li key={d.date} className="flex items-center gap-4 py-4">
               <div className="min-w-0 flex-1">
                 <div className="display text-xl">{weekday(d.date)}</div>
-                <div className="mt-1 truncate text-sm text-ink-muted">{d.note}</div>
+                <div className="mt-1 truncate text-sm text-ink-muted">{withUnit(d.note, unitFor(profile))}</div>
               </div>
               <div className="flex shrink-0 gap-1" aria-label={o ? `Outfit: ${o.garmentIds.map((g) => byId.get(g)?.name).filter(Boolean).join(', ')}` : 'No outfit'}>
                 {o?.garmentIds.slice(0, 4).map((gid) => (

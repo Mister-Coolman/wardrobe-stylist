@@ -30,7 +30,7 @@ function distinct(gs: Garment[]): Garment[] {
   return [...seen.values()]
 }
 
-/** top×bottom×shoes (+ one-piece×shoes), outerwear optional, hard daily rules only; at most MAX_COMBOS checked. */
+/** top×bottom×shoes (+ one-piece×shoes), shoes and outerwear optional, hard daily rules only; at most MAX_COMBOS checked. */
 export function countValidOutfits(wardrobe: Garment[], day: DayContext, profile: Profile): number {
   const gs = distinct(wardrobe.filter((g) => g.confirmed && g.status === 'clean'))
   const by = (c: Garment['category']) => gs.filter((g) => g.category === c)
@@ -38,9 +38,10 @@ export function countValidOutfits(wardrobe: Garment[], day: DayContext, profile:
   const bases = [...by('top').flatMap((t) => by('bottom').map((b) => [t.id, b.id])), ...by('onepiece').map((o) => [o.id])]
   const outer: (string | null)[] = [null, ...by('outerwear').map((o) => o.id)]
   let checked = 0, valid = 0
-  for (const base of bases) for (const shoe of by('shoes')) for (const o of outer) {
+  const shoes: (string | null)[] = by('shoes').length ? by('shoes').map((s) => s.id) : [null]
+  for (const base of bases) for (const shoe of shoes) for (const o of outer) {
     if (++checked > MAX_COMBOS) return valid
-    const ids = [...(o ? [o] : []), ...base, shoe.id]
+    const ids = [...(o ? [o] : []), ...base, ...(shoe ? [shoe] : [])]
     if (!runRules({ garmentIds: ids, rationale: {}, title: '' }, ctx, HARD).violations.length) valid++
   }
   return valid

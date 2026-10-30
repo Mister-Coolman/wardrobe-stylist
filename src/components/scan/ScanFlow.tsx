@@ -36,6 +36,9 @@ export function ScanFlow() {
   const [mode, setMode] = useState<Mode>('holdup')
   const [phase, setPhase] = useState<Phase>({ kind: 'pick' })
   const [editing, setEditing] = useState<Garment | null>(null)
+  // stepping: "Review one by one" moves to the next piece after each save or delete; a tapped piece just closes
+  const [stepping, setStepping] = useState(false)
+  const [notice, setNotice] = useState('')
   const [adding, setAdding] = useState(false)
   const jobId = useRef<string | null>(null)
   const lastChange = useRef<{ key: string; since: number }>({ key: '', since: 0 })
@@ -93,20 +96,24 @@ export function ScanFlow() {
         <p className="label text-ink-muted">Closet scan</p>
         <h1 className="display mt-2 text-3xl">{gs.length ? `Found ${plural(gs.length, 'piece')}` : 'All sorted'}</h1>
         <p className="mt-2 text-ink-muted">Nothing is used until you add it. Tap a piece to fix its name or details.</p>
+        <p role="status" className="mt-2 min-h-5 text-sm text-ink-muted">{notice}</p>
         <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6">
-          {gs.map((g, i) => <li key={g.id}><GarmentTile garment={g} meta={FORMALITY[g.formality]} index={i} settle onOpen={() => setEditing(g)} /></li>)}
+          {gs.map((g, i) => <li key={g.id}><GarmentTile garment={g} meta={FORMALITY[g.formality]} index={i} settle onOpen={() => { setStepping(false); setEditing(g) }} /></li>)}
         </ul>
         <div className="sticky bottom-[calc(80px+env(safe-area-inset-bottom))] mt-8 flex flex-col items-stretch gap-2 bg-paper pt-3">
           {gs.length ? (
             <>
               <Button className="w-[calc(100%-72px)]" loading={adding} onClick={() => addAll(gs)}>{adding ? 'Adding…' : `Add ${plural(gs.length, 'piece')}`}</Button>
-              <Button variant="tertiary" className="self-start" onClick={() => setEditing(gs[0])}>Review one by one</Button>
+              <Button variant="tertiary" className="self-start" onClick={() => { setStepping(true); setEditing(gs[0]) }}>Review one by one</Button>
             </>
           ) : <Button className="w-[calc(100%-72px)]" onClick={() => { router.push('/closet'); router.refresh() }}>Go to closet</Button>}
         </div>
         <GarmentEditor reviewing garment={editing} onClose={() => setEditing(null)}
-          onSaved={(g) => { const rest = gs.filter((x) => x.id !== g.id); setPhase({ kind: 'review', garments: rest }); setEditing(next(rest, g.id)) }}
-          onDeleted={(id) => { const rest = gs.filter((x) => x.id !== id); setPhase({ kind: 'review', garments: rest }); setEditing(next(rest, id)) }} />
+          onSaved={(g) => { const rest = gs.filter((x) => x.id !== g.id); setPhase({ kind: 'review', garments: rest }); setNotice(`Kept ${g.name}`); setEditing(stepping ? next(rest, g.id) : null) }}
+          onDeleted={(id) => {
+            const rest = gs.filter((x) => x.id !== id)
+            setPhase({ kind: 'review', garments: rest }); setNotice(`Deleted ${gs.find((x) => x.id === id)?.name ?? 'that piece'}`); setEditing(stepping ? next(rest, id) : null)
+          }} />
       </>
     )
   }

@@ -20,7 +20,7 @@ export type PlanOutfitResult =
 export const CANDIDATES = 3
 export const MAX_REVISIONS = 2
 
-/** Categories that stop any outfit from existing among clean pieces. */
+/** Categories that stop any outfit from existing among clean pieces. Shoes are optional: tops and bottoms make an outfit. */
 export function missingCategories(wardrobe: Garment[]): Category[] {
   const clean = new Set(wardrobe.filter((g) => g.confirmed && g.status === 'clean').map((g) => g.category))
   const missing: Category[] = []
@@ -28,7 +28,6 @@ export function missingCategories(wardrobe: Garment[]): Category[] {
     if (!clean.has('top')) missing.push('top')
     if (!clean.has('bottom')) missing.push('bottom')
   }
-  if (!clean.has('shoes')) missing.push('shoes')
   return missing
 }
 
