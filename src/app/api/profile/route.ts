@@ -15,6 +15,7 @@ const Patch = z.object({
   tempUnit: z.enum(['C', 'F']),
   styleProfile: z.object({ summary: z.string().max(300), traits: z.array(z.string().max(40)).max(12), palette: z.array(z.string().max(30)).max(12),
     avoid: z.array(z.string().max(40)).max(12), sourceImages: z.array(z.string()).max(12) }).nullable(),
+  stylistNotes: z.array(z.object({ id: z.string().max(40), text: z.string().trim().min(1).max(200), pieceIds: z.array(z.string()).max(6) })).max(30),
   wearLimits: z.record(z.string().refine((k) => LIMIT_KEYS.includes(k)), z.number().int().min(1).max(30).nullable()),
 }).partial()
 

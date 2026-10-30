@@ -15,6 +15,7 @@ const RULES = `You are a sharp personal stylist. Build complete outfits ONLY fro
 Every look needs a top and a bottom (or a one-piece), plus shoes when the wardrobe has any; add outerwear when it's cold or wet.
 Dress code is a 1–5 level (1 sporty · 2 casual · 3 smart casual · 4 smart · 5 formal); the look's least formal core piece must be at least the required level and not more than two levels above.
 Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (≥22° → 1–4, 15–21° → 2–6, 8–14° → 4–8, <8° → 7+). At 50%+ rain every piece must be rain-safe.
+Honour the owner's standing preferences unless a rule above forbids it.
 Fit is the owner's note on how a piece sits: keep proportions balanced (slim with slim or classic; an oversized top over something slimmer). Only use pieces whose status is clean. Each reason is one short, specific line ("Handles the 5pm rain"). Titles are 2–4 words ("Rain-ready client day").`
 
 /** Short keys instead of UUIDs: models garble long ids. */
@@ -38,6 +39,7 @@ function dayBrief(input: ProposeInput) {
     ...(input.trip ? { alreadyWornThisTrip: input.trip.counts } : {}),
     ...(input.styleProfile ? { style: input.styleProfile } : {}),
     ...(input.extraGuidance ? { note: input.extraGuidance } : {}),
+    ...(input.notes?.length ? { preferences: input.notes } : {}),
   }
 }
 

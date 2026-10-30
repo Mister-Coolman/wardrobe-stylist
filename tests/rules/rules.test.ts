@@ -84,3 +84,16 @@ describe('runRules', () => {
     expect(r.results.filter((x) => !x.passed).map((x) => x.ruleId).sort()).toEqual(['availability', 'formality', 'weather'])
   })
 })
+
+describe('likedPairs', () => {
+  test('scores a candidate holding a remembered pair, and not one holding half of it', async () => {
+    const { likedPairs } = await import('@/lib/rules/likedPairs')
+    const [a, b, c] = wardrobe.map((g) => g.id)
+    const base = ctx()
+    const withNotes = { ...base, profile: { ...base.profile, stylistNotes: [{ id: 'n1', text: 'this with that', pieceIds: [a, b] }, { id: 'n2', text: 'navy with olive', pieceIds: [] }] } }
+    expect(likedPairs.score!(cand(a, b, c), withNotes)).toBe(1)
+    expect(likedPairs.score!(cand(a, c), withNotes)).toBe(0)
+    expect(likedPairs.check(cand(a, c), withNotes)).toEqual([])
+    expect(likedPairs.note(cand(a, b), withNotes)).toBe('A pairing you like')
+  })
+})

@@ -160,4 +160,13 @@ describe('scripted conversations (mock chat)', () => {
     expect(added.cards[0].kind).toBe('added')
     expect((await repo.listGarments('u1', { confirmed: true })).some((g) => g.brand === 'Under Armour')).toBe(true)
   })
+
+  test('"in general I like navy with olive" is remembered and listed to the model; "forget the navy thing" removes it', async () => {
+    const { reply } = await say('in general I like navy with olive')
+    expect(reply.text).toMatch(/Noted/)
+    const { chat, seen } = capturing()
+    await runThread(user, web('forget the navy thing'), { repo, models: { ...getModels(), chat } })
+    expect(seen[0][0].content).toMatch(/- \(\S+\) in general I like navy with olive/)
+    expect((await repo.getProfile('u1'))?.stylistNotes).toEqual([])
+  })
 })

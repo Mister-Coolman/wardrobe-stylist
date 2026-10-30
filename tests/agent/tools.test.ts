@@ -98,3 +98,24 @@ describe('store tools', () => {
     expect((await call('add_listing', { number: 1 })).error).toMatch(/listings/)
   })
 })
+
+describe('what the stylist knows', () => {
+  test('remember adds a note with piece ids; forget removes it; the 31st is refused', async () => {
+    const [a, b] = (await repo.listGarments('u1')).map((g) => g.id)
+    await call('remember', { text: 'this crewneck with this oxford', pieceIds: [a, b] })
+    const notes = (await repo.getProfile('u1'))?.stylistNotes ?? []
+    expect(notes).toMatchObject([{ text: 'this crewneck with this oxford', pieceIds: [a, b] }])
+    await call('forget', { id: notes[0].id })
+    expect((await repo.getProfile('u1'))?.stylistNotes).toEqual([])
+    for (let i = 0; i < 30; i++) await call('remember', { text: `note ${i}` })
+    expect((await call('remember', { text: 'one more' })).error).toMatch(/Too many notes/)
+  })
+
+  test('notes reach the stylist’s propose input', async () => {
+    await call('remember', { text: 'navy with olive' })
+    const propose = vi.fn(getModels().stylist.propose)
+    ctx.models = { ...getModels(), stylist: { ...getModels().stylist, propose } }
+    await call('plan_outfit')
+    expect(propose.mock.calls[0][0].notes).toEqual(['navy with olive'])
+  })
+})

@@ -2,6 +2,7 @@ import 'server-only'
 import type { Repo } from '@/lib/db/repo'
 import type { Card, Message } from '@/lib/domain/types'
 import type { ChatMessage, Models } from '@/lib/models/types'
+import { profileFor } from '@/lib/profile'
 import type { SessionUser } from '@/lib/session'
 import { dispatchTool, toolSpecs } from './tools'
 import type { ToolContext } from './tools'
@@ -17,6 +18,7 @@ Reply in 2–4 sentences: say what you did and why. Ask one short question only 
 Never choose garments yourself: outfits come only from your tools (plan_outfit and the others that plan looks), which check the weather, dress code and laundry.
 If the owner mentions something they're doing that may not be on their calendar, call add_event first, then plan the look.
 Earlier looks, listings, pieces and trips appear as bracketed lines like [outfit <id> for <date>: …]; use those ids. A message starting "(Replying to: …)" is about that exact item.
+When the owner states a standing preference (colours they like together, a pairing, "I run warm"), save it with remember; pass pieceIds when it names pieces.
 Never mention being an AI.`
 
 
@@ -58,7 +60,9 @@ export async function runThread(user: SessionUser, input: { text: string; imageU
   const history = recent.map((m) => toChat(m, m.id === saved.id))
   const last = history.at(-1)
   if (quotedMsg && last?.role === 'user') last.quoted = spelled(quotedMsg)
-  const convo: ChatMessage[] = [{ role: 'system', content: SYSTEM }, ...history]
+  const notes = (await profileFor(repo, user.userId)).stylistNotes ?? []
+  const known = notes.length ? `\nWhat the owner has told you to remember (forget by id):\n${notes.map((n) => `- (${n.id}) ${n.text}`).join('\n')}` : ''
+  const convo: ChatMessage[] = [{ role: 'system', content: SYSTEM + known }, ...history]
 
   let text = TOO_MANY_ROUNDS
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {

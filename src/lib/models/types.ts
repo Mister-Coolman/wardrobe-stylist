@@ -45,6 +45,8 @@ export interface ProposeInput {
   keep?: string[]; drop?: string[]
   /** what the owner asked for ("fall themed", "smarter"); a photo of a look to match */
   wish?: string; referenceImageUrl?: string
+  /** the owner's standing preferences ("navy with olive", "I run warm") */
+  notes?: string[]
 }
 export interface Stylist {
   classifyEvents(events: CalendarEvent[]): Promise<Record<string, Level>>

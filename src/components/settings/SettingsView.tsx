@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { PersonPhoto } from './PersonPhoto'
 import { RenderModeChoice } from './RenderModeChoice'
 import { StyleProfileEditor } from './StyleProfileEditor'
+import { StylistNotes } from './StylistNotes'
 import { unitFor } from '@/lib/ui/temperature'
 import { WearLimitsEditor } from './WearLimitsEditor'
 
@@ -67,6 +68,12 @@ export function SettingsView({ profile, email }: { profile: Profile; email: stri
       <section className="mt-10">
         <h2 className="label text-ink-muted">Try-on photo</h2>
         <div className="mt-3"><PersonPhoto url={p.personPhotoUrl} onChange={(u) => setP({ ...p, personPhotoUrl: u })} /></div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="label text-ink-muted">What your stylist knows</h2>
+        <div className="mt-3"><StylistNotes value={p.stylistNotes ?? []} onSave={(stylistNotes) => save('notes', { stylistNotes })} /></div>
+        {note('notes')}
       </section>
 
       <section className="mt-10">

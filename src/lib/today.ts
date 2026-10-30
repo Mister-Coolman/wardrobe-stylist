@@ -11,6 +11,7 @@ import { persistRender } from '@/lib/render'
 import type { DayContext } from '@/lib/rules/types'
 import { buildDayContext } from '@/lib/stylist/dayContext'
 import { keepRule } from '@/lib/rules/keep'
+import { likedPairs } from '@/lib/rules/likedPairs'
 import { planOutfit } from '@/lib/stylist/loop'
 import { pollResult, pollsEnabled } from '@/lib/polls'
 import { dailyRules } from '@/lib/rules/registry'
@@ -77,7 +78,9 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   const useStyle = process.env.NEXT_PUBLIC_FEATURE_STYLE === '1' && !!profile.styleProfile
   const drop = opts.swap?.drop ?? []
   const keep = swapping ? swapping.garmentIds.filter((id) => !drop.includes(id)) : []
-  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping ? [keepRule(keep, drop)] : [])]
+  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping ? [keepRule(keep, drop)] : []),
+    // only when there's a remembered pairing, so other looks don't get a "no pairing" note
+    ...(profile.stylistNotes?.some((n) => n.pieceIds.length >= 2) ? [likedPairs] : [])]
   const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds), poll, rules,
     keep: swapping ? keep : undefined, drop: swapping ? drop : undefined, wish: opts.swap?.wish ?? opts.wish, referenceImageUrl: opts.referenceImageUrl })
   if (!r.ok) return { day, calendarConnected, result: r }

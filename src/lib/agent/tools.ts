@@ -1,4 +1,5 @@
 import 'server-only'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Repo } from '@/lib/db/repo'
 import type { Card, Garment, Message, Outfit } from '@/lib/domain/types'
@@ -30,6 +31,7 @@ export interface ToolContext {
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD, defaults to today')
 const wish = z.string().max(200).optional()
+export const MAX_NOTES = 30
 const DEFS = {
   get_events: { description: 'Calendar and user-added events for a day', schema: z.object({ date }) },
   get_weather: { description: 'Forecast for a day at the user’s location', schema: z.object({ date }) },
@@ -54,6 +56,11 @@ const DEFS = {
   },
   delete_piece: { description: 'Remove a piece from the closet. Ask the owner first; pass confirm: true only after they say yes.', schema: z.object({ id: z.string(), confirm: z.boolean() }) },
   shop_search: { description: 'Search stores for a product the owner has or wants, e.g. "black Under Armour sweatpants". Shows listings they can add by number.', schema: z.object({ query: z.string().min(2).max(120) }) },
+  remember: {
+    description: 'Save a standing preference the owner states ("in general I like navy with olive", "I run warm", "never suggest shorts"). pieceIds: when it pairs specific pieces.',
+    schema: z.object({ text: z.string().min(1).max(200), pieceIds: z.array(z.string()).max(6).optional() }),
+  },
+  forget: { description: 'Remove a saved preference by its id', schema: z.object({ id: z.string() }) },
   add_listing: { description: 'Add a listing from the most recent listings to the closet, by its number (1 = first). Takes a few seconds.', schema: z.object({ number: z.number().int().min(1) }) },
   plan_trip: {
     description: 'Plan outfits and a packing list for a trip',
@@ -152,6 +159,20 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       if (!a.confirm) return { error: 'ask the owner first, then call again with confirm: true', piece: g.name }
       await repo.deleteGarment(user.userId, g.id)
       return { ok: true, summary: `Removed ${g.name}.` }
+    }
+    case 'remember': {
+      const profile = await profileFor(repo, user.userId)
+      const notes = profile.stylistNotes ?? []
+      if (notes.length >= MAX_NOTES) return { error: 'Too many notes — forget one first.' }
+      await repo.upsertProfile({ ...profile, stylistNotes: [...notes, { id: randomUUID().slice(0, 8), text: a.text, pieceIds: a.pieceIds ?? [] }] })
+      return { ok: true, summary: `Noted: ${a.text}.` }
+    }
+    case 'forget': {
+      const profile = await profileFor(repo, user.userId)
+      const note = profile.stylistNotes?.find((n) => n.id === a.id)
+      if (!note) return { error: 'no such note' }
+      await repo.upsertProfile({ ...profile, stylistNotes: profile.stylistNotes!.filter((n) => n.id !== a.id) })
+      return { ok: true, summary: `Forgot: ${note.text}.` }
     }
     case 'shop_search': {
       const products = await getProductSearch().search(a.query)

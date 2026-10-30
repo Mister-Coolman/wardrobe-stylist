@@ -64,6 +64,13 @@ export const mockChat: ChatModel = {
       const asked = [...users].reverse().slice(1).map((m) => m.content.toLowerCase().match(/^(?:delete|remove|get rid of) (?:the |my )?(.+?)[.!?]?$/)).find(Boolean)
       return asked ? calls(tool('search_wardrobe', { query: asked[1] })) : say('Delete what?')
     }
+    if (/^(i like|remember|in general|i always|i never|never suggest)/.test(text)) return calls(tool('remember', { text: raw.replace(/^remember( that)?\s*/i, '') }))
+    const forget = text.match(/^forget (?:the |that )?(.+?)(?: thing)?[.!?]?$/)
+    if (forget) {
+      const system = messages[0]?.role === 'system' ? messages[0].content : ''
+      const note = [...system.matchAll(/^- \((\S+)\) (.+)$/gm)].find((m) => m[2].toLowerCase().includes(forget[1]))
+      return note ? calls(tool('forget', { id: note[1] })) : say('I don’t have a note like that.')
+    }
     const add = text.match(/^add (?:listing )?(\d+)$/)
     if (add) return calls(tool('add_listing', { number: Number(add[1]) }))
     const shop = raw.match(/^(?:find|search for|look up|add my) (.+)$/i)

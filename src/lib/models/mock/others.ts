@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import { FIXTURE_TAGS } from '../fixtures/garments'
-import type { ChatModel, ListingDetails, Renderer, SegmentTrack, Segmenter, Tagger, Transcriber } from '../types'
+import type { ListingDetails, Renderer, SegmentTrack, Segmenter, Tagger, Transcriber } from '../types'
 import { renderOrder } from '../types'
 
 // Mask grid the mock "finds" in any frame: 3×2 regions of a 120×80 mask, plus a second sighting of region 0.
