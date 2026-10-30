@@ -26,7 +26,13 @@ export interface Segmenter {
 }
 
 export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags' | 'brand' | 'fit'>
-export interface Tagger { tag(cutoutUrl: string): Promise<GarmentTags>; sameItem(a: string, b: string): Promise<boolean> }
+/** What a store listing's title says about a piece */
+export type ListingDetails = Pick<GarmentTags, 'name' | 'category' | 'brand' | 'fit' | 'tags'>
+export interface Tagger {
+  tag(cutoutUrl: string): Promise<GarmentTags>
+  sameItem(a: string, b: string): Promise<boolean>
+  fromListing(title: string): Promise<ListingDetails>
+}
 
 export interface ProposeInput {
   day: DayContext; wardrobe: Garment[]; count: number; extraGuidance?: string; styleProfile?: StyleProfile | null

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Garment, ScanJob } from '@/lib/domain/types'
 import type { Repo } from '@/lib/db/repo'
-import type { FrameMask, GarmentTags, Models } from '@/lib/models/types'
+import type { FrameMask, GarmentTags, ListingDetails, Models } from '@/lib/models/types'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 import type { StorageLike } from '@/lib/storage'
 import { userKey } from '@/lib/storage'
@@ -28,9 +28,10 @@ const DEDUPE_MAX_COLOR = 45
 const DEDUPE_MAX_GAP_S = 1.5
 const DEDUPE_MAX_GAP_ONCE_S = 3
 
-/** segment → best frame → cutout → tag → dedupe → insert unconfirmed. Never throws; failures land on the job. */
-export async function runScan(jobId: string, deps: { userId: string; models: Pick<Models, 'segmenter' | 'tagger'>; repo: Repo; storage: StorageLike }): Promise<void> {
-  const { repo, storage, models, userId } = deps
+/** segment → best frame → cutout → tag → dedupe → insert unconfirmed. Never throws; failures land on the job.
+ *  listing: the photo came from a store listing, so keep the one piece it sells, named from the listing. */
+export async function runScan(jobId: string, deps: { userId: string; models: Pick<Models, 'segmenter' | 'tagger'>; repo: Repo; storage: StorageLike; listing?: ListingDetails }): Promise<void> {
+  const { repo, storage, models, userId, listing } = deps
   try {
     const job = await repo.getScanJob(userId, jobId)
     if (!job) return
@@ -68,7 +69,8 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
       }
     }))
 
-    const kept = await dedupe(found, models)
+    const deduped = await dedupe(found, models)
+    const kept = listing ? listedPiece(deduped, listing) : deduped
     if (!kept.length) { await repo.updateScanJob(jobId, { status: 'failed', error: NO_CLOTHES }); return }
     await repo.insertGarments(kept.map((f): Omit<Garment, 'id'> => ({
       userId, ...f.tags, status: 'clean', wearLimitOverride: null, wearsSinceWash: 0, wearCount: 0, lastWornAt: null,
@@ -85,6 +87,28 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
 export function piecesFromScan(job: Pick<ScanJob, 'frameUrls'>, unconfirmed: Garment[]): Garment[] {
   const frames = new Set(job.frameUrls)
   return unconfirmed.filter((g) => frames.has(g.photoUrl))
+}
+
+/** A store photo often shows a model in a whole outfit: keep the largest piece of the listed category (or the largest
+ *  piece), and take its name, brand and fit from the listing; colour, warmth and dress code still come from the photo. */
+export function listedPiece<F extends { tags: GarmentTags; quality: number }>(found: F[], listing: ListingDetails): F[] {
+  const byQuality = [...found].sort((a, b) => b.quality - a.quality)
+  const best = byQuality.find((f) => f.tags.category === listing.category) ?? byQuality[0]
+  if (!best) return []
+  return [{ ...best, tags: { ...best.tags, name: listing.name, category: listing.category, brand: listing.brand ?? best.tags.brand,
+    fit: listing.fit ?? best.tags.fit, tags: [...new Set([...listing.tags, ...best.tags.tags])] } }]
+}
+
+/** One photo → the cutout of its largest piece, stored; null when nothing is found. For replacing a piece's photo. */
+export async function cutoutFromPhoto(frameUrl: string, deps: { userId: string; models: Pick<Models, 'segmenter'>; storage: StorageLike }): Promise<string | null> {
+  const { models, storage, userId } = deps
+  const masks = (await models.segmenter.segment([frameUrl])).flatMap((t) => t.masks)
+  const largest = masks.sort((a, b) => b.area - a.area)[0]
+  if (!largest) return null
+  const hangers = await models.segmenter.hangers?.(frameUrl).catch(() => []) ?? []
+  const png = await cutout(await storage.read(frameUrl), largest.maskPng, { minus: hangers })
+  const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
+  return storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
 }
 
 async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promise<GarmentTags> {

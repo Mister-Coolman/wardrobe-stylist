@@ -8,7 +8,7 @@ import { getModels } from '@/lib/models'
 import type { FrameMask, SegmentTrack, Segmenter, Tagger } from '@/lib/models'
 import { FIXTURE_TAGS } from '@/lib/models/fixtures/garments'
 import { bestFrame, cleanMask, cutout, sharpnessUnder } from '@/lib/scan/cutout'
-import { frameSeconds, NO_CLOTHES, piecesFromScan, runScan } from '@/lib/scan/pipeline'
+import { frameSeconds, listedPiece, NO_CLOTHES, piecesFromScan, runScan } from '@/lib/scan/pipeline'
 import { createMemoryStorage } from '@/lib/storage'
 
 const mask = async (x: number, y: number, w: number, h: number, W = 100, H = 100) =>
@@ -31,6 +31,7 @@ async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?
   const tagger: Tagger = {
     tag: async (u) => { if (!byUrl.has(u)) byUrl.set(u, byUrl.size); return tags[byUrl.get(u)!] },
     sameItem: opts.sameItem ?? (async (a, b) => a === b),
+    fromListing: async () => { throw new Error('unused') },
   }
   const models = { ...getModels(), segmenter, tagger }
   return { repo, storage, job, models }
@@ -278,3 +279,31 @@ describe('cutout finishing', () => {
   })
 })
 
+
+describe('a store listing photo', () => {
+  const listing = { name: 'Black Under Armour Rival fleece joggers', category: 'bottom' as const, brand: 'Under Armour', fit: 'relaxed' as const, tags: ['fleece'] }
+  const jeans = FIXTURE_TAGS.find((t) => t.category === 'bottom')!
+  const tee = FIXTURE_TAGS.find((t) => t.category === 'top')!
+
+  test('keeps only the listed piece, even when the model wears a bigger top', () => {
+    const kept = listedPiece([{ tags: tee, quality: 900 }, { tags: jeans, quality: 400 }], listing)
+    expect(kept).toHaveLength(1)
+    expect(kept[0].tags).toMatchObject({ name: listing.name, category: 'bottom', brand: 'Under Armour', fit: 'relaxed', colors: jeans.colors })
+    expect(kept[0].tags.tags).toEqual(['fleece', ...jeans.tags])
+  })
+
+  test('with no piece of the listed category, keeps the largest; the photo’s brand stays when the listing has none', () => {
+    const kept = listedPiece([{ tags: { ...tee, brand: 'Nautica' }, quality: 900 }, { tags: tee, quality: 100 }], { ...listing, brand: null, fit: null })
+    expect(kept).toHaveLength(1)
+    expect(kept[0]).toMatchObject({ quality: 900, tags: { brand: 'Nautica', fit: tee.fit, category: 'bottom' } })
+  })
+
+  test('runScan with a listing inserts one piece named from it', async () => {
+    const tracks = [await track('a', [0, 0, 40, 40]), await track('b', [50, 0, 40, 40]), await track('c', [0, 50, 40, 40])]
+    const { repo, storage, job, models } = await setup(tracks)
+    await runScan(job.id, { userId: 'u1', models, repo, storage, listing })
+    const pieces = await repo.listGarments('u1', { confirmed: false })
+    expect(pieces.map((p) => p.name)).toEqual([listing.name])
+    expect((await repo.getScanJob('u1', job.id))?.status).toBe('review')
+  })
+})

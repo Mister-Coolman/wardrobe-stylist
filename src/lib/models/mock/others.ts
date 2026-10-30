@@ -1,9 +1,12 @@
 import sharp from 'sharp'
 import { FIXTURE_TAGS } from '../fixtures/garments'
-import type { ChatModel, Renderer, SegmentTrack, Segmenter, Tagger, Transcriber } from '../types'
+import type { ChatModel, ListingDetails, Renderer, SegmentTrack, Segmenter, Tagger, Transcriber } from '../types'
 import { renderOrder } from '../types'
 
 // Mask grid the mock "finds" in any frame: 3×2 regions of a 120×80 mask, plus a second sighting of region 0.
+/** cutout url → its fixture, in order of first appearance in the current scan */
+const seen = new Map<string, number>()
+
 const REGIONS: [number, number, number, number][] = [
   [0, 0, 40, 40], [40, 0, 40, 40], [80, 0, 40, 40], [0, 40, 40, 40], [40, 40, 40, 40], [80, 40, 40, 40],
 ]
@@ -17,6 +20,8 @@ async function rectMask([x, y, w, h]: [number, number, number, number]): Promise
 
 export const mockSegmenter: Segmenter = {
   async segment(frameUrls) {
+    // each scan names its pieces from the first fixture on, whatever ran before
+    seen.clear()
     if (!frameUrls.length) return []
     const tracks: SegmentTrack[] = []
     for (const [i, r] of REGIONS.entries()) {
@@ -28,7 +33,6 @@ export const mockSegmenter: Segmenter = {
   },
 }
 
-const seen = new Map<string, number>()
 export const mockTagger: Tagger = {
   async tag(cutoutUrl) {
     if (!seen.has(cutoutUrl)) seen.set(cutoutUrl, seen.size)
@@ -38,6 +42,24 @@ export const mockTagger: Tagger = {
     // the pipeline names cutouts by content hash, so identical cutouts share a url
     return a === b
   },
+  async fromListing(title) {
+    return mockListing(title)
+  },
+}
+
+const BRANDS = ['Under Armour', 'Nautica', "Levi's", 'Uniqlo', 'Nike']
+const FITS: [RegExp, ListingDetails['fit']][] = [[/\bslim\b/i, 'slim'], [/\b(classic|regular|straight)\b/i, 'classic'], [/\b(relaxed|loose)\b/i, 'relaxed'], [/\boversized\b/i, 'oversized']]
+const CATEGORIES: [RegExp, ListingDetails['category']][] = [[/jogger|jean|pant|trouser|short/i, 'bottom'], [/coat|jacket|parka/i, 'outerwear'], [/shoe|sneaker|boot/i, 'shoes']]
+
+/** Keyword reading of a listing title, standing in for the model. */
+export function mockListing(title: string): ListingDetails {
+  return {
+    name: title.replace(/\b(Men's|Women's)\s*/g, '').replace(/\s+/g, ' ').trim(),
+    category: CATEGORIES.find(([re]) => re.test(title))?.[1] ?? 'top',
+    brand: BRANDS.find((b) => title.toLowerCase().includes(b.toLowerCase())) ?? null,
+    fit: FITS.find(([re]) => re.test(title))?.[1] ?? null,
+    tags: /fleece/i.test(title) ? ['fleece'] : [],
+  }
 }
 
 export const mockRenderer: Renderer = {

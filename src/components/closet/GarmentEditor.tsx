@@ -5,6 +5,9 @@ import { CATEGORY, FIT, FORMALITY, WARMTH } from '@/lib/ui/format'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { Tag } from '@/components/ui/Tag'
+import { ShopSearch } from '@/components/shop/ShopSearch'
+import type { ListingDetails } from '@/lib/models/types'
+import type { Product } from '@/lib/shop/search'
 
 const LEVELS: Level[] = [1, 2, 3, 4, 5]
 
@@ -24,6 +27,33 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
   const [error, setError] = useState<string | null>(null)
   const [details, setDetails] = useState(garment.tags.join(', '))
   const set = <K extends keyof Garment>(k: K, v: Garment[K]) => setG((x) => ({ ...x, [k]: v }))
+  // "Find this online": search open, the listing picked, and what happened to it
+  const [finding, setFinding] = useState(false)
+  const [found, setFound] = useState<Product | null>(null)
+  const [picking, setPicking] = useState<string | null>(null)
+  const [photo, setPhoto] = useState<'idle' | 'busy' | 'done'>('idle')
+  const [findNote, setFindNote] = useState('')
+
+  async function useListing(p: Product) {
+    setPicking(p.id); setFindNote('')
+    const res = await fetch('/api/shop/details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: p.title }) }).catch(() => null)
+    setPicking(null)
+    const d = res?.ok ? ((await res.json()) as { details: ListingDetails }).details : null
+    if (!d) return setFindNote('Couldn’t read that listing. Try another one.')
+    setG((x) => ({ ...x, name: d.name, brand: d.brand ?? x.brand, fit: d.fit ?? x.fit }))
+    setDetails((cur) => [...new Set([...cur.split(',').map((t) => t.trim()).filter(Boolean), ...d.tags])].join(', '))
+    setFound(p); setFinding(false); setPhoto('idle')
+    setFindNote(`Filled in from ${p.store || 'the listing'}. ${reviewing ? 'Keep' : 'Save'} the piece to keep it.`)
+  }
+  async function takeListingPhoto() {
+    if (!found) return
+    setPhoto('busy')
+    const res = await fetch('/api/shop/photo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ garmentId: g.id, imageUrl: found.imageUrl }) }).catch(() => null)
+    if (!res?.ok) { setPhoto('idle'); return setFindNote('Couldn’t cut out that photo. Your own photo stays.') }
+    const { cutoutUrl, photoUrl } = (await res.json()) as { cutoutUrl: string; photoUrl: string }
+    setG((x) => ({ ...x, cutoutUrl, photoUrl })); setPhoto('done')
+    setFindNote('Photo replaced with the store’s.')
+  }
 
   async function save() {
     setBusy('save'); setError(null)
@@ -76,6 +106,15 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
         <input className="input" value={details} placeholder="e.g. pique, deck polo, tapered" onChange={(e) => setDetails(e.target.value)} />
         <span className="text-sm text-ink-muted">Material, cut, anything the stylist should know. Separate with commas.</span>
       </label>
+      <div className="flex flex-col gap-3 border-t border-rule pt-4">
+        {finding
+          ? <ShopSearch initialQuery={[g.brand, g.name].filter(Boolean).join(' ')} picking={picking} onPick={useListing} />
+          : <Button variant="tertiary" className="self-start" onClick={() => setFinding(true)}>Find this online</Button>}
+        <p role="status" className="text-sm text-ink-muted empty:hidden">{findNote}</p>
+        {found && photo !== 'done' && (
+          <Button variant="tertiary" className="self-start" loading={photo === 'busy'} onClick={takeListingPhoto}>Use the store’s photo</Button>
+        )}
+      </div>
       <fieldset className="field">
         <span>Dress code</span>
         <div className="flex flex-wrap gap-2">

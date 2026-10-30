@@ -24,6 +24,8 @@ export const GarmentTagsSchema = z.object({
   fit: z.enum(['slim', 'classic', 'relaxed', 'oversized']).nullable(),
 })
 
+export const ListingDetailsSchema = GarmentTagsSchema.pick({ name: true, category: true, brand: true, fit: true, tags: true })
+
 export const StyleProfileSchema = z.object({
   summary: z.string(), traits: z.array(z.string()), palette: z.array(z.string()), avoid: z.array(z.string()), sourceImages: z.array(z.string()),
 })

@@ -17,5 +17,7 @@ Submission: Wed 4 Nov, 9 PM.
   - Start SAM on each batch as it lands, so segmenting overlaps the upload.
   - Keep it one job, so track linking and dedupe work across batch boundaries; separate 30 s jobs would return pieces shown near a boundary twice.
   - Raise SAM (6) and tagging (4) concurrency only after measuring the Meta API's rate limits; at 30–40 pieces, tagging is the slow part.
-- [ ] **"Find it online": add a piece from the web.** Type "black Under Armour sweatpants", pick the matching product photo, and it goes through cutout and tagging like a scan, with brand and fit from the listing. muse-spark-1.3 already has a `web_search` tool (used by the gap shopping link), so it may need no separate search key. Product photos would come from each result page's `og:image`.
+- [x] **"Find it online"**: the scan page's Online tab adds a piece from a store listing; "Find this online" in the piece editor fills name, brand, fit and details, and can swap in the store's photo. Search is SerpApi's Google Shopping engine (free plan, about 250 searches a month).
+  - Muse Spark's `web_search` found the right products but took about 60 s and gave no photos; retailer pages refuse server fetches (418/410/403).
+  - [ ] Add `SERPAPI_KEY` to `.env.local` and to Vercel production, then check it live: result quality, and whether the thumbnails are big enough for clean cutouts.
 

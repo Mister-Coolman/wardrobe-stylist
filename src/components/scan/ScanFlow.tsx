@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/Button'
 import { GarmentEditor } from '@/components/closet/GarmentEditor'
 import { GarmentTile } from '@/components/closet/GarmentTile'
 import { isStalled, thinToBudget, UPLOAD_BUDGET } from '@/lib/ui/scanUpload'
+import { ShopSearch } from '@/components/shop/ShopSearch'
+import type { Product } from '@/lib/shop/search'
 import { FPS, samplePhoto, sampleVideo } from './FrameSampler'
 
-type Mode = 'sweep' | 'holdup' | 'photo'
+export type Mode = 'sweep' | 'holdup' | 'photo' | 'web'
 /** Each tip fixes a failure measured on real closet clips (docs/notes/sam-check.md): an arm or a neighbour across
  *  the piece splits it in two, a piece filling the frame is dropped, movement blurs it, dim light muddies it. */
 const MODES: { id: Mode; label: string; hint: string; tips: string[] }[] = [
@@ -27,19 +29,21 @@ const MODES: { id: Mode; label: string; hint: string; tips: string[] }[] = [
     'Turn on every light you can; a dim rail gives muddy cutouts.',
   ] },
   { id: 'photo', label: 'Photo', hint: 'One photo of a few pieces laid flat or hung apart. Quickest way to try it.', tips: [] },
+  { id: 'web', label: 'Online', hint: 'Know exactly what you own? Search the stores for it and pick the listing. Works away from home.', tips: [] },
 ]
 type Phase = { kind: 'pick' } | { kind: 'preparing'; done: number; total: number } | { kind: 'uploading' }
   | { kind: 'scanning'; job: ScanJob | null } | { kind: 'review'; garments: Garment[] } | { kind: 'error'; message: string }
 
-export function ScanFlow() {
+export function ScanFlow({ initialMode = 'holdup' }: { initialMode?: Mode }) {
   const router = useRouter()
-  const [mode, setMode] = useState<Mode>('holdup')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [phase, setPhase] = useState<Phase>({ kind: 'pick' })
   const [editing, setEditing] = useState<Garment | null>(null)
   // stepping: "Review one by one" moves to the next piece after each save or delete; a tapped piece just closes
   const [stepping, setStepping] = useState(false)
   const [notice, setNotice] = useState('')
   const [adding, setAdding] = useState(false)
+  const [picking, setPicking] = useState<string | null>(null)
   const jobId = useRef<string | null>(null)
   const lastChange = useRef<{ key: string; since: number }>({ key: '', since: 0 })
 
@@ -60,6 +64,17 @@ export function ScanFlow() {
     } catch (e) {
       setPhase({ kind: 'error', message: e instanceof Error ? e.message : 'Something went wrong. Try again.' })
     }
+  }
+
+  /** A store listing goes through the same scan as a photo; the server fetches its picture. */
+  async function addListing(p: Product) {
+    setPicking(p.id)
+    const res = await fetch('/api/shop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: p.imageUrl, title: p.title }) }).catch(() => null)
+    setPicking(null)
+    if (!res?.ok) return setPhase({ kind: 'error', message: 'Couldn’t get that listing’s photo. Try another one.' })
+    jobId.current = (await res.json()).id
+    lastChange.current = { key: 'start', since: Date.now() }
+    setPhase({ kind: 'scanning', job: null })
   }
 
   useEffect(() => {
@@ -131,7 +146,7 @@ export function ScanFlow() {
   return (
     <>
       <p className="label text-ink-muted">Closet scan</p>
-      <h1 className="display mt-2 text-3xl">Film your closet once.</h1>
+      <h1 className="display mt-2 text-3xl">{mode === 'web' ? 'Add it from the web.' : 'Film your closet once.'}</h1>
       <div role="tablist" aria-label="Capture mode" className="mt-6 flex border-b border-rule">
         {MODES.map((m) => (
           <button key={m.id} role="tab" aria-selected={mode === m.id} disabled={busy} onClick={() => setMode(m.id)}
@@ -156,6 +171,11 @@ export function ScanFlow() {
           <ul className="mt-6 grid grid-cols-3 gap-3" aria-hidden>
             {Array.from({ length: Math.max(3, job?.foundCount ?? 3) }, (_, i) => <li key={i} className="aspect-square bg-studio opacity-60" />)}
           </ul>
+        </div>
+      ) : mode === 'web' ? (
+        <div className="mt-8 flex flex-col gap-3">
+          {phase.kind === 'error' && <p role="alert" className="text-error">{phase.message}</p>}
+          <ShopSearch picking={picking} onPick={addListing} />
         </div>
       ) : (
         <div className="mt-10 flex flex-col gap-3">

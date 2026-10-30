@@ -29,6 +29,7 @@ export function ClosetView({ initial, limits, canSeed }: { initial: Garment[]; l
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-6 text-center">
         <p className="display text-2xl">Your closet is empty.<br />Scan it in a minute.</p>
         <Link href="/scan" className="press inline-flex h-12 items-center rounded-control bg-accent px-6 font-semibold text-paper">Scan closet</Link>
+        <Link href="/scan?mode=web" className="min-h-11 inline-flex items-center underline underline-offset-[3px]">Add from the web</Link>
         {canSeed && (
           <form method="post" action="/api/dev/seed"><button className="min-h-11 text-ink-muted underline underline-offset-[3px]">Load the sample closet (development)</button></form>
         )}
@@ -55,8 +56,9 @@ export function ClosetView({ initial, limits, canSeed }: { initial: Garment[]; l
       ) : (
         <p className="mt-12 text-center text-ink-muted">{filter === 'laundry' ? 'Nothing in the laundry.' : `No ${CATEGORY_LABEL[filter]} yet.`}</p>
       )}
-      <div className="mt-10 border-t border-rule pt-4">
+      <div className="mt-10 flex flex-wrap gap-x-6 border-t border-rule pt-4">
         <Link href="/scan" className="min-h-11 inline-flex items-center underline underline-offset-[3px]">Scan more pieces</Link>
+        <Link href="/scan?mode=web" className="min-h-11 inline-flex items-center underline underline-offset-[3px]">Add from the web</Link>
       </div>
       <GarmentEditor garment={open} onClose={() => setOpen(null)}
         onSaved={(g) => { setGarments((gs) => gs.map((x) => (x.id === g.id ? g : x))); setOpen(null) }}
