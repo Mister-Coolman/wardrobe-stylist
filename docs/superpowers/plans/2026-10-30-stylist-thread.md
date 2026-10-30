@@ -31,6 +31,8 @@
 - **Order of work:** thread → photos → morning note → WhatsApp. If time runs short, WhatsApp goes first.
 - **Mock models** script every new tool, so e2e needs no network.
 
+- **Swipe to reply:** the bubble follows the finger to a 56 px threshold. A quoted message reaches the model spelled out, whatever its age. WhatsApp replies map back through `wa_ids`.
+
 ## Review Focus
 
 1. **A reply that refers back:**
@@ -53,24 +55,28 @@
 **Interfaces:**
 - **Produces, in `src/lib/domain/types.ts`:**
   - `type Card`, exactly as in spec §2. `Product` is imported as a type from `@/lib/shop/search`.
-  - `interface Message { id: string; userId: string; role: 'user' | 'assistant'; text: string; cards: Card[]; imageUrl: string | null; channel: 'web' | 'whatsapp' | 'system'; createdAt: string }`
+  - `interface Message { id: string; userId: string; role: 'user' | 'assistant'; text: string; cards: Card[]; imageUrl: string | null; channel: 'web' | 'whatsapp' | 'system'; replyTo: string | null; waIds: string[]; createdAt: string }`
   - `Profile` gains `whatsappId?: string | null; whatsappLinkCode?: string | null; whatsappLinkExpires?: string | null`.
 - **Produces, on `Repo`:**
   - `addMessage(m: Omit<Message, 'id' | 'createdAt'>): Promise<Message>`
   - `listMessages(userId: string, opts?: { before?: string; limit?: number }): Promise<Message[]>`: oldest first, the newest `limit` (default 50) strictly before `before` (an ISO time).
   - `listProfiles(): Promise<Profile[]>`
   - `profileByWhatsapp(waId: string): Promise<Profile | null>`
+  - `getMessage(userId: string, id: string): Promise<Message | null>`
+  - `messageByWaId(userId: string, waId: string): Promise<Message | null>`
+  - `addWaIds(userId: string, id: string, waIds: string[]): Promise<void>`
 
 - [ ] **Step 1: Write the failing tests** in `tests/db/repo.test.ts`, for the local repo:
   - `messages come back oldest first, the newest 50`: add 55; `listMessages(u)` has length 50, its first text is `m5` and its last is `m54`.
   - `listMessages before pages back`: `listMessages(u, { before: page[0].createdAt, limit: 5 })` gives texts `m0`–`m4`.
   - `messages are per user`.
   - `profileByWhatsapp finds the linked profile`.
+  - `messageByWaId finds a message by any of its WhatsApp ids, only for its owner`.
 - [ ] **Step 2: Run them** with `npx vitest run tests/db`. Expected: FAIL (`addMessage` is not a function).
 - [ ] **Step 3: Implement the local repo.** Messages go in `Db.messages`. Use an ISO `createdAt` with a per-repo sequence suffix as a tiebreak, so two messages in the same millisecond keep their order.
 - [ ] **Step 4: Implement the Supabase repo** with the existing `toRow`/`fromRow`. Order by `created_at desc` with `limit`, then reverse.
 - [ ] **Step 5: Write the migration:**
-  - the `messages` table per spec;
+  - the `messages` table per spec, including `reply_to uuid references messages(id) on delete set null` and `wa_ids text[] not null default '{}'` with a GIN index;
   - an index on `(user_id, created_at)`;
   - row-level security enabled, with the same policy style as `0001_init.sql`;
   - the `profiles` columns `whatsapp_id text unique`, `whatsapp_link_code text`, `whatsapp_link_expires timestamptz`.
@@ -96,13 +102,15 @@
     It drops `outfitId` and `tripId`.
   - `ChatMessage` user variant: `{ role: 'user'; content: string; imageUrl?: string }`. The real chat sends the newest user `imageUrl` as an `image_url` part via `toDataUrl(url, 1024)`; older images become the text `[photo]`.
   - `export function summariseCard(c: Card): string`, for example `[outfit o_1 for 2026-10-30: Navy wool overcoat, White oxford shirt, Selvedge jeans]`, `[listings: 1. UA Rival Fleece Joggers (Under Armour, $55.00); 2. …]`, `[trip t_1: Chicago, 3 days]`, `[pieces: White oxford shirt (laundry)]`, `[added: Selvedge jeans]`.
-  - `export async function runThread(user: SessionUser, input: { text: string; imageUrl?: string; channel: Message['channel'] }, deps: { repo: Repo; models: Models; geocode?: ToolContext['geocode'] }): Promise<{ user: Message; reply: Message }>`
+  - `export async function runThread(user: SessionUser, input: { text: string; imageUrl?: string; channel: Message['channel']; replyTo?: string | null; waId?: string }, deps: { repo: Repo; models: Models; geocode?: ToolContext['geocode'] }): Promise<{ user: Message; reply: Message }>`
   - `export const STYLIST_FAILED = 'Couldn’t reach your stylist. Try again.'`
 
 - [ ] **Step 1: Write failing tests** in `tests/agent/thread.test.ts`, using the local repo, mock models and fixture weather:
   - `saves the user message and the reply, with the outfit card`: "drinks after work" gives `reply.cards[0].kind === 'outfit'` and `listMessages` has 2 messages.
   - `the model sees earlier cards as one line each`: wrap `mockChat` to capture messages; after a look, the next call's history contains `[outfit ` and the outfit's id.
   - `only the last 20 messages go to the model`.
+  - `a reply spells out the quoted message, even one older than the last 20`: reply to message 1 of 30; the newest user line to the model starts with `(Replying to: [outfit `.
+  - `a reply to another user's message id is ignored` (stored as null).
   - `a failing tool still gives a reply in plain words and keeps the user message`: a tool that throws gives a non-empty reply text and 2 saved messages.
   - `a model failure saves the user message and throws ModelError` (the route turns it into `STYLIST_FAILED`).
   - `no clean bottoms: the reply explains, no card`.
@@ -112,7 +120,7 @@
   1. Save the user message.
   2. Load the last 20 messages.
   3. Map each to a `ChatMessage`: assistant text plus a summary line per card. The newest user message carries `imageUrl`.
-  4. Find `lastListings` from the newest listings card.
+  4. With `replyTo` (looked up with `getMessage` for this user), prefix the newest user line with `(Replying to: …)`: the quoted text and its card summaries. `lastListings` comes from the quoted message's listings card if it has one, otherwise from the newest listings card. The `outfitId` the agent should act on is then the quoted outfit.
   5. Run the loop as `runChat` did, with `MAX_TOOL_ROUNDS` 5.
   6. Save the reply with `ctx.cards`.
 - [ ] **Step 4: Update the existing tools to push cards:**
@@ -191,7 +199,7 @@
 - **Consumes:** `runThread` and `STYLIST_FAILED` (Task 2); `Repo.listMessages` (Task 1).
 - **Produces:**
   - `GET /api/thread?before=` → `{ messages: Message[] }`.
-  - `POST /api/thread` (multipart: `text`, optional `image` File) → `{ user: Message, reply: Message }`; on `ModelError`, 502 `{ error: 'stylist_failed', user }`.
+  - `POST /api/thread` (multipart: `text`, optional `image` File, optional `replyTo`) → `{ user: Message, reply: Message }`; on `ModelError`, 502 `{ error: 'stylist_failed', user }`.
   - `export const maxDuration = 300`.
   - `Thread` props: `{ initial: Message[] }`.
 
@@ -203,6 +211,12 @@
   - Outfit card: **Another look**, **Swap a piece**, **Wore it**.
   - Listings: each tile sends `Add N`.
   - **Wore it** sends `Wore it`; the mock and the prompt map it to `log_wear` on the newest outfit card.
+- **Swipe to reply** (`src/components/stylist/SwipeToReply.tsx` wraps each message):
+  - Pointer events with `touch-action: pan-y`, so vertical scrolling still works. A drag counts only when its horizontal movement exceeds its vertical.
+  - The bubble moves with the finger, capped at 80 px, and the reply icon (Phosphor `ArrowBendUpLeft`) fades in. Release at 56 px or more sets the quote; under 56 px it springs back with a 150 ms transform transition. Reduced motion skips the spring.
+  - Also a **Reply** button, visible on hover and `:focus-within`, with `aria-label="Reply to this message"`.
+  - Quote bar above the composer: one line, `line-clamp-1`, and a ✕ button (`aria-label="Cancel reply"`). Sending clears it.
+  - A message with `replyTo` shows the quoted line above its text. Tapping it scrolls to the original (`id="m-{id}"`) and highlights it for 1.5 s.
 - **Failure:** the alert shows `STYLIST_FAILED` and a **Retry** button that re-sends the text.
 - **Empty thread:** "What's on today?" with the three example prompts as tappable chips.
 
@@ -214,6 +228,8 @@
   - `"I spilled coffee on the white oxford" puts it in the laundry` (Closet → Laundry filter shows it);
   - `"add my black under armour sweatpants" then "add 1" adds the joggers to the closet`;
   - `the mic on Closet opens the Stylist thread`;
+  - `swipe a look card to reply "swap the jeans": that look changes, and the sent message shows the quote`, using `page.mouse` down/move/up to drag 70 px right on the first look card after a second look exists. The swapped look keeps the first card's other pieces;
+  - `the Reply button does the same with the keyboard`;
   - the carried-over cases:
     - `chat-today` #4: the look on Today updates after a chat look;
     - #6: Logged after a reload, via **Wore it** on the card.
@@ -324,9 +340,9 @@
 - **Consumes:** `runThread` (Task 2), `matchLinkCode` and `profileByWhatsapp` (Tasks 1, 7), `morningNote` (Task 6).
 - **Produces, in `src/lib/whatsapp.ts`:**
   - `verifySignature(rawBody: string, header: string | null, secret: string): boolean`, using HMAC-SHA256 and `timingSafeEqual`.
-  - `parseInbound(body: unknown): { waId: string; messageId: string; text?: string; mediaId?: string }[]`. It handles text, image (with caption) and interactive `button_reply` (the title becomes the text).
+  - `parseInbound(body: unknown): { waId: string; messageId: string; text?: string; mediaId?: string; contextId?: string }[]`. `contextId` is the replied-to message's id from `message.context.id`. It handles text, image (with caption) and interactive `button_reply` (the title becomes the text).
   - `downloadMedia(mediaId): Promise<Buffer>`: Graph `GET /{media-id}` gives the url, then GET it with the token.
-  - `sendReply(waId: string, m: Message, storage: StorageLike): Promise<void>`:
+  - `sendReply(waId: string, m: Message, storage: StorageLike): Promise<string[]>` returns the WhatsApp ids of everything it sent, which the caller stores with `addWaIds`:
     1. The text goes as a text message.
     2. For each outfit card: an image message (signed `imageUrl`, caption the piece names), then an interactive button message with 3 buttons whose titles are "Another look", "Swap a piece" and "Wore it". The titles are at most 20 characters.
     3. A listings card becomes a numbered text list: `1. Title — Store, $Price`, with "Reply with a number to add it."
@@ -343,13 +359,13 @@
        - skip it if its message id has been seen (an in-memory LRU of 500, plus a check that no `messages` row has the same text from WhatsApp within 2 minutes);
        - a link code links the number and replies "Linked — text me anytime.";
        - an unlinked sender gets "Link me from Settings in the app first.";
-       - otherwise, a photo is stored and `runThread` runs with `channel: 'whatsapp'`, then `sendReply`.
+       - otherwise, a photo is stored and `runThread` runs with `channel: 'whatsapp'`, `waId: messageId`, and `replyTo` set to `messageByWaId(contextId)?.id`. Then `sendReply`, and `addWaIds` on the reply.
   - The morning note uses `sendTemplate('morning_look', [line])` when the user's last WhatsApp message is more than 24 h old; `WHATSAPP_TEMPLATE=hello_world` switches it to the fallback. Otherwise it uses `sendReply`.
 
 - [ ] **Step 1: Write failing tests:**
   - `verifySignature` with a good signature, a bad one, and a missing header;
   - `parseInbound` with text, image with caption, and a button reply;
-  - the route: 401 on a bad signature; a valid text from a linked number calls `runThread` once and `sendReply` once (with `fetch` stubbed); the same message id twice → once; an unlinked number gets the link prompt; a link code links.
+  - the route: 401 on a bad signature; a valid text from a linked number calls `runThread` once and `sendReply` once (with `fetch` stubbed); the same message id twice → once; a reply whose `context.id` is a sent outfit image reaches `runThread` with that message's id; an unlinked number gets the link prompt; a link code links.
 - [ ] **Step 2: Run them.** Expected: FAIL.
 - [ ] **Step 3: Implement.**
 - [ ] **Step 4: Run the tests.** `npx vitest run` and `npx tsc --noEmit` should PASS.

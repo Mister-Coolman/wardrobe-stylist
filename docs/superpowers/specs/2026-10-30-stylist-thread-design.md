@@ -13,6 +13,7 @@ Make the app feel like texting a stylist, not like using a set of screens. There
 - All four abilities: looks shown inline, acting on the closet, reading photos, messaging first.
 - The thread is saved, WhatsApp linking is optional, and both channels show the same thing.
 - The Meta app can't be created for about an hour, so the in-app thread comes first.
+- Swipe a message to reply to it directly, as in iMessage and WhatsApp.
 
 ## Assumptions (not stated by the user)
 
@@ -42,6 +43,8 @@ Each step ships and demos on its own. If time runs out, WhatsApp is dropped firs
 | `cards` | jsonb | `[]` by default; see Cards |
 | `image_url` | text | a photo the user sent, as a `/api/media/…` url; null otherwise |
 | `channel` | text | `web`, `whatsapp` or `system` (the morning note) |
+| `reply_to` | uuid | the message this one answers (swipe to reply); null otherwise |
+| `wa_ids` | text[] | WhatsApp message ids this message was sent or received as, so a WhatsApp reply can be matched back |
 | `created_at` | timestamptz | default `now()` |
 
 **Repo methods:**
@@ -58,6 +61,18 @@ The local JSON repo and the Supabase repo both implement them.
 **Agent context.** The model sees the last 20 messages. Each card is summarised as a line of text, for example `[outfit o_123: Navy overcoat, Oxford, Selvedge jeans]`, so that "swap the jeans" can refer to the outfit shown.
 
 **Replies.** The system prompt asks for 2–4 sentences: say what was done and why, then one short question when something is genuinely open. The rule against picking garments itself stays: outfits come only from `plan_outfit` and `swap_piece`, which are checked by the rule engine.
+
+## 1b. Reply to a message
+
+**On the web:**
+- Swipe any message to the right by 56 px or more to reply to it. The bubble follows the finger and springs back; a reply icon appears at the threshold.
+- The quoted message then shows above the composer as one line (its text, or its card's summary) with a ✕ to cancel.
+- The sent message shows the quote above its own text; tapping the quote scrolls to the original and briefly highlights it.
+- Without touch, each message has a Reply button that appears on hover and keyboard focus, so it works with a mouse and keyboard too.
+
+**For the stylist:** a reply arrives with the quoted message spelled out, even if it's older than the last 20 messages, e.g. `(Replying to: [outfit o_9 for 2026-10-28: …])`. So replying "swap the jeans" to Tuesday's look swaps a piece in Tuesday's look, and replying "add this one" to a listings card means that card.
+
+**On WhatsApp:** a WhatsApp reply carries the id of the message it answers. It's looked up through `wa_ids` and becomes `reply_to`, so it works the same. Replies the stylist sends don't quote anything.
 
 ## 2. Cards
 
@@ -164,6 +179,7 @@ The app never asks for a phone number.
 ## Migration `0004_messages.sql`
 
 - the `messages` table and its row-level security policy;
+- `messages.reply_to` and `messages.wa_ids`;
 - `profiles.whatsapp_id text unique`;
 - `profiles.whatsapp_link_code text`;
 - `profiles.whatsapp_link_expires timestamptz`.
@@ -183,6 +199,8 @@ The user runs it in the Supabase SQL editor before deploy.
 - card summaries in the agent context;
 - `swap_piece` keeps the other pieces;
 - `delete_piece` without confirm refuses;
+- a reply quotes the message it answers to the model, even when that message is older than the last 20;
+- a WhatsApp reply to a sent outfit image maps to that message;
 - webhook signature check, link code (right, wrong, expired), repeated message id, an image message going to the agent;
 - morning note: skips users with fewer than 3 pieces, and is sent once per day.
 
@@ -193,7 +211,8 @@ The user runs it in the Supabase SQL editor before deploy.
 - "spilled coffee on the white oxford" puts it in the laundry;
 - a store search and "add 1";
 - a photo → "add these" → pieces added;
-- the mic on another page opens the thread.
+- the mic on another page opens the thread;
+- swipe a look card to reply "swap the jeans" → that look changes, and the sent message shows the quote.
 
 **Live:** a real conversation on the deployed app, then on WhatsApp from the user's phone.
 
