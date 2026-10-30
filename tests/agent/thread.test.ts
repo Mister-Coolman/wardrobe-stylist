@@ -71,6 +71,12 @@ describe('runThread', () => {
     expect(u.replyTo).toBeNull()
   })
 
+  test('a reply to something that isn’t a message id (a message still sending) is stored as null, without a lookup', async () => {
+    const strict: Repo = { ...repo, getMessage: async (u, id) => { if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('invalid input syntax for type uuid'); return repo.getMessage(u, id) } }
+    const { user: u } = await runThread(user, web('hm', { replyTo: 'pending-1793401742157' }), { repo: strict, models: getModels() })
+    expect(u.replyTo).toBeNull()
+  })
+
   test('a failing tool still gives a reply in plain words and keeps the user message', async () => {
     let n = 0
     const chat: ChatModel = { complete: async (msgs) => n++ === 0

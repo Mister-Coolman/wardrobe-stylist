@@ -77,7 +77,7 @@ export function Thread({ initial }: { initial: Message[] }) {
           const mine = m.role === 'user'
           return (
             <li key={m.id} id={`m-${m.id}`} className={`rounded-sm transition-colors duration-500 ${lit === m.id ? 'bg-studio' : ''}`}>
-              <SwipeToReply onReply={() => setReplyTo(m)} className={mine ? 'ml-auto max-w-[85%]' : ''}>
+              <SwipeToReply onReply={() => { if (!m.id.startsWith('pending-')) setReplyTo(m) }} className={mine ? 'ml-auto max-w-[85%]' : ''}>
                 <div className={mine ? 'flex flex-col items-end text-right' : ''}>
                   {m.replyTo && (
                     <button type="button" onClick={() => q && jump(q.id)} aria-label={`Quoted: ${q ? quoteFor(q) : 'an earlier message'}`}

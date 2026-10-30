@@ -10,6 +10,7 @@ import type { ToolContext } from './tools'
 export { toolSpecs }
 export const MAX_TOOL_ROUNDS = 5
 export const HISTORY = 20
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const TOO_MANY_ROUNDS = 'I couldn’t finish that — try asking more simply.'
 export const STYLIST_FAILED = 'Couldn’t reach your stylist. Try again.'
 
@@ -56,7 +57,8 @@ export async function runThread(user: SessionUser, input: { text: string; imageU
   repo: Repo; models: Models; geocode?: ToolContext['geocode']
 }): Promise<{ user: Message; reply: Message }> {
   const { repo } = deps
-  const quotedMsg = input.replyTo ? await repo.getMessage(user.userId, input.replyTo) : null
+  // message ids are uuids; anything else (a message still sending on the phone) is no reply at all, and Postgres would reject it
+  const quotedMsg = input.replyTo && UUID.test(input.replyTo) ? await repo.getMessage(user.userId, input.replyTo) : null
   const saved = await repo.addMessage({ userId: user.userId, role: 'user', text: input.text, cards: [], imageUrl: input.imageUrl ?? null,
     channel: input.channel, replyTo: quotedMsg?.id ?? null, waIds: input.waId ? [input.waId] : [] })
 
