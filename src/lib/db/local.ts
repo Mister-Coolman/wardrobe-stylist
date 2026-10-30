@@ -2,20 +2,22 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { nanoid } from 'nanoid'
-import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip, WearLog } from '@/lib/domain/types'
+import type { CalendarEvent, Garment, Message, Outfit, Poll, Profile, ScanJob, Trip, WearLog } from '@/lib/domain/types'
 import type { Repo } from './repo'
 import { laundryAfterWear } from './repo'
 
 interface Db {
   profiles: Profile[]; garments: Garment[]; outfits: (Outfit & { createdAt: number })[]; wearLogs: WearLog[]
   events: CalendarEvent[]; trips: Trip[]; scanJobs: ScanJob[]
-  polls: Poll[]; pollVotes: { slug: string; outfitId: string; voterKey: string }[]
+  polls: Poll[]; pollVotes: { slug: string; outfitId: string; voterKey: string }[]; messages: Message[]
 }
-const empty = (): Db => ({ profiles: [], garments: [], outfits: [], wearLogs: [], events: [], trips: [], scanJobs: [], polls: [], pollVotes: [] })
+const empty = (): Db => ({ profiles: [], garments: [], outfits: [], wearLogs: [], events: [], trips: [], scanJobs: [], polls: [], pollVotes: [], messages: [] })
 
 /** JSON-file store for development and tests until Supabase is set up. Read-modify-write per call. */
 export function createLocalRepo(path: string): Repo {
   let seq = 0
+  // message times strictly increase, so two messages in one millisecond keep their order
+  let lastMs = 0
   const load = (): Db => (existsSync(path) ? { ...empty(), ...JSON.parse(readFileSync(path, 'utf8')) } : empty())
   const save = (db: Db) => {
     mkdirSync(dirname(path), { recursive: true })
@@ -118,6 +120,22 @@ export function createLocalRepo(path: string): Repo {
       const out: Record<string, number> = {}
       for (const v of load().pollVotes.filter((x) => x.slug === slug)) out[v.outfitId] = (out[v.outfitId] ?? 0) + 1
       return out
+    },
+
+    async listProfiles() { return clone(load().profiles) },
+    async profileByWhatsapp(waId) { return clone(load().profiles.find((p) => p.whatsappId === waId) ?? null) },
+    async addMessage(m) {
+      lastMs = Math.max(Date.now(), lastMs + 1)
+      return tx((db) => { const out = { ...m, id: randomUUID(), createdAt: new Date(lastMs).toISOString() }; db.messages.push(out); return clone(out) })
+    },
+    async listMessages(userId, opts = {}) {
+      const mine = load().messages.filter((m) => m.userId === userId && (!opts.before || m.createdAt < opts.before))
+      return clone(mine.slice(-(opts.limit ?? 50)))
+    },
+    async getMessage(userId, id) { return clone(load().messages.find((m) => m.id === id && m.userId === userId) ?? null) },
+    async messageByWaId(userId, waId) { return clone(load().messages.find((m) => m.userId === userId && m.waIds.includes(waId)) ?? null) },
+    async addWaIds(userId, id, waIds) {
+      tx((db) => { const m = db.messages.find((x) => x.id === id && x.userId === userId); if (m) m.waIds = [...new Set([...m.waIds, ...waIds])] })
     },
   }
 }

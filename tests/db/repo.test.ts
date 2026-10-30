@@ -15,7 +15,7 @@ async function clearSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
   // wear_logs and poll_votes go with their outfits and polls
-  for (const t of ['polls', 'outfits', 'garments', 'events', 'trips', 'scan_jobs', 'profiles']) {
+  for (const t of ['messages', 'polls', 'outfits', 'garments', 'events', 'trips', 'scan_jobs', 'profiles']) {
     const { error } = await db.from(t).delete().in('user_id', TEST_USERS)
     if (error) throw new Error(`${t}: ${error.message}`)
   }
@@ -159,4 +159,34 @@ describe.each(stores)('%s', (_name, make) => {
     expect(await repo.vote(poll.slug, crypto.randomUUID(), 'v3')).toBe('invalid')
     expect(await repo.tally(poll.slug)).toEqual({ [a]: 1, [b]: 1 })
   }, 60_000)
+
+  test('messages come back oldest first, the newest 50', async () => {
+    for (let i = 0; i < 55; i++) await repo.addMessage(msg(`m${i}`))
+    const page = await repo.listMessages('u1')
+    expect(page).toHaveLength(50)
+    expect(page[0].text).toBe('m5')
+    expect(page[49].text).toBe('m54')
+    const older = await repo.listMessages('u1', { before: page[0].createdAt, limit: 5 })
+    expect(older.map((m) => m.text)).toEqual(['m0', 'm1', 'm2', 'm3', 'm4'])
+  }, 60_000)
+
+  test('messages are per user; getMessage and messageByWaId only find the owner’s', async () => {
+    const a = await repo.addMessage({ ...msg('mine'), cards: [{ kind: 'trip', tripId: 't', destination: 'Chicago', days: 3 }], waIds: ['wamid.1'] })
+    await repo.addMessage({ ...msg('theirs'), userId: 'someone-else' })
+    expect((await repo.listMessages('u1')).map((m) => m.text)).toEqual(['mine'])
+    expect((await repo.getMessage('u1', a.id))?.cards).toEqual(a.cards)
+    expect(await repo.getMessage('someone-else', a.id)).toBeNull()
+    await repo.addWaIds('u1', a.id, ['wamid.2'])
+    expect((await repo.messageByWaId('u1', 'wamid.2'))?.id).toBe(a.id)
+    expect(await repo.messageByWaId('someone-else', 'wamid.1')).toBeNull()
+  }, 60_000)
+
+  test('profileByWhatsapp finds the linked profile; listProfiles lists them', async () => {
+    await repo.upsertProfile({ ...profile, whatsappId: '15550100' })
+    expect((await repo.profileByWhatsapp('15550100'))?.userId).toBe('u1')
+    expect(await repo.profileByWhatsapp('nope')).toBeNull()
+    expect((await repo.listProfiles()).some((p) => p.userId === 'u1')).toBe(true)
+  }, 60_000)
 })
+
+const msg = (text: string) => ({ userId: 'u1', role: 'user' as const, text, cards: [], imageUrl: null, channel: 'web' as const, replyTo: null, waIds: [] })

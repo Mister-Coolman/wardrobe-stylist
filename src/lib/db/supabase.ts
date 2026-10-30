@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseServerKey } from './supabaseKey'
 import { nanoid } from 'nanoid'
-import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
+import type { CalendarEvent, Garment, Message, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
 import type { Repo } from './repo'
 import { laundryAfterWear } from './repo'
 
@@ -16,6 +16,9 @@ function fromRow<T>(r: Record<string, unknown> | null, drop: string[] = ['create
   if (!r) return null
   return Object.fromEntries(Object.entries(r).filter(([k]) => !drop.includes(k)).map(([k, v]) => [camel(k), v])) as T
 }
+
+// messages keep created_at: it orders the thread and pages it
+const message = (r: Record<string, unknown> | null) => fromRow<Message>(r, [])
 
 /** Postgres-backed repo. Server-only: uses the service-role key, every query filtered by user_id. */
 export function createSupabaseRepo(): Repo {
@@ -96,6 +99,23 @@ export function createSupabaseRepo(): Repo {
       const out: Record<string, number> = {}
       for (const v of ok(await db.from('poll_votes').select('outfit_id').eq('slug', slug)) ?? []) out[v.outfit_id] = (out[v.outfit_id] ?? 0) + 1
       return out
+    },
+
+    async listProfiles() { return (ok(await db.from('profiles').select()) ?? []).map((r) => fromRow<Profile>(r)!) },
+    async profileByWhatsapp(waId) { return fromRow<Profile>(ok(await db.from('profiles').select().eq('whatsapp_id', waId).maybeSingle())) },
+    async addMessage(m) { return message(ok(await db.from('messages').insert(toRow(m)).select().single()))! },
+    async listMessages(userId, opts = {}) {
+      let q = db.from('messages').select().eq('user_id', userId).order('created_at', { ascending: false }).limit(opts.limit ?? 50)
+      if (opts.before) q = q.lt('created_at', opts.before)
+      return (ok(await q) ?? []).map((r) => message(r)!).reverse()
+    },
+    async getMessage(userId, id) { return message(ok(await db.from('messages').select().eq('user_id', userId).eq('id', id).maybeSingle())) },
+    async messageByWaId(userId, waId) {
+      return message(ok(await db.from('messages').select().eq('user_id', userId).contains('wa_ids', [waId]).limit(1).maybeSingle()))
+    },
+    async addWaIds(userId, id, waIds) {
+      const m = await repo.getMessage(userId, id)
+      if (m) ok(await db.from('messages').update({ wa_ids: [...new Set([...m.waIds, ...waIds])] }).eq('id', id).eq('user_id', userId))
     },
   }
   return repo

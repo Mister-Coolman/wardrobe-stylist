@@ -1,4 +1,4 @@
-import type { CalendarEvent, Garment, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
+import type { CalendarEvent, Garment, Message, Outfit, Poll, Profile, ScanJob, Trip } from '@/lib/domain/types'
 import { DEFAULT_WEAR_LIMITS, limitFor } from '@/lib/domain/wearLimits'
 
 /** Typed data access, every call scoped by userId (except background scan-job updates). */
@@ -32,6 +32,14 @@ export interface Repo {
   latestPollFor(userId: string, date: string): Promise<Poll | null>
   vote(slug: string, outfitId: string, voterKey: string): Promise<'ok' | 'duplicate' | 'invalid'>
   tally(slug: string): Promise<Record<string, number>>
+  listProfiles(): Promise<Profile[]>
+  profileByWhatsapp(waId: string): Promise<Profile | null>
+  addMessage(m: Omit<Message, 'id' | 'createdAt'>): Promise<Message>
+  /** Oldest first: the newest `limit` (default 50) strictly before `before` (an ISO time). */
+  listMessages(userId: string, opts?: { before?: string; limit?: number }): Promise<Message[]>
+  getMessage(userId: string, id: string): Promise<Message | null>
+  messageByWaId(userId: string, waId: string): Promise<Message | null>
+  addWaIds(userId: string, id: string, waIds: string[]): Promise<void>
 }
 
 /** Ids of the outfit's pieces that hit their wear limit with this wear. */

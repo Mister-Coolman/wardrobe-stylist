@@ -1,3 +1,4 @@
+import type { Product } from '@/lib/shop/search'
 import type { RuleResult, Violation } from '@/lib/rules/types'
 
 export type { RuleResult, Violation }
@@ -31,6 +32,26 @@ export interface Profile {
   userId: string; homeCity: string; homeLat: number; homeLon: number; tz: string
   personPhotoUrl: string | null; renderMode: RenderMode; wearLimits: WearLimits; styleProfile: StyleProfile | null
   tempUnit?: TempUnit | null
+  /** standing preferences the owner told the stylist ("navy with olive"); pieceIds when the note is a pairing */
+  stylistNotes?: StylistNote[]
+  /** WhatsApp sender id once linked; the link code is pending until it expires */
+  whatsappId?: string | null; whatsappLinkCode?: string | null; whatsappLinkExpires?: string | null
+}
+
+export interface StylistNote { id: string; text: string; pieceIds: string[] }
+
+/** What a stylist message shows besides its text. Card buttons just send a message, so they work the same on WhatsApp. */
+export type Card =
+  | { kind: 'outfit'; outfitId: string; date: string; imageUrl?: string; pieces: { id: string; name: string; cutoutUrl: string }[] }
+  | { kind: 'pieces'; pieces: { id: string; name: string; cutoutUrl: string; status: string }[] }
+  | { kind: 'listings'; products: Product[] }
+  | { kind: 'trip'; tripId: string; destination: string; days: number }
+  | { kind: 'added'; garmentIds: string[] }
+
+/** One message in the stylist thread. replyTo: the message it answers (swipe to reply); waIds: its WhatsApp message ids */
+export interface Message {
+  id: string; userId: string; role: 'user' | 'assistant'; text: string; cards: Card[]; imageUrl: string | null
+  channel: 'web' | 'whatsapp' | 'system'; replyTo: string | null; waIds: string[]; createdAt: string
 }
 
 export interface CalendarEvent {
