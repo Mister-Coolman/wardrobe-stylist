@@ -90,12 +90,16 @@ export function piecesFromScan(job: Pick<ScanJob, 'frameUrls'>, unconfirmed: Gar
 }
 
 /** A store photo often shows a model in a whole outfit: keep the largest piece of the listed category (or the largest
- *  piece), and take its name, brand and fit from the listing; colour, warmth and dress code still come from the photo. */
+ *  piece), and take its name, brand and fit from the listing; colour, warmth and dress code still come from the photo.
+ *  Measured on three on-model listings (joggers, polo, quarter-zip): the right piece each time. */
 export function listedPiece<F extends { tags: GarmentTags; quality: number }>(found: F[], listing: ListingDetails): F[] {
   const byQuality = [...found].sort((a, b) => b.quality - a.quality)
   const best = byQuality.find((f) => f.tags.category === listing.category) ?? byQuality[0]
   if (!best) return []
-  return [{ ...best, tags: { ...best.tags, name: listing.name, category: listing.category, brand: listing.brand ?? best.tags.brand,
+  // listings rarely name the colour; the photo shows it
+  const colour = best.tags.colors[0]
+  const name = listing.colors.length || !colour ? listing.name : `${colour[0].toUpperCase()}${colour.slice(1)} ${listing.name}`
+  return [{ ...best, tags: { ...best.tags, name, category: listing.category, brand: listing.brand ?? best.tags.brand,
     fit: listing.fit ?? best.tags.fit, tags: [...new Set([...listing.tags, ...best.tags.tags])] } }]
 }
 

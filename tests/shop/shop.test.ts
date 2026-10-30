@@ -60,6 +60,6 @@ describe('product search', () => {
 
 describe('mock listing reader', () => {
   test('reads brand, fit and category from a title', () => {
-    expect(mockListing("Levi's 511 Slim Fit Men's Jeans")).toEqual({ name: "Levi's 511 Slim Fit Jeans", category: 'bottom', brand: "Levi's", fit: 'slim', tags: [] })
+    expect(mockListing("Levi's 511 Slim Fit Men's Jeans")).toEqual({ name: "Levi's 511 Slim Fit Jeans", category: 'bottom', brand: "Levi's", fit: 'slim', tags: [], colors: [] })
   })
 })

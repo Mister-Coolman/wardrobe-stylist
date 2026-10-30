@@ -281,7 +281,7 @@ describe('cutout finishing', () => {
 
 
 describe('a store listing photo', () => {
-  const listing = { name: 'Black Under Armour Rival fleece joggers', category: 'bottom' as const, brand: 'Under Armour', fit: 'relaxed' as const, tags: ['fleece'] }
+  const listing = { name: 'Black Under Armour Rival fleece joggers', category: 'bottom' as const, brand: 'Under Armour', fit: 'relaxed' as const, tags: ['fleece'], colors: ['black'] }
   const jeans = FIXTURE_TAGS.find((t) => t.category === 'bottom')!
   const tee = FIXTURE_TAGS.find((t) => t.category === 'top')!
 
@@ -296,6 +296,11 @@ describe('a store listing photo', () => {
     const kept = listedPiece([{ tags: { ...tee, brand: 'Nautica' }, quality: 900 }, { tags: tee, quality: 100 }], { ...listing, brand: null, fit: null })
     expect(kept).toHaveLength(1)
     expect(kept[0]).toMatchObject({ quality: 900, tags: { brand: 'Nautica', fit: tee.fit, category: 'bottom' } })
+  })
+
+  test('a listing that names no colour takes it from the photo', () => {
+    const [kept] = listedPiece([{ tags: jeans, quality: 1 }], { ...listing, name: 'Under Armour fleece joggers', colors: [] })
+    expect(kept.tags.name).toBe(`Indigo Under Armour fleece joggers`)
   })
 
   test('runScan with a listing inserts one piece named from it', async () => {

@@ -36,7 +36,7 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
 
   async function useListing(p: Product) {
     setPicking(p.id); setFindNote('')
-    const res = await fetch('/api/shop/details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: p.title }) }).catch(() => null)
+    const res = await fetch('/api/shop/details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: p.title, currentName: g.name }) }).catch(() => null)
     setPicking(null)
     const d = res?.ok ? ((await res.json()) as { details: ListingDetails }).details : null
     if (!d) return setFindNote('Couldn’t read that listing. Try another one.')

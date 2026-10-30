@@ -26,12 +26,13 @@ export interface Segmenter {
 }
 
 export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags' | 'brand' | 'fit'>
-/** What a store listing's title says about a piece */
-export type ListingDetails = Pick<GarmentTags, 'name' | 'category' | 'brand' | 'fit' | 'tags'>
+/** What a store listing's title says about a piece; colors: the colours the title names, often none */
+export type ListingDetails = Pick<GarmentTags, 'name' | 'category' | 'brand' | 'fit' | 'tags' | 'colors'>
 export interface Tagger {
   tag(cutoutUrl: string): Promise<GarmentTags>
   sameItem(a: string, b: string): Promise<boolean>
-  fromListing(title: string): Promise<ListingDetails>
+  /** currentName: the owner's name for the piece, whose colour is kept when the title gives none */
+  fromListing(title: string, currentName?: string): Promise<ListingDetails>
 }
 
 export interface ProposeInput {

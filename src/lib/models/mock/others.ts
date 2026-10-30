@@ -47,6 +47,7 @@ export const mockTagger: Tagger = {
   },
 }
 
+const COLOURS = ['black', 'white', 'grey', 'navy', 'red', 'blue', 'green']
 const BRANDS = ['Under Armour', 'Nautica', "Levi's", 'Uniqlo', 'Nike']
 const FITS: [RegExp, ListingDetails['fit']][] = [[/\bslim\b/i, 'slim'], [/\b(classic|regular|straight)\b/i, 'classic'], [/\b(relaxed|loose)\b/i, 'relaxed'], [/\boversized\b/i, 'oversized']]
 const CATEGORIES: [RegExp, ListingDetails['category']][] = [[/jogger|jean|pant|trouser|short/i, 'bottom'], [/coat|jacket|parka/i, 'outerwear'], [/shoe|sneaker|boot/i, 'shoes']]
@@ -59,6 +60,7 @@ export function mockListing(title: string): ListingDetails {
     brand: BRANDS.find((b) => title.toLowerCase().includes(b.toLowerCase())) ?? null,
     fit: FITS.find(([re]) => re.test(title))?.[1] ?? null,
     tags: /fleece/i.test(title) ? ['fleece'] : [],
+    colors: COLOURS.filter((c) => new RegExp(`\\b${c}\\b`, 'i').test(title)),
   }
 }
 

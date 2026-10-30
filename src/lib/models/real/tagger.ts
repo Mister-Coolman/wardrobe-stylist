@@ -31,13 +31,15 @@ export const realTagger: Tagger = {
     ], { effort: 'minimal' })
     return r.same
   },
-  async fromListing(title) {
+  async fromListing(title, currentName) {
     return structured('tagger', ListingDetailsSchema, 'listing_details', [
       { role: 'system', content: `From a store listing's title, describe the piece for a wardrobe app.
 name: short like "Black Under Armour Rival fleece joggers": colour if given, brand, line, item; drop "Men's", sizes and store words.
 category: outerwear, top, bottom, onepiece, shoes or accessory. brand: as the listing gives it, else null.
 fit: slim, classic (also "regular", "straight"), relaxed (also "loose") or oversized, only when the title says so; else null.
-tags: material and notable details from the title (fleece, tapered leg, pique).` },
+tags: material and notable details from the title (fleece, tapered leg, pique).
+colors: the colours the title names, as plain lowercase words; [] when it names none (most don't).${currentName ? `
+The owner calls this piece "${currentName.replace(/"/g, "'")}": when the title names no colour, start the name with the colour from the owner's name.` : ''}` },
       { role: 'user', content: title },
     ], { effort: 'minimal' })
   },
