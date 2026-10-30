@@ -12,7 +12,7 @@ import type { SessionUser } from '@/lib/session'
 import { dayFor, planToday } from '@/lib/today'
 import { createTrip } from '@/lib/trips'
 import { washPatch } from '@/lib/garments'
-import { piecesFromScan } from '@/lib/scan/pipeline'
+import { piecesFromScan, runScan } from '@/lib/scan/pipeline'
 import { startListing } from '@/lib/shop/add'
 import { getProductSearch } from '@/lib/shop/search'
 import { getStorage } from '@/lib/storage'
@@ -32,6 +32,7 @@ export interface ToolContext {
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD, defaults to today')
 const wish = z.string().max(200).optional()
 export const MAX_NOTES = 30
+const NO_PHOTO = { error: 'no photo in this message — ask the owner to send one' }
 const DEFS = {
   get_events: { description: 'Calendar and user-added events for a day', schema: z.object({ date }) },
   get_weather: { description: 'Forecast for a day at the user’s location', schema: z.object({ date }) },
@@ -56,6 +57,13 @@ const DEFS = {
   },
   delete_piece: { description: 'Remove a piece from the closet. Ask the owner first; pass confirm: true only after they say yes.', schema: z.object({ id: z.string(), confirm: z.boolean() }) },
   shop_search: { description: 'Search stores for a product the owner has or wants, e.g. "black Under Armour sweatpants". Shows listings they can add by number.', schema: z.object({ query: z.string().min(2).max(120) }) },
+  add_photo_piece: { description: 'Cut out the clothes in the photo the owner sent, to add them. Shows what it found; add them only after the owner says yes (keep_pieces).', schema: z.object({}) },
+  keep_pieces: { description: 'Add pieces found in a photo to the closet, after the owner says yes', schema: z.object({ ids: z.array(z.string()).min(1) }) },
+  rate_outfit: { description: 'For "how do I look?" with a photo: returns the day’s weather, events and dress code to judge the outfit in the photo against', schema: z.object({ date }) },
+  recreate_look: {
+    description: 'For "match this look" / "make something like this" with a photo or screenshot: plans the nearest outfit from the closet. wish: anything else they said (whose look it is, a theme).',
+    schema: z.object({ date, wish }),
+  },
   remember: {
     description: 'Save a standing preference the owner states ("in general I like navy with olive", "I run warm", "never suggest shorts"). pieceIds: when it pairs specific pieces.',
     schema: z.object({ text: z.string().min(1).max(200), pieceIds: z.array(z.string()).max(6).optional() }),
@@ -159,6 +167,37 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       if (!a.confirm) return { error: 'ask the owner first, then call again with confirm: true', piece: g.name }
       await repo.deleteGarment(user.userId, g.id)
       return { ok: true, summary: `Removed ${g.name}.` }
+    }
+    case 'add_photo_piece': {
+      if (!ctx.imageUrl) return NO_PHOTO
+      const job = await repo.createScanJob(user.userId, ctx.imageUrl, [ctx.imageUrl])
+      await runScan(job.id, { userId: user.userId, models: ctx.models, repo, storage: getStorage() })
+      const done = await repo.getScanJob(user.userId, job.id)
+      if (done?.status !== 'review') return { error: done?.error ?? 'couldn’t cut out that photo' }
+      const found = piecesFromScan(done, await repo.listGarments(user.userId, { confirmed: false }))
+      ctx.cards.push({ kind: 'pieces', pending: true, pieces: found.map((g) => ({ id: g.id, name: g.name, cutoutUrl: g.cutoutUrl, status: g.status })) })
+      return { found: found.map((g) => ({ id: g.id, name: g.name })), summary: `Found ${found.map((g) => g.name).join(', ')}. Add ${found.length === 1 ? 'it' : 'them'}?` }
+    }
+    case 'keep_pieces': {
+      const gs = (await repo.listGarments(user.userId, { confirmed: false })).filter((g) => (a.ids as string[]).includes(g.id))
+      if (!gs.length) return { error: 'no such pieces waiting to be added' }
+      for (const g of gs) await repo.updateGarment(user.userId, g.id, { confirmed: true })
+      ctx.cards.push({ kind: 'added', garmentIds: gs.map((g) => g.id) })
+      return { ok: true, summary: `Added ${gs.map((g) => g.name).join(', ')}.` }
+    }
+    case 'rate_outfit': {
+      if (!ctx.imageUrl) return NO_PHOTO
+      const { day } = await dayFor(repo, user, await today(ctx, a.date))
+      const unit = unitFor(await profileFor(repo, user.userId))
+      const w = day.weather
+      return { date: day.date, requiredFormality: day.requiredFormality,
+        weather: `${degrees(w.tempLowC, unit)}–${degrees(w.tempHighC, unit)}${unit}, ${w.rainProbability}% rain, ${w.summary}`,
+        events: day.events.map((e) => `${e.start ?? ''} ${e.title}${e.formality ? ` (dress ${e.formality}/5)` : ''}`.trim()),
+        summary: 'Judge the outfit in the photo against this day: warmth, rain, dress code.' }
+    }
+    case 'recreate_look': {
+      if (!ctx.imageUrl) return NO_PHOTO
+      return look(ctx, await planToday(repo, user, { date: await today(ctx, a.date), fresh: true, wish: a.wish, referenceImageUrl: ctx.imageUrl, models: ctx.models }))
     }
     case 'remember': {
       const profile = await profileFor(repo, user.userId)

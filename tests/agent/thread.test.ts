@@ -169,4 +169,18 @@ describe('scripted conversations (mock chat)', () => {
     expect(seen[0][0].content).toMatch(/- \(\S+\) in general I like navy with olive/)
     expect((await repo.getProfile('u1'))?.stylistNotes).toEqual([])
   })
+
+  test('an Instagram link gets asked for a screenshot, with no tool call', async () => {
+    const { reply } = await say('make something like this https://www.instagram.com/reel/abc123/')
+    expect(reply.text).toBe('Send me a screenshot of the moment you liked.')
+    expect(reply.cards).toEqual([])
+  })
+})
+
+describe('clean', () => {
+  test('bracketed lines the model echoes become plain words', async () => {
+    const { clean } = await import('@/lib/agent/thread')
+    expect(clean('Pulled your match with [outfit 55cd for 2026-10-30: Tailored] — oxford + oat knit.')).toBe('Pulled your match with this look — oxford + oat knit.')
+    expect(clean('Found these [found in the photo, not added yet — keep_pieces with these ids: Tee (g1)] want them?')).toBe('Found these want them?')
+  })
 })

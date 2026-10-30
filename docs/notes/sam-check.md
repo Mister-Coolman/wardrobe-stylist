@@ -143,3 +143,14 @@ Blue still gets named black (navy under warm light, against a wood door). One ta
 
 - The fixtures are flat illustrations. On them the tagger sometimes misreads shoes (a loafer as a "beret", a boot as "socks"), and SAM missed the loafer (confidence 0.52 when it was found) in one pan crop. A real phone video of a closet rail is still the test that matters.
 - If real pans link poorly (hangers swinging, depth parallax), the next step is to raise the frame budget or use the video endpoint with an MP4 recorded by the browser.
+
+## Stylist thread, live (30 Oct)
+
+Real Muse Spark over the sample closet, through `runThread`:
+- **"add this" + a hold-up frame** (13 s): four pieces found and shown, waiting to be added; "yes, add them" (4 s) added all four. First run failed: the model couldn't tell the pieces were still waiting, so the pieces card now says so ("found in the photo, not added yet").
+- **"match this look, it's from @ralphlauren's reel"** + an on-model store photo (19 s): credited the poster, built the nearest look (oxford under the oat crewneck for the cable quarter-zip, charcoal trousers for the check pair) and said what it couldn't match.
+- **"how do I look?"** + an on-model polo photo (4 s): judged the colour and fit, and flagged the 48° morning in short sleeves.
+- **"a good fall themed outfit"** (13 s): oat merino, selvedge jeans, olive chore jacket.
+- **An Instagram link** (1 s): "Send me a screenshot of the moment you liked."
+- **"in general I like navy with olive"** (3 s): saved.
+- **The model echoed an internal `[outfit <id> …]` line** in one reply; the prompt now forbids it and `clean()` strips any that slip through.

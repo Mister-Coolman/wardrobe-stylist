@@ -135,3 +135,18 @@ test('Wore it on a look card logs it; Today says Logged after a reload', async (
   await page.goto('/today')
   await expect(page.getByRole('button', { name: /Logged/ })).toBeVisible({ timeout: 30_000 })
 })
+
+test('send a photo, "add these", then "yes" → the pieces are in the closet', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/stylist')
+  await page.getByLabel('Add a photo').setInputFiles('tests/fixtures/closet.jpg')
+  await expect(page.getByRole('img', { name: 'Photo to send' })).toBeVisible()
+  await send(page, 'add these')
+  await expect(page.getByRole('img', { name: 'Your photo' })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
+  const found = await page.getByRole('group', { name: 'Pieces' }).locator('p:first-of-type').count()
+  await send(page, 'yes')
+  await expect(page.getByRole('link', { name: 'See it in your closet' })).toBeVisible({ timeout: 30_000 })
+  await page.goto('/closet')
+  await expect(page.getByText(`${found} pieces`)).toBeVisible()
+})

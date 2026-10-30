@@ -119,3 +119,44 @@ describe('what the stylist knows', () => {
     expect(propose.mock.calls[0][0].notes).toEqual(['navy with olive'])
   })
 })
+
+describe('photo tools', () => {
+  const photo = async () => {
+    const { readFileSync } = await import('node:fs')
+    const { getStorage } = await import('@/lib/storage')
+    return getStorage().put('test/thread/photo.jpg', readFileSync('tests/fixtures/closet.jpg'), 'image/jpeg')
+  }
+
+  test('add_photo_piece then keep_pieces adds the photo’s pieces, confirmed', async () => {
+    ctx.imageUrl = await photo()
+    const before = (await repo.listGarments('u1', { confirmed: true })).length
+    const r = await call('add_photo_piece')
+    expect(r.error).toBeUndefined()
+    const card = ctx.cards[0]
+    if (card.kind !== 'pieces') throw new Error('no pieces card')
+    expect(card.pieces.length).toBeGreaterThan(0)
+    expect((await repo.listGarments('u1', { confirmed: true })).length).toBe(before)
+    await call('keep_pieces', { ids: card.pieces.map((p) => p.id) })
+    expect((await repo.listGarments('u1', { confirmed: true })).length).toBe(before + card.pieces.length)
+    expect(ctx.cards[1]).toMatchObject({ kind: 'added' })
+  })
+
+  test('photo tools without a photo say so', async () => {
+    for (const t of ['add_photo_piece', 'rate_outfit', 'recreate_look']) expect((await call(t)).error).toMatch(/no photo/)
+  })
+
+  test('recreate_look passes the photo to the stylist and shows a look', async () => {
+    ctx.imageUrl = '/api/media/test/thread/look.jpg'
+    const propose = vi.fn(getModels().stylist.propose)
+    ctx.models = { ...getModels(), stylist: { ...getModels().stylist, propose } }
+    await call('recreate_look', { wish: 'from @someone’s reel' })
+    expect(propose.mock.calls[0][0]).toMatchObject({ referenceImageUrl: '/api/media/test/thread/look.jpg', wish: 'from @someone’s reel' })
+    expect(ctx.cards[0].kind).toBe('outfit')
+  })
+
+  test('rate_outfit gives the day to judge the photo against', async () => {
+    ctx.imageUrl = '/api/media/test/thread/me.jpg'
+    const r = await call('rate_outfit')
+    expect(r).toMatchObject({ requiredFormality: expect.any(Number), weather: expect.any(String) })
+  })
+})

@@ -41,6 +41,17 @@ export const mockChat: ChatModel = {
     const dated = date ? { date } : {}
     const outfit = outfitInView(messages.slice(0, -1), userMsg?.quoted)
 
+    if (/(instagram\.com|tiktok\.com)\//.test(text)) return say('Send me a screenshot of the moment you liked.')
+    if (userMsg?.imageUrl) {
+      if (/recreate|match|like this|this look/.test(text)) return calls(tool('recreate_look', { ...dated, ...(raw.match(/@\w+/) ? { wish: `from ${raw.match(/@\w+/)![0]}’s look` } : {}) }))
+      if (/rate|how do i look/.test(text)) return calls(tool('rate_outfit', dated))
+      if (/add/.test(text)) return calls(tool('add_photo_piece'))
+    }
+    if (/^(yes|add them|add it|keep them)/.test(text) && !/^yes,? delete/.test(text)) {
+      const found = [...messages].reverse().map((m) => (m.role === 'assistant' ? m.content ?? '' : '')).map((t) => t.match(/\[found in the photo[^:]*: ([^\]]+)\]/)).find(Boolean)
+      const ids = found ? [...found[1].matchAll(/\(([^)]+)\)/g)].map((m) => m[1]) : []
+      if (ids.length) return calls(tool('keep_pieces', { ids }))
+    }
     if (/pack|trip/.test(text)) {
       const city = (raw.match(/(?:to|for)\s+([A-Z][\w ]+?)(?:\s+(?:for|from|on)\b|[.,?!]|$)/) ?? [])[1] ?? 'Chicago'
       return calls(tool('plan_trip', { destination: city.trim(), days: 3 }))

@@ -43,7 +43,8 @@ export interface StylistNote { id: string; text: string; pieceIds: string[] }
 /** What a stylist message shows besides its text. Card buttons just send a message, so they work the same on WhatsApp. */
 export type Card =
   | { kind: 'outfit'; outfitId: string; date: string; imageUrl?: string; pieces: { id: string; name: string; cutoutUrl: string }[] }
-  | { kind: 'pieces'; pieces: { id: string; name: string; cutoutUrl: string; status: string }[] }
+  /** pending: found in a photo, not added until the owner says yes */
+  | { kind: 'pieces'; pieces: { id: string; name: string; cutoutUrl: string; status: string }[]; pending?: boolean }
   | { kind: 'listings'; products: Product[] }
   | { kind: 'trip'; tripId: string; destination: string; days: number }
   | { kind: 'added'; garmentIds: string[] }

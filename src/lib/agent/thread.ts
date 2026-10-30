@@ -17,7 +17,9 @@ const SYSTEM = `You are a personal stylist the owner texts, inside their wardrob
 Reply in 2–4 sentences: say what you did and why. Ask one short question only when something is genuinely open.
 Never choose garments yourself: outfits come only from your tools (plan_outfit and the others that plan looks), which check the weather, dress code and laundry.
 If the owner mentions something they're doing that may not be on their calendar, call add_event first, then plan the look.
-Earlier looks, listings, pieces and trips appear as bracketed lines like [outfit <id> for <date>: …]; use those ids. A message starting "(Replying to: …)" is about that exact item.
+Earlier looks, listings, pieces and trips appear as bracketed lines like [outfit <id> for <date>: …]; use those ids in tool calls, but never write bracketed lines or ids in your replies — the owner sees each look, listing and piece as a card under your words. A message starting "(Replying to: …)" is about that exact item.
+With a photo: "add this/these" → add_photo_piece, then keep_pieces after they say yes; "how do I look" → rate_outfit, then judge what you see; "match this look" or "make something like this" → recreate_look, and say what you couldn't match and why. If it's unclear which, ask.
+An Instagram or TikTok link can't be opened: reply exactly "Send me a screenshot of the moment you liked." When the owner names whose look it is (@someone), credit them.
 When the owner states a standing preference (colours they like together, a pairing, "I run warm"), save it with remember; pass pieceIds when it names pieces.
 Never mention being an AI.`
 
@@ -26,11 +28,18 @@ Never mention being an AI.`
 export function summariseCard(c: Card): string {
   switch (c.kind) {
     case 'outfit': return `[outfit ${c.outfitId} for ${c.date}: ${c.pieces.map((p) => `${p.name} (${p.id})`).join(', ')}]`
-    case 'pieces': return `[pieces: ${c.pieces.map((p) => `${p.name} (${p.status}, ${p.id})`).join(', ')}]`
+    case 'pieces': return c.pending
+      ? `[found in the photo, not added yet — keep_pieces with these ids: ${c.pieces.map((p) => `${p.name} (${p.id})`).join(', ')}]`
+      : `[pieces: ${c.pieces.map((p) => `${p.name} (${p.status}, ${p.id})`).join(', ')}]`
     case 'listings': return `[listings: ${c.products.map((p, i) => `${i + 1}. ${p.title} (${[p.store, p.price].filter(Boolean).join(', ')})`).join('; ')}]`
     case 'trip': return `[trip ${c.tripId}: ${c.destination}, ${c.days} days]`
     case 'added': return `[added to the closet: ${c.garmentIds.join(', ')}]`
   }
+}
+
+/** The model sometimes echoes the bracketed lines it was shown; the owner sees cards, not ids. */
+export function clean(text: string | null): string {
+  return (text ?? '').replace(/\[outfit [^\]]*\]/g, 'this look').replace(/\[(?:pieces|found in the photo|listings|trip|added)[^\]]*\]/g, '').replace(/[ \t]{2,}/g, ' ').trim()
 }
 
 const spelled = (m: Message) => [m.text, ...m.cards.map(summariseCard)].filter(Boolean).join('\n')
@@ -67,7 +76,7 @@ export async function runThread(user: SessionUser, input: { text: string; imageU
   let text = TOO_MANY_ROUNDS
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const turn = await deps.models.chat.complete(convo, toolSpecs)
-    if (!turn.toolCalls.length) { text = turn.content?.trim() || 'Done.'; break }
+    if (!turn.toolCalls.length) { text = clean(turn.content) || 'Done.'; break }
     convo.push({ role: 'assistant', content: turn.content, toolCalls: turn.toolCalls })
     for (const call of turn.toolCalls) {
       const result = await dispatchTool(call.name, call.arguments, ctx).catch((e: unknown) => ({ error: e instanceof Error ? e.message : 'tool failed' }))
