@@ -97,3 +97,15 @@ describe('planOutfit', () => {
     expect(r.ok && r.outfit.renderMode).toBe('flatlay')
   })
 })
+
+describe('keepRule', () => {
+  test('rejects a candidate that drops a kept piece or keeps a dropped one', async () => {
+    const { keepRule } = await import('@/lib/rules/keep')
+    const ctx = { garments: new Map(wardrobe.map((g) => [g.id, g])), day: rainy, profile }
+    const [a, b, c] = wardrobe.map((g) => g.id)
+    const rule = keepRule([a], [b])
+    expect(rule.check({ garmentIds: [a, c], rationale: {}, title: '' }, ctx)).toEqual([])
+    expect(rule.check({ garmentIds: [c], rationale: {}, title: '' }, ctx)[0].message).toMatch(/^Keep /)
+    expect(rule.check({ garmentIds: [a, b], rationale: {}, title: '' }, ctx)[0].message).toMatch(/^Leave out /)
+  })
+})

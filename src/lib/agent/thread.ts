@@ -19,12 +19,11 @@ If the owner mentions something they're doing that may not be on their calendar,
 Earlier looks, listings, pieces and trips appear as bracketed lines like [outfit <id> for <date>: …]; use those ids. A message starting "(Replying to: …)" is about that exact item.
 Never mention being an AI.`
 
-const line = (pieces: { name: string }[]) => pieces.map((p) => p.name).join(', ')
 
 /** One line the model can refer back to ("swap the jeans" → this outfit's id). */
 export function summariseCard(c: Card): string {
   switch (c.kind) {
-    case 'outfit': return `[outfit ${c.outfitId} for ${c.date}: ${line(c.pieces)}]`
+    case 'outfit': return `[outfit ${c.outfitId} for ${c.date}: ${c.pieces.map((p) => `${p.name} (${p.id})`).join(', ')}]`
     case 'pieces': return `[pieces: ${c.pieces.map((p) => `${p.name} (${p.status}, ${p.id})`).join(', ')}]`
     case 'listings': return `[listings: ${c.products.map((p, i) => `${i + 1}. ${p.title} (${[p.store, p.price].filter(Boolean).join(', ')})`).join('; ')}]`
     case 'trip': return `[trip ${c.tripId}: ${c.destination}, ${c.days} days]`

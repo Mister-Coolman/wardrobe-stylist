@@ -41,6 +41,10 @@ export interface ProposeInput {
   avoidOutfits?: string[][]
   /** on a trip: how often each piece has been worn so far */
   trip?: TripUsage
+  /** a swap: pieces to keep and to leave out */
+  keep?: string[]; drop?: string[]
+  /** what the owner asked for ("fall themed", "smarter"); a photo of a look to match */
+  wish?: string; referenceImageUrl?: string
 }
 export interface Stylist {
   classifyEvents(events: CalendarEvent[]): Promise<Record<string, Level>>

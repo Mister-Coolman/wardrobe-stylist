@@ -121,3 +121,43 @@ describe('runThread', () => {
     expect(toolSpecs.map((t) => t.name)).toEqual(expect.arrayContaining(['add_event', 'get_events', 'get_weather', 'log_wear', 'plan_outfit', 'plan_trip', 'search_wardrobe']))
   })
 })
+
+describe('scripted conversations (mock chat)', () => {
+  const say = (text: string, extra: object = {}) => runThread(user, web(text, extra), { repo, models: getModels() })
+
+  test('"swap the jeans" swaps a piece in the look in view; a swipe-reply targets the quoted look', async () => {
+    const { reply: a } = await say('what should I wear')
+    const first = a.cards[0]
+    if (first.kind !== 'outfit') throw new Error('no look')
+    const bottom = first.pieces.find((p) => /jeans|trousers|sweatpants/i.test(p.name))!
+    const word = bottom.name.toLowerCase().split(' ').at(-1)!
+    await say('another look')
+    const { reply: b } = await say(`swap the ${word}`, { replyTo: a.id })
+    const swapped = b.cards[0]
+    if (swapped.kind !== 'outfit') throw new Error(`no swap: ${b.text}`)
+    expect(swapped.pieces.map((p) => p.id)).not.toContain(bottom.id)
+    for (const p of first.pieces) if (p.id !== bottom.id) expect(swapped.pieces.map((x) => x.id)).toContain(p.id)
+  })
+
+  test('"I spilled coffee on the white oxford" puts it in the laundry', async () => {
+    const { reply } = await say('I spilled coffee on the white oxford')
+    expect(reply.cards[0]).toMatchObject({ kind: 'pieces', pieces: [{ name: 'White oxford shirt', status: 'laundry' }] })
+  })
+
+  test('delete asks first; "yes, delete" removes it', async () => {
+    const { reply } = await say('delete the selvedge jeans')
+    expect(reply.text).toMatch(/yes, delete/)
+    expect((await repo.listGarments('u1')).some((g) => g.name === 'Selvedge jeans')).toBe(true)
+    await say('yes, delete')
+    expect((await repo.listGarments('u1')).some((g) => g.name === 'Selvedge jeans')).toBe(false)
+  })
+
+  test('a store search, then "add 1" from it', async () => {
+    vi.stubEnv('MEDIA_DIR', mkdtempSync(join(tmpdir(), 'media-')))
+    const { reply } = await say('add my black under armour sweatpants')
+    expect(reply.cards[0].kind).toBe('listings')
+    const { reply: added } = await say('add 1')
+    expect(added.cards[0].kind).toBe('added')
+    expect((await repo.listGarments('u1', { confirmed: true })).some((g) => g.brand === 'Under Armour')).toBe(true)
+  })
+})

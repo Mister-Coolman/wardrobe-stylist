@@ -53,10 +53,20 @@ function toCandidates(r: z.infer<typeof Looks>, toId: Map<string, string>): Cand
 async function looks(input: ProposeInput, extra: string): Promise<Candidate[]> {
   const { toKey, toId, listing } = keyed(input.wardrobe)
   const avoid = (input.avoidOutfits ?? []).map((ids) => ids.map((id) => toKey.get(id)).filter(Boolean))
+  const keys = (ids?: string[]) => (ids ?? []).map((id) => toKey.get(id)).filter(Boolean).join(', ')
+  const asks = [
+    input.keep?.length ? ` Keep pieces ${keys(input.keep)} in every look.` : '',
+    input.drop?.length ? ` Do not use ${keys(input.drop)}.` : '',
+    input.wish ? ` The owner wants: ${input.wish}.` : '',
+    input.referenceImageUrl ? ' Match the look in the photo as closely as the closet allows; where it can’t, say why in the reasons.' : '',
+  ].join('')
+  const text = JSON.stringify({ task: `Propose ${input.count} different looks.${asks}${extra}`, day: dayBrief(input), pieces: listing,
+    ...(avoid.length ? { alreadyShown: avoid } : {}) })
   const r = await structured('stylist', Looks, 'looks', [
     { role: 'system', content: RULES },
-    { role: 'user', content: JSON.stringify({ task: `Propose ${input.count} different looks.${extra}`, day: dayBrief(input), pieces: listing,
-      ...(avoid.length ? { alreadyShown: avoid } : {}) }) },
+    { role: 'user', content: input.referenceImageUrl
+      ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: await toDataUrl(input.referenceImageUrl, 1024) } }]
+      : text },
   ], { ms: 60_000, effort: 'low' })
   return toCandidates(r, toId).slice(0, input.count)
 }

@@ -5,10 +5,12 @@ import type { Repo } from '@/lib/db/repo'
 import { CalendarAuthError, fetchCalendarEvents } from '@/lib/integrations/calendar'
 import { fetchWeather, MANUAL_WEATHER } from '@/lib/integrations/weather'
 import { getModels } from '@/lib/models'
+import type { Models } from '@/lib/models'
 import { profileFor } from '@/lib/profile'
 import { persistRender } from '@/lib/render'
 import type { DayContext } from '@/lib/rules/types'
 import { buildDayContext } from '@/lib/stylist/dayContext'
+import { keepRule } from '@/lib/rules/keep'
 import { planOutfit } from '@/lib/stylist/loop'
 import { pollResult, pollsEnabled } from '@/lib/polls'
 import { dailyRules } from '@/lib/rules/registry'
@@ -56,8 +58,13 @@ export async function dayFor(repo: Repo, user: SessionUser, date: string | null,
 }
 
 /** Reuses the latest outfit for the day unless `fresh`; a fresh plan avoids every look already shown that day. */
-export async function planToday(repo: Repo, user: SessionUser, opts: { date?: string | null; fresh?: boolean; manual?: ManualWeather; renderMode?: RenderMode } = {}): Promise<TodayPlan> {
-  const { profile, day, calendarConnected } = await dayFor(repo, user, opts.date ?? null, opts.manual)
+/** wish: what the owner asked for; referenceImageUrl: a look to match; swap: replan an outfit with some pieces left out */
+export async function planToday(repo: Repo, user: SessionUser, opts: { date?: string | null; fresh?: boolean; manual?: ManualWeather; renderMode?: RenderMode
+  wish?: string; referenceImageUrl?: string; swap?: { outfitId: string; drop: string[]; wish?: string }; models?: Models } = {}): Promise<TodayPlan> {
+  const models = opts.models ?? getModels()
+  const swapping = opts.swap ? await repo.getOutfit(user.userId, opts.swap.outfitId) : null
+  if (opts.swap && !swapping) throw new Error('no such outfit')
+  const { profile, day, calendarConnected } = await dayFor(repo, user, swapping?.contextDate ?? opts.date ?? null, opts.manual)
   const shown = await repo.listOutfitsFor(user.userId, day.date)
   const wardrobe = await repo.listGarments(user.userId, { confirmed: true })
   const piecesOf = (o: Outfit) => o.garmentIds.map((id) => wardrobe.find((g) => g.id === id)).filter((g): g is Garment => !!g)
@@ -68,8 +75,11 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   }
   const poll = pollsEnabled() ? await friendsPick(repo, user.userId, day.date) : undefined
   const useStyle = process.env.NEXT_PUBLIC_FEATURE_STYLE === '1' && !!profile.styleProfile
-  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : [])]
-  const r = await planOutfit({ day, wardrobe, profile, models: getModels(), renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds), poll, rules })
+  const drop = opts.swap?.drop ?? []
+  const keep = swapping ? swapping.garmentIds.filter((id) => !drop.includes(id)) : []
+  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping ? [keepRule(keep, drop)] : [])]
+  const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds), poll, rules,
+    keep: swapping ? keep : undefined, drop: swapping ? drop : undefined, wish: opts.swap?.wish ?? opts.wish, referenceImageUrl: opts.referenceImageUrl })
   if (!r.ok) return { day, calendarConnected, result: r }
   if (r.outfit.renderUrl) {
     try { r.outfit.renderUrl = await persistRender(user.userId, r.outfit.renderUrl) } catch { r.outfit.renderUrl = null; r.outfit.renderMode = 'none' }

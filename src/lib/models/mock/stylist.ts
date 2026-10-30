@@ -32,6 +32,7 @@ function ranked(input: ProposeInput, avoid: Set<string>, avoidPieces: Set<string
     const ids = [...(o ? [o.id] : []), ...base.map((g) => g.id), ...(shoe ? [shoe.id] : [])]
     const { violations, softScore } = runRules({ garmentIds: ids, rationale: {}, title: '' }, ctx, rules)
     const reused = ids.filter((id) => avoidPieces.has(id)).length
+      + (input.keep ?? []).filter((id) => !ids.includes(id)).length + (input.drop ?? []).filter((id) => ids.includes(id)).length
     const worn = ids.reduce((s, id) => s + (ctx.garments.get(id)!.wearCount ?? 0), 0)
     out.push({ ids, bad: violations.length + reused + (avoid.has(key(ids)) ? 1 : 0), tie: worn + ids.length * 0.1 - softScore * 2 })
     if (out.length > 4000) break

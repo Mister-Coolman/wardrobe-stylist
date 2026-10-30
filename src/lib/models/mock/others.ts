@@ -82,31 +82,4 @@ export const mockTranscriber: Transcriber = {
   },
 }
 
-/** Scripted agent: maps a few phrases to tool calls, then summarizes the tool results. */
-export const mockChat: ChatModel = {
-  async complete(messages) {
-    const last = messages[messages.length - 1]
-    if (last.role === 'tool') {
-      const results = messages.slice(messages.map((m) => m.role).lastIndexOf('assistant') + 1)
-      const lastJson = (() => { try { return JSON.parse(results[results.length - 1].content as string) } catch { return {} } })()
-      return { content: lastJson.summary ?? 'Done.', toolCalls: [] }
-    }
-    const raw = last.role === 'user' ? last.content : ''
-    const text = raw.toLowerCase()
-    const id = () => `call_${Math.random().toString(36).slice(2, 8)}`
-    const date = (text.match(/\d{4}-\d{2}-\d{2}/) ?? [])[0]
-    if (/pack|trip/.test(text)) {
-      const city = (raw.match(/(?:to|for)\s+([A-Z][\w ]+?)(?:\s+(?:for|from|on)\b|[.,?!]|$)/) ?? [])[1] ?? 'Chicago'
-      return { content: null, toolCalls: [{ id: id(), name: 'plan_trip', arguments: JSON.stringify({ destination: city.trim(), days: 3 }) }] }
-    }
-    const ev = text.match(/(drinks|dinner|date|gym|run|yoga|interview|client|wedding|party)[^.?!]*/)
-    if (ev) {
-      return { content: null, toolCalls: [
-        { id: id(), name: 'add_event', arguments: JSON.stringify({ title: ev[0].trim(), ...(date ? { date } : {}) }) },
-        { id: id(), name: 'plan_outfit', arguments: JSON.stringify(date ? { date } : {}) },
-      ] }
-    }
-    if (/wear|outfit|look/.test(text)) return { content: null, toolCalls: [{ id: id(), name: 'plan_outfit', arguments: JSON.stringify(date ? { date } : {}) }] }
-    return { content: 'Tell me what’s on today — “drinks after work”, “pack for Chicago” — and I’ll sort the clothes.', toolCalls: [] }
-  },
-}
+export { mockChat } from './chat'

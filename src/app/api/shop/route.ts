@@ -1,14 +1,13 @@
-import { randomUUID } from 'node:crypto'
 import { after } from 'next/server'
 import { z } from 'zod'
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
 import { getModels } from '@/lib/models'
 import { ModelError } from '@/lib/models/types'
-import { runScan } from '@/lib/scan/pipeline'
-import { allowedImageUrl, fetchProductImage } from '@/lib/shop/image'
+import { startListing } from '@/lib/shop/add'
+import { allowedImageUrl } from '@/lib/shop/image'
 import { getProductSearch } from '@/lib/shop/search'
-import { getStorage, userKey } from '@/lib/storage'
+import { getStorage } from '@/lib/storage'
 
 export const maxDuration = 300
 
@@ -33,17 +32,10 @@ export async function POST(req: Request) {
   return withUser(async (u) => {
     const body = Add.safeParse(await req.json().catch(() => null))
     if (!body.success) return Response.json({ error: 'bad_request' }, { status: 400 })
-    const storage = getStorage()
-    const image = await fetchProductImage(body.data.imageUrl, storage).catch(() => null)
-    if (!image) return Response.json({ error: 'image_failed' }, { status: 502 })
-    const models = getModels()
-    const frameUrl = await storage.put(`${userKey(u.userId)}/scans/${randomUUID()}/frame-000.jpg`, image, 'image/jpeg')
-    const repo = await getRepo()
-    const job = await repo.createScanJob(u.userId, frameUrl, [frameUrl])
-    after(async () => {
-      const listing = await models.tagger.fromListing(body.data.title).catch(() => undefined)
-      await runScan(job.id, { userId: u.userId, models, repo, storage, listing })
-    })
+    const started = await startListing(u.userId, body.data, { repo: await getRepo(), models: getModels(), storage: getStorage() })
+    if (!started) return Response.json({ error: 'image_failed' }, { status: 502 })
+    after(started.run)
+    const job = started.job
     return Response.json({ id: job.id })
   })
 }
