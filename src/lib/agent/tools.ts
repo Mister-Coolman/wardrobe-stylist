@@ -1,6 +1,8 @@
 import 'server-only'
 import { z } from 'zod'
 import type { Repo } from '@/lib/db/repo'
+import type { Card, Garment, Message, Outfit } from '@/lib/domain/types'
+import type { Product } from '@/lib/shop/search'
 import { localDate } from '@/lib/domain/dates'
 import type { Models, ToolSpec } from '@/lib/models/types'
 import { profileFor } from '@/lib/profile'
@@ -12,8 +14,13 @@ import { createTrip } from '@/lib/trips'
 export interface ToolContext {
   user: SessionUser; repo: Repo; models: Models
   geocode?: (place: string) => Promise<{ lat: number; lon: number; name?: string } | null>
-  /** ids the chat produced, surfaced to the UI */
-  outfitId?: string; tripId?: string
+  /** what the reply shows besides its text; tools push to it */
+  cards: Card[]
+  /** the photo this message carries (or the one it replies to) */
+  imageUrl?: string
+  /** listings from the newest listings card in view, for "add 2" */
+  lastListings?: Product[]
+  channel: Message['channel']
 }
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD, defaults to today')
@@ -37,6 +44,11 @@ type ToolName = keyof typeof DEFS
 export const toolSpecs: ToolSpec[] = (Object.keys(DEFS) as ToolName[]).map((name) => ({
   name, description: DEFS[name].description, parameters: z.toJSONSchema(DEFS[name].schema) as Record<string, unknown>,
 }))
+
+export function outfitCard(o: Outfit, pieces: Garment[]): Card {
+  return { kind: 'outfit', outfitId: o.id, date: o.contextDate, ...(o.renderUrl ? { imageUrl: o.renderUrl } : {}),
+    pieces: pieces.map((p) => ({ id: p.id, name: p.name, cutoutUrl: p.cutoutUrl })) }
+}
 
 async function today(ctx: ToolContext, d?: string) {
   return d ?? localDate((await profileFor(ctx.repo, ctx.user.userId)).tz)
@@ -72,14 +84,14 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     case 'plan_outfit': {
       const plan = await planToday(repo, user, { date: await today(ctx, a.date), fresh: true })
       if (!plan.result.ok) return { error: 'insufficient_wardrobe', missing: plan.result.missing, summary: `Can’t make an outfit yet — no clean ${plan.result.missing.join(' or ')}.` }
-      ctx.outfitId = plan.result.outfit.id
       const names = plan.result.pieces.map((p) => p.name)
+      ctx.cards.push(outfitCard(plan.result.outfit, plan.result.pieces))
       return { outfitId: plan.result.outfit.id, title: plan.result.outfit.title, pieces: names,
         summary: `${plan.result.outfit.title}: ${names.join(', ')}.${plan.day.changeSuggestion ? ` ${plan.day.changeSuggestion}` : ''}` }
     }
     case 'plan_trip': {
       const trip = await createTrip(repo, user, { destination: a.destination, startDate: a.startDate, endDate: a.endDate, days: a.days }, { models: ctx.models, geocode: ctx.geocode })
-      ctx.tripId = trip.id
+      ctx.cards.push({ kind: 'trip', tripId: trip.id, destination: trip.destination, days: trip.dayPlans.length })
       return { tripId: trip.id, destination: trip.destination, days: trip.dayPlans.length, pieces: trip.packingList.length, warnings: trip.warnings,
         summary: `Packed for ${trip.destination}: ${trip.dayPlans.length} days from ${trip.packingList.length} pieces.${trip.warnings.length ? ` ${trip.warnings.join(' ')}` : ''}` }
     }

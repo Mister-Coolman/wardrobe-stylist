@@ -63,7 +63,9 @@ export interface Transcriber { transcribe(audio: Buffer, mime: string): Promise<
 // OpenAI chat-completions shapes
 export interface ToolCall { id: string; name: string; arguments: string }
 export type ChatMessage =
-  | { role: 'system' | 'user'; content: string }
+  | { role: 'system'; content: string }
+  /** imageUrl: a photo the model should see (only the newest one is sent); quoted: the message this one replies to, spelled out */
+  | { role: 'user'; content: string; imageUrl?: string; quoted?: string }
   | { role: 'assistant'; content: string | null; toolCalls?: ToolCall[] }
   | { role: 'tool'; toolCallId: string; content: string }
 export interface ToolSpec { name: string; description: string; parameters: Record<string, unknown> }
