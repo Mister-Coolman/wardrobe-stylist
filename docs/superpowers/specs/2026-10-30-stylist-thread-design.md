@@ -125,6 +125,25 @@ The 7 current tools stay. These are new:
   - rate my outfit;
   - recreate this look.
 
+## 4b. Looks from Instagram
+
+**Now: screenshots.** The flow is: pause the reel on the outfit, screenshot it, send it (app or WhatsApp) with "make something like this". That's `recreate_look`. When the user names the poster ("from @xxx's reel"), the reply credits them ("@xxx's look, from your closet").
+
+**A pasted Instagram link** can't be read: Instagram pages refuse server fetches, and Meta removed thumbnails from its oEmbed API in November 2025. So the stylist replies "Send me a screenshot of the moment you liked." The system prompt carries this rule; no tool is needed.
+
+**Stretch, after WhatsApp: Instagram DMs.** Share a reel from Instagram's own share button to a stylist Instagram account, and the look comes back in the DM.
+- **Feasible on paper:** Meta's Instagram API (with Instagram Login) sends shared reels to the messages webhook as `ig_reel` attachments with a `url`.
+- **Unknown:** whether that url is the video itself or a page.
+- **So it starts with a 1-hour spike:**
+  1. Create a stylist Instagram professional account, added to the same Meta app.
+  2. DM it a reel.
+  3. Log the webhook payload.
+- **If the url is the video:**
+  1. The server pulls 8 frames with `ffmpeg-static`.
+  2. It keeps the frame with the largest clothing area from SAM.
+  3. That frame goes to `recreate_look`, using the same thread and linking (by code) as WhatsApp.
+- **If it isn't:** drop it, and keep screenshots.
+
 ## 5. Morning note
 
 - **Schedule:** a Vercel cron at `0 11 * * *` UTC (7:00 EDT / 6:00 EST) calls `GET /api/cron/morning`. The route checks the `CRON_SECRET` header that Vercel sends.
@@ -219,6 +238,8 @@ The user runs it in the Supabase SQL editor before deploy.
 **Live:** a real conversation on the deployed app, then on WhatsApp from the user's phone.
 
 ## Out of scope
+
+- Reading Instagram links or reels directly, except through the DM stretch above.
 
 - Alerts during the day; the free cron plan runs once a day.
 - Group chats, voice notes on WhatsApp, and messaging anyone who isn't a test recipient. Those need Meta business verification.

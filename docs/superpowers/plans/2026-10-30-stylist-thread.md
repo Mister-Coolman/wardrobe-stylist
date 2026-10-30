@@ -272,7 +272,9 @@
   - one shirt photo → "add this";
   - one outfit mirror selfie → "how do I look";
   - one screenshot → "match this look";
-  - text only → "a good fall themed outfit"; check the pieces read as fall.
+  - text only → "a good fall themed outfit"; check the pieces read as fall;
+  - a reel screenshot with "make something like this, from @someone's reel" → the reply credits @someone.
+- System prompt (with Task 2's): an Instagram or TikTok link gets "Send me a screenshot of the moment you liked." Unit test with the mock: a message containing `instagram.com/reel/` gets that reply and no tool call.
 - [ ] **Step 6: Commit:** `feat: send the stylist photos`.
 
 ### Task 6: Morning note
@@ -392,3 +394,22 @@
   - check the same messages show in the app thread.
 - [ ] **Step 4:** Trigger the morning note once with `curl -H "Authorization: Bearer $CRON_SECRET" …/api/cron/morning`, run by the user, since the secret is theirs.
 - [ ] **Step 5:** Update `docs/notes/final-todo.md`, and commit.
+
+### Task 10 (stretch, after Task 9): Instagram DM reels
+
+Start only with WhatsApp live and time left before Wed.
+
+- [ ] **Step 1 (spike, ≤ 1 h, throwaway):**
+  1. The user creates a stylist Instagram professional account and adds the Instagram API (Instagram Login) to the Meta app, with their own account as a tester.
+  2. Point the `messages` webhook at a logging route.
+  3. DM it a reel.
+  4. Record the `ig_reel` payload, and whether `payload.url` downloads as `video/mp4`, in `docs/notes/instagram-spike.md`.
+
+  If it doesn't download as `video/mp4`, stop here.
+- [ ] **Step 2, if it's a video:**
+  - Linking: `profiles.instagram_id` (a migration), linked by the same 6-digit code flow as Task 7.
+  - Webhook: `src/app/api/instagram/route.ts`, with the same signature check and repeated-id handling as Task 8.
+  - Frames: `src/lib/reels.ts` downloads the video (≤ 50 MB) and extracts 8 evenly spaced frames with `ffmpeg-static`. SAM keeps the frame with the largest clothing area, and it's stored as the message image.
+  - Agent: `runThread` runs with the reel's caption, plus "match this look"; replies go out through the Instagram Send API (text and image).
+- [ ] **Step 3: Tests:** payload parsing for `ig_reel`; frame choice on a fixture clip in `samples/`; a repeated id handled once.
+- [ ] **Step 4: Live:** DM a real reel and get a look back. Commit: `feat: send the stylist a reel on Instagram`.
