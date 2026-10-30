@@ -19,8 +19,11 @@ export async function POST(req: Request) {
     const storage = getStorage()
     const scanId = randomUUID()
     const base = `${userKey(u.userId)}/scans/${scanId}`
-    const frameUrls = await Promise.all(frames.map(async (f, i) =>
-      storage.put(`${base}/frame-${String(i).padStart(3, '0')}.jpg`, Buffer.from(await f.arrayBuffer()), f.type || 'image/jpeg')))
+    // the phone names each frame with its time in the video (frame-2500ms.jpg); keep it, the duplicate check works in seconds
+    const frameUrls = await Promise.all(frames.map(async (f, i) => {
+      const at = f.name.match(/(\d+)ms\.jpg$/)?.[1]
+      return storage.put(`${base}/frame-${String(i).padStart(3, '0')}${at ? `-${at}ms` : ''}.jpg`, Buffer.from(await f.arrayBuffer()), f.type || 'image/jpeg')
+    }))
     const video = form.get('video')
     const mediaUrl = video instanceof File ? await storage.put(`${base}/video.webm`, Buffer.from(await video.arrayBuffer()), video.type || 'video/webm') : frameUrls[0]
     const repo = await getRepo()

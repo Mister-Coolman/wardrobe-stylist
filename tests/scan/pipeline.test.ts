@@ -8,7 +8,7 @@ import { getModels } from '@/lib/models'
 import type { FrameMask, SegmentTrack, Segmenter, Tagger } from '@/lib/models'
 import { FIXTURE_TAGS } from '@/lib/models/fixtures/garments'
 import { bestFrame, cleanMask, cutout, sharpnessUnder } from '@/lib/scan/cutout'
-import { NO_CLOTHES, piecesFromScan, runScan } from '@/lib/scan/pipeline'
+import { frameSeconds, NO_CLOTHES, piecesFromScan, runScan } from '@/lib/scan/pipeline'
 import { createMemoryStorage } from '@/lib/storage'
 
 const mask = async (x: number, y: number, w: number, h: number, W = 100, H = 100) =>
@@ -18,12 +18,13 @@ const frame = () => sharp({ create: { width: 100, height: 100, channels: 3, back
 /** left half red, right half blue */
 const twoColorFrame = () => sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="50" height="100" fill="#c02020"/><rect x="50" width="50" height="100" fill="#2030c0"/></svg>')).jpeg().toBuffer()
 
-/** opts.frames: how many video frames the job has (each the same image); default one photo */
-async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?: Buffer; frames?: number; sameItem?: Tagger['sameItem'] } = {}) {
+/** opts.frames: how many video frames the job has (each the same image); default one photo. opts.msPerFrame: name
+ *  the frames with their times, as the scan route stores them */
+async function setup(tracks: SegmentTrack[], tags = FIXTURE_TAGS, opts: { frame?: Buffer; frames?: number; msPerFrame?: number; sameItem?: Tagger['sameItem'] } = {}) {
   const repo = createLocalRepo(join(mkdtempSync(join(tmpdir(), 'scan-')), 'db.json'))
   const storage = createMemoryStorage()
   const image = opts.frame ?? await frame()
-  const frameUrls = await Promise.all(Array.from({ length: opts.frames ?? 1 }, (_, i) => storage.put(`u/frames/${i}.jpg`, image, 'image/jpeg')))
+  const frameUrls = await Promise.all(Array.from({ length: opts.frames ?? 1 }, (_, i) => storage.put(opts.msPerFrame ? `u/frames/frame-${i}-${i * opts.msPerFrame}ms.jpg` : `u/frames/${i}.jpg`, image, 'image/jpeg')))
   const job = await repo.createScanJob('u1', frameUrls[0], frameUrls)
   const segmenter: Segmenter = { segment: async () => tracks }
   const byUrl = new Map<string, number>()
@@ -101,6 +102,29 @@ describe('runScan', () => {
     const gs = await repo.listGarments('u1')
     expect(gs).toHaveLength(1)
     expect(gs[0].photoUrl).not.toBe(job.frameUrls[33])
+  })
+
+  test('a piece seen once, while being hung, is compared with the piece hanging 2.3 s later; two still pieces 2.9 s apart are not', async () => {
+    // measured at 1.75 frames/s: a black polo caught once at frame 14 while being hung, then hanging still from frame 18
+    let asked = 0
+    const sameItem = async () => { asked++; return true }
+    const once = await setup([await track('caught once', [10, 10, 60, 80], [14]), await track('hanging', [10, 10, 60, 80], [18, 19, 20, 21, 22])],
+      FIXTURE_TAGS, { frames: 30, msPerFrame: 571, sameItem })
+    await runScan(once.job.id, { userId: 'u1', models: once.models, repo: once.repo, storage: once.storage })
+    expect(asked).toBe(1)
+    expect(await once.repo.listGarments('u1')).toHaveLength(1)
+
+    asked = 0
+    const still = await setup([await track('a', [10, 10, 60, 80], [10, 11, 12, 13, 14]), await track('b', [10, 10, 60, 80], [19, 20, 21, 22, 23])],
+      FIXTURE_TAGS, { frames: 30, msPerFrame: 571, sameItem })
+    await runScan(still.job.id, { userId: 'u1', models: still.models, repo: still.repo, storage: still.storage })
+    expect(asked).toBe(0)
+    expect(await still.repo.listGarments('u1')).toHaveLength(2)
+  })
+
+  test('frame times come from the stored frame name, in seconds; without one, a frame a second', () => {
+    expect(frameSeconds('/api/media/u/scans/s/frame-004-2500ms.jpg', 4)).toBe(2.5)
+    expect(frameSeconds('/api/media/u/scans/s/frame-004.jpg', 4)).toBe(4)
   })
 
   test('review shows only the pieces from this scan, not unconfirmed ones left by an earlier scan', async () => {

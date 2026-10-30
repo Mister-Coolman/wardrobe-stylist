@@ -132,6 +132,13 @@ The new rule is in `mightBeSame`:
 
 Blue still gets named black (navy under warm light, against a wood door). One tap fixes it in review.
 
+## iPhone video and frame times (30 Oct)
+
+- **Stuck at "Reading the video… 0/1" on a real iPhone.** The sampler waited for the video's `loadeddata` event, with no time limit. iOS Safari in the simulator fired it; the user's phone never did. On devices, iOS loads little or nothing for a video until it is played. The sampler now calls `load()`, waits for metadata, and plays and pauses the video muted. Each step has a time limit with an error naming the step. The simulator reads the 36 s clip in 3.3 s.
+- **Frame size.** At JPEG quality 0.85, iOS frames averaged 171 KB, so the 4 MB upload kept about 23 frames of a 36 s clip. At 0.7 they average 119 KB (about 33 frames), and Chrome sends 63.
+- **The duplicate check works in seconds.** More frames for the same 36 s broke the frame-count rule: a black polo caught once while being hung was 4 frames (2.3 s) before the polo hanging still, and came back as a second card. The phone now names each frame with its time (`frame-3000ms.jpg`), and the route keeps it (`frame-005-3000ms.jpg`). Pieces that each hung still are compared within 1.5 s; a piece seen in one frame, within 3 s. The greens stay apart (4 s). holdup2 in Chrome: 5 of 5.
+- **Still open:** within a track, the best frame can be one where the piece is still swinging. The dark green polo's cutout came from such a frame.
+
 ## Open
 
 - The fixtures are flat illustrations. On them the tagger sometimes misreads shoes (a loafer as a "beret", a boot as "socks"), and SAM missed the loafer (confidence 0.52 when it was found) in one pan crop. A real phone video of a closet rail is still the test that matters.

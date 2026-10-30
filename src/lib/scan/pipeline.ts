@@ -14,17 +14,19 @@ const UNTAGGED: GarmentTags = { name: 'Untagged piece', category: 'top', subcate
 
 const TAG_CONCURRENCY = 4
 
-/** first, last: the frames the piece was seen in, as indices into the scan's frames */
+/** first, last: when the piece was first and last seen, in seconds into the video */
 /** seen: frames the piece was found in; quality: its best frame's area × sharpness, as bestFrame ranks them */
 interface Found { tags: GarmentTags; cutoutUrl: string; photoUrl: string; seen: number; quality: number; color: RGB; first: number; last: number }
 
 /** Cutouts further apart than this in mean color are different pieces; nearer ones go to the tagger to decide. */
 const DEDUPE_MAX_COLOR = 45
-/** In a video, pieces are shown one after another. A piece picked up again within this many frames of the last one
+/** In a video, pieces are shown one after another. A piece picked up again within this many seconds of the last one
  *  (a tracking break, a blurred frame while it's hung) may be the same and is always checked; after a longer stretch
- *  it's the next piece, however alike. Measured on a hold-up clip: 4 empty frames between two green polos, none
- *  between a red polo's blurred half and the red polo (docs/notes/sam-check.md). */
-const DEDUPE_MAX_GAP = 2
+ *  it's the next piece, however alike. A piece seen in a single frame was caught moving, so it gets a wider window.
+ *  Measured on a hold-up clip: 4 s of empty door between two green polos; a black polo caught once while being hung,
+ *  2.3 s before it hung still (docs/notes/sam-check.md). */
+const DEDUPE_MAX_GAP_S = 1.5
+const DEDUPE_MAX_GAP_ONCE_S = 3
 
 /** segment → best frame → cutout → tag → dedupe → insert unconfirmed. Never throws; failures land on the job. */
 export async function runScan(jobId: string, deps: { userId: string; models: Pick<Models, 'segmenter' | 'tagger'>; repo: Repo; storage: StorageLike }): Promise<void> {
@@ -48,7 +50,7 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
       [i, await models.segmenter.hangers?.(job.frameUrls[i]).catch(() => []) ?? []] as const)))
     const cut: Omit<Found, 'tags'>[] = []
     for (const [t, best] of bests.entries()) {
-      const seen = tracks[t].masks.map((m) => m.frameIndex)
+      const seen = tracks[t].masks.map((m) => frameSeconds(job.frameUrls[m.frameIndex], m.frameIndex))
       let png: Buffer
       try { png = await cutout(await frameAt(best.frameIndex), best.maskPng, { minus: hangers.get(best.frameIndex) }) } catch { continue }
       const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
@@ -101,7 +103,14 @@ async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promis
  *  Seen one after the other: compare only when the second follows the first closely, whatever its color. */
 function mightBeSame(a: Found, b: Found): boolean {
   if (a.first <= b.last && b.first <= a.last) return a.tags.category === b.tags.category && colorDistance(a.color, b.color) <= DEDUPE_MAX_COLOR
-  return Math.max(a.first, b.first) - Math.min(a.last, b.last) <= DEDUPE_MAX_GAP
+  const gap = Math.max(a.first, b.first) - Math.min(a.last, b.last)
+  return gap <= (a.seen === 1 || b.seen === 1 ? DEDUPE_MAX_GAP_ONCE_S : DEDUPE_MAX_GAP_S)
+}
+
+/** A frame's time in the video, from the name the scan route stores it under (…-2500ms.jpg); otherwise a frame a second. */
+export function frameSeconds(url: string, index: number): number {
+  const m = url.match(/-(\d+)ms\.jpg$/)
+  return m ? Number(m[1]) / 1000 : index
 }
 
 async function dedupe(found: Found[], models: Pick<Models, 'tagger'>): Promise<Found[]> {

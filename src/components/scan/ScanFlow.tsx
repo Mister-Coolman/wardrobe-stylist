@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { GarmentEditor } from '@/components/closet/GarmentEditor'
 import { GarmentTile } from '@/components/closet/GarmentTile'
 import { isStalled, thinToBudget, UPLOAD_BUDGET } from '@/lib/ui/scanUpload'
-import { samplePhoto, sampleVideo } from './FrameSampler'
+import { FPS, samplePhoto, sampleVideo } from './FrameSampler'
 
 type Mode = 'sweep' | 'holdup' | 'photo'
 /** Each tip fixes a failure measured on real closet clips (docs/notes/sam-check.md): an arm or a neighbour across
@@ -48,7 +48,7 @@ export function ScanFlow() {
       setPhase({ kind: 'uploading' })
       // frames only (the video stays on the phone), thinned to fit one request
       const form = new FormData()
-      thinToBudget(frames.map((f) => f.size), UPLOAD_BUDGET).forEach((i) => form.append('frames', frames[i], `frame-${i}.jpg`))
+      thinToBudget(frames.map((f) => f.size), UPLOAD_BUDGET).forEach((i) => form.append('frames', frames[i], `frame-${Math.round((i * 1000) / FPS)}ms.jpg`))
       const res = await fetch('/api/scan', { method: 'POST', body: form })
       if (!res.ok) throw new Error('Upload failed — check your connection and try again.')
       jobId.current = (await res.json()).id
