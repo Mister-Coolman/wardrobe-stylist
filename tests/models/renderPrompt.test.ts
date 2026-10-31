@@ -73,7 +73,7 @@ test('brand reaches the prompt only as a logo the tags mention; no added text', 
   expect(renderPrompt('flatlay', [quarterZip])).not.toContain('Polo Ralph Lauren')
   const logo = { ...quarterZip, tags: ['cotton', 'embroidered logo'] }
   expect(renderPrompt('mannequin', [logo, jeans])).toContain('(top; long sleeves; classic fit; logo: Polo Ralph Lauren; cotton, embroidered logo)')
-  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/no added text/i)
+  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/no added text or captions, and no readable lettering on labels/i)
 })
 
 const oxford = { cutoutUrl: '/ox.png', name: 'White oxford shirt', category: 'top' as const, subcategory: 'shirt' as const, colors: ['white'], tags: ['button-down collar'], brand: null, fit: null }
@@ -96,11 +96,12 @@ test('mannequin build suits the clothes; try-on replaces all their clothes', () 
   expect(t).toMatch(/Keep the shoes they are already wearing/)
 })
 
-test('flat lay: layered tops overlap with the inner collar showing; shoes as a pair', () => {
+test('flat lay: layered tops are nested as worn, only the inner collar and hem showing; trousers stay off the knit; shoes as a pair', () => {
   const p = renderPrompt('flatlay', [quarterZip, oxford, jeans, boots])
-  expect(p).toMatch(/overlap slightly, the inner collar showing/)
+  expect(p).toContain(`${oxford.name} under Heather blue quarter-zip, showing only its collar at the neckline and a strip of hem below it, not laid out on its own`)
+  expect(p).toMatch(/waistband just under the hem without covering it/)
   expect(p).toMatch(/shoes at the bottom as a pair/)
-  expect(renderPrompt('flatlay', [quarterZip, jeans])).not.toMatch(/overlap/)
+  expect(renderPrompt('flatlay', [quarterZip, jeans])).not.toMatch(/nested/)
 })
 
 test('an explicit sleeve tag wins over the item word: a long sleeve tee is long-sleeved', async () => {

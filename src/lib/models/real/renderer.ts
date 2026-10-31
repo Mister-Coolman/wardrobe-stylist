@@ -32,12 +32,17 @@ function worn(pieces: RenderPiece[]): string {
   return `\n${lines.join(' ')}`
 }
 
+/** Where each piece lies. Left at "overlap slightly", the model laid a polo out whole above the quarter-zip and the trousers' waistband across the knit. */
 function layout(pieces: RenderPiece[]): string {
   const has = (c: string) => pieces.some((p) => p.category === c)
-  const layered = pieces.filter((p) => p.category === 'top' || p.category === 'outerwear').length > 1
-  const rows = [has('outerwear') && 'outerwear top left', (has('top') || has('onepiece')) && `${has('outerwear') ? 'tops beside it' : 'tops across the top'}`,
-    layered && 'layered tops overlap slightly, the inner collar showing, as a stylist would lay them',
-    has('bottom') && 'bottoms below, laid straight with the legs pointing down', has('shoes') && 'shoes at the bottom as a pair', has('accessory') && 'accessories to the side']
+  const torso = insideOut(pieces)
+  const outer = torso.at(-1)
+  const inner = torso.slice(0, -1).map((p) => p.name)
+  const tops = outer && inner.length
+    ? `the tops nested as they are worn, as a stylist would lay them: ${inner.join(' and ')} under ${outer.name}, showing only ${inner.length > 1 ? 'their collars' : 'its collar'} at the neckline and a strip of hem below it, not laid out on ${inner.length > 1 ? 'their' : 'its'} own${layer(outer) === 'outerwear' ? `; ${outer.name} lies open` : ''}`
+    : (has('top') || has('outerwear') || has('onepiece')) && 'the top across the top'
+  const rows = [tops, has('bottom') && 'bottoms below, the waistband just under the hem without covering it, laid straight with the legs pointing down',
+    has('shoes') && 'shoes at the bottom as a pair', has('accessory') && 'accessories to the side']
   return `Lay them out: ${rows.filter(Boolean).join(', ')}.${has('shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'}`
 }
 
@@ -49,12 +54,12 @@ export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: Re
   const list = renderOrder(pieces).map((p, i) => `Image ${i + first}: ${p.name} (${describe(p)})`).join('\n')
   const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Where a name gives a colour, show that colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything.'
   if (mode === 'tryon') {
-    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. No added text or captions.`
+    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. No added text or captions, and no readable lettering on labels.`
   }
   if (mode === 'mannequin') {
-    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} No added text or captions.`
+    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} No added text or captions, and no readable lettering on labels.`
   }
-  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Nothing else in frame: no people, props or extra clothing. No added text or captions.`
+  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Every piece whole and inside the frame, with a margin of paper around the outfit. Nothing else in frame: no people, props or extra clothing. No added text or captions, and no readable lettering on labels.`
 }
 
 export const realRenderer: Renderer = {
