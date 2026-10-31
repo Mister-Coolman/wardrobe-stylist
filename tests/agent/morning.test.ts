@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { morningNote } from '@/lib/agent/morning'
+import { morningExtra, morningNote } from '@/lib/agent/morning'
 import { createLocalRepo } from '@/lib/db/local'
 import type { Repo } from '@/lib/db/repo'
 import { sampleCloset } from '@/lib/fixtures/sampleCloset'
@@ -47,6 +47,31 @@ describe('morningNote', () => {
     const m = await morningNote(repo, profile, {})
     expect(m!.text).toBe('Morning. No clean bottom today — wash day?')
     expect(m!.cards).toEqual([])
+  })
+})
+
+describe('morningExtra', () => {
+  const pieces = sampleCloset('u1').map((g, i) => ({ ...g, id: `g${i}` }))
+  const coat = pieces.find((g) => g.name === 'Navy wool overcoat')!
+  const tee = pieces.find((g) => g.category === 'top')!
+  const dry = { tempHighC: 14, tempLowC: 9, rainProbability: 0, windKph: 10, summary: 'Clear' }
+  const wet = { ...dry, rainProbability: 80, summary: 'Rain from 17:00' }
+  const base = { weather: dry, events: [], worn: [tee], ruleReport: [], laundry: 0, unit: 'F' as const }
+  const gap = [{ ruleId: 'weather', passed: true, note: 'Weather: as warm as your closet goes for 2° — a coat would help' }]
+
+  test('cold with no coat says so, in the owner’s unit', () => {
+    expect(morningExtra({ ...base, weather: { ...dry, tempLowC: 2 }, ruleReport: gap })).toBe('Cold one, 36° low, and there’s no coat in the closet. Warmest layers it is.')
+  })
+  test('rain with nothing rain-safe: an umbrella', () => {
+    expect(morningExtra({ ...base, weather: wet })).toBe('Rain from 17:00, and nothing here is waterproof. Grab an umbrella.')
+  })
+  test('rain with a rain-safe piece names it, lowercasing only its first letter', () => {
+    expect(morningExtra({ ...base, weather: wet, worn: [tee, { ...coat, name: 'Barbour Bedale jacket' }] })).toBe('Rain from 17:00 — the barbour Bedale jacket handles it.')
+  })
+  test('a dressy event gives its time, never its title', () => {
+    const ev = { id: 'e', userId: 'u1', date: '2026-10-30', start: '18:30', end: null, allDay: false, title: 'divorce hearing', location: null, attendees: [], source: 'user' as const, formality: 4 as const }
+    expect(morningExtra({ ...base, events: [ev] })).toBe('Dressed up for your 18:30.')
+    expect(morningExtra({ ...base, events: [{ ...ev, start: null }] })).toBe('Dressed up for today.')
   })
 })
 

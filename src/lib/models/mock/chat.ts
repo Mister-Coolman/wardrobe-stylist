@@ -15,6 +15,8 @@ function outfitInView(messages: ChatMessage[], quoted?: string) {
   return null
 }
 
+const DELETE = /^(?:delete|remove|get rid of) (?:the |my )?(.+?)[.!?]?$/
+
 /** Scripted agent: maps phrases to tool calls, then summarizes the tool results. */
 export const mockChat: ChatModel = {
   async complete(messages) {
@@ -33,10 +35,13 @@ export const mockChat: ChatModel = {
         const first = result.pieces[0].id
         if (/spilled|stain|dirty|in the wash|laundry/.test(text)) return calls(tool('set_status', { ids: [first], status: 'laundry' }))
         if (/^yes,? delete/.test(text)) return calls(tool('delete_piece', { id: first, confirm: true }))
+        // ask first: confirm: false shows the piece, so its id is in view for "yes, delete"
+        if (DELETE.test(text)) return calls(tool('delete_piece', { id: first, confirm: false }))
         const owned = text.match(/i (?:have|own) (two|three|\d+)/)
         // "I have two of X": one already in the closet, so add the rest
         if (owned) return calls(tool('duplicate_piece', { id: first, count: Math.max(1, ({ two: 2, three: 3 }[owned[1]] ?? Number(owned[1])) - 1) }))
       }
+      if (ran.includes('delete_piece') && result.error && result.piece) return say(`Delete the ${result.piece} for good? Say “yes, delete”.`)
       return say(result.summary ?? (result.error ? `That didn’t work: ${result.error}.` : 'Done.'))
     }
 
@@ -80,10 +85,12 @@ export const mockChat: ChatModel = {
     }
     const owned = text.match(/^i (?:have|own) (?:two|three|\d+) (?:of )?(?:the |my |these )?(.+?)[.!?]?$/)
     if (owned) return calls(tool('search_wardrobe', { query: owned[1] }))
-    const del = text.match(/^(?:delete|remove|get rid of) (?:the |my )?(.+?)[.!?]?$/)
-    if (del) return say(`Delete the ${del[1]} for good? Say “yes, delete”.`)
+    const del = text.match(DELETE)
+    if (del) return calls(tool('search_wardrobe', { query: del[1] }))
     if (/^yes,? delete/.test(text)) {
-      const asked = [...users].reverse().slice(1).map((m) => m.content.toLowerCase().match(/^(?:delete|remove|get rid of) (?:the |my )?(.+?)[.!?]?$/)).find(Boolean)
+      const shown = [...messages].reverse().find((m) => m.role === 'assistant' && /\[pieces: /.test(m.content ?? ''))?.content?.match(/\[pieces: [^\]]*?\([^,)]+, ([^)]+)\)/)
+      if (shown) return calls(tool('delete_piece', { id: shown[1], confirm: true }))
+      const asked = [...users].reverse().slice(1).map((m) => m.content.toLowerCase().match(DELETE)).find(Boolean)
       return asked ? calls(tool('search_wardrobe', { query: asked[1] })) : say('Delete what?')
     }
     if (/^(i like|remember|in general|i always|i never|never suggest)/.test(text)) return calls(tool('remember', { text: raw.replace(/^remember( that)?\s*/i, '') }))

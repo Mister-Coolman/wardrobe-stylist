@@ -24,7 +24,7 @@ export const formality: Rule = {
     if (f < req) {
       const low = core(gs).filter((g) => g.formality < req)
       return [{ ruleId: 'formality', garmentIds: low.map((g) => g.id),
-        message: `${low.map((g) => g.name).join(', ')} too casual for ${FORMALITY_WORDS[req]}` }]
+        message: `${low.map((g) => g.name).join(' and ')} ${low.length === 1 ? 'is' : 'are'} too casual for a ${FORMALITY_WORDS[req]} day` }]
     }
     if (f > req + 2) {
       return [{ ruleId: 'formality', garmentIds: core(gs).map((g) => g.id),
@@ -35,6 +35,6 @@ export const formality: Rule = {
   note(_c, ctx) {
     const req = ctx.day.requiredFormality
     const top = [...ctx.day.events].filter((e) => !e.allDay && e.formality).sort((a, b) => b.formality! - a.formality!)[0]
-    return top ? `Dress code: ${top.title} → ${FORMALITY_WORDS[req]}` : `Dress code: ${FORMALITY_WORDS[req]}`
+    return top ? `Dressed ${FORMALITY_WORDS[req]} for ${top.title}` : `A ${FORMALITY_WORDS[req]} day`
   },
 }

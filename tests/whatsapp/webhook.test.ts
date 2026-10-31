@@ -115,6 +115,16 @@ describe('handleInbound', () => {
 })
 
 describe('sendReply', () => {
+  const pending = (text: string) => ({ id: 'm', userId: 'u1', role: 'assistant' as const, text, imageUrl: null, channel: 'whatsapp' as const, replyTo: null, waIds: [], createdAt: '',
+    cards: [{ kind: 'pieces' as const, pending: true, pieces: [{ id: 'g1', name: 'Navy polo', cutoutUrl: '', status: 'clean' as const }] }] })
+  test('pieces found in a photo are said once: the reply, or the line when there is no reply', async () => {
+    await sendReply('1555', pending('Found a navy polo. Add it?'), createMemoryStorage())
+    expect(sent.map((s) => (s.body.text as { body: string }).body)).toEqual(['Found a navy polo. Add it?'])
+    sent = []
+    await sendReply('1555', pending(''), createMemoryStorage())
+    expect(sent.map((s) => (s.body.text as { body: string }).body)).toEqual(['Found: Navy polo. Reply “yes” to add them.'])
+  })
+
   test('listings become a numbered list', async () => {
     const ids = await sendReply('1555', { id: 'm', userId: 'u1', role: 'assistant', text: 'Found 2.', imageUrl: null, channel: 'whatsapp', replyTo: null, waIds: [], createdAt: '',
       cards: [{ kind: 'listings', products: [

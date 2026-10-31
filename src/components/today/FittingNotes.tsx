@@ -1,5 +1,8 @@
 import type { Garment, Outfit, TempUnit } from '@/lib/domain/types'
+import type { RuleResult } from '@/lib/rules/types'
 import { withUnit } from '@/lib/ui/temperature'
+
+export const shownNotes = (report: RuleResult[]) => report.filter((r) => r.note)
 
 /** The checks that ran (✓) and what got swapped on the way (↺), typeset like annotations. */
 export function FittingNotes({ outfit, pieces, wardrobe, bestEffort, unit }: { outfit: Outfit; pieces: Garment[]; wardrobe: Garment[]; bestEffort: boolean; unit: TempUnit }) {
@@ -16,7 +19,7 @@ export function FittingNotes({ outfit, pieces, wardrobe, bestEffort, unit }: { o
     <section className="mt-10">
       <h2 className="label text-ink-muted">Fitting notes</h2>
       <ul aria-label="Fitting notes" className="mt-3 flex flex-col gap-2 text-sm">
-        {outfit.ruleReport.map((r) => (
+        {shownNotes(outfit.ruleReport).map((r) => (
           <li key={r.ruleId} className="flex gap-3">
             <span aria-hidden className={r.passed ? 'text-ok' : 'text-warn'}>{r.passed ? '✓' : '!'}</span>
             <span><span className="sr-only">{r.passed ? 'Passed: ' : 'Not met: '}</span>{withUnit(r.note, unit)}</span>

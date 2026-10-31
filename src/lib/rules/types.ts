@@ -1,6 +1,6 @@
 /** message is user-facing copy */
 export interface Violation { ruleId: string; garmentIds: string[]; message: string }
-/** shown as a fitting note */
+/** shown as a fitting note; '' when there's nothing worth saying */
 export interface RuleResult { ruleId: string; passed: boolean; note: string }
 
 import type { CalendarEvent, Candidate, Garment, Level, Profile, Weather } from '@/lib/domain/types'

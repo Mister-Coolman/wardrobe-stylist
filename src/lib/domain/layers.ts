@@ -14,12 +14,16 @@ const DEPTH: Record<string, number> = { base: 0, onepiece: 0, shirt: 1, knit: 2,
 export const insideOut = <P extends Shape>(pieces: P[]) =>
   pieces.filter((p) => (layer(p) ?? '') in DEPTH).sort((a, b) => DEPTH[layer(a)!] - DEPTH[layer(b)!])
 
-const SHORT = /short[- ]?sleeve|sleeveless|\btank\b|\bt-?shirt\b|\btee\b/i
-const LONG = /long[- ]?sleeve|sweater|sweatshirt|quarter[- ]?zip|crewneck|cardigan|hoodie|pullover|jacket|coat|overshirt|flannel|oxford/i
-/** From the owner's name and tags; null when they don't say (a polo can be either) */
+const SHORT_SAID = /short[- ]?sleeve|sleeveless/i
+const LONG_SAID = /long[- ]?sleeve/i
+const SHORT = /\btank\b|\bt-?shirt\b|\btee\b/i
+const LONG = /sweater|sweatshirt|quarter[- ]?zip|crewneck|cardigan|hoodie|pullover|jacket|coat|overshirt|flannel|oxford/i
+/** From the owner's name and tags; null when they don't say (a polo can be either). Saying the sleeve beats the item word. */
 export function sleeves(p: Shape & Pick<Garment, 'name' | 'tags'>): 'short' | 'long' | null {
   if (!['top', 'outerwear', 'onepiece'].includes(p.category)) return null
   const words = `${p.name} ${p.tags.join(' ')}`
+  if (SHORT_SAID.test(words)) return 'short'
+  if (LONG_SAID.test(words)) return 'long'
   if (SHORT.test(words)) return 'short'
   if (LONG.test(words) || p.category === 'outerwear' || p.subcategory === 'sweater') return 'long'
   return null

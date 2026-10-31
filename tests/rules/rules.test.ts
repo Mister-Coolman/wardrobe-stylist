@@ -28,7 +28,7 @@ describe('completeness', () => {
     test('a quarter-zip over two polos is rejected, naming both polos', () => {
       const v = completeness.check(cand('crew', 'navyPolo', 'redPolo', 'jeans', 'sneakers'), ctx({}, polos))
       expect(v).toHaveLength(1)
-      expect(v[0].message).toBe('Two of the same layer: Navy pique polo shirt and Red cotton polo shirt')
+      expect(v[0].message).toBe("Navy pique polo shirt and Red cotton polo shirt don't go on together — one or the other")
       expect(v[0].garmentIds).toEqual(['navyPolo', 'redPolo'])
     })
     test('real layering passes: a polo under a sweater, a tee under a shirt under a sweater', () => {
@@ -36,10 +36,21 @@ describe('completeness', () => {
       expect(messages('navyPolo', 'oxford', 'crew', 'jeans', 'sneakers')).toEqual([])
     })
     test('two bottoms, two pairs of shoes or two coats are rejected', () => {
-      expect(messages('crew', 'jeans', 'trousers', 'sneakers')).toEqual(['Two of the same layer: Charcoal wool trousers and Selvedge jeans'])
-      expect(messages('crew', 'jeans', 'sneakers', 'boots')).toEqual(['Two of the same layer: Black leather boots and White leather sneakers'])
-      expect(messages('crew', 'jeans', 'sneakers', 'coat', 'parka')).toEqual(['Two of the same layer: Green parka and Navy wool overcoat'])
+      expect(messages('crew', 'jeans', 'trousers', 'sneakers')).toEqual(["Charcoal wool trousers and Selvedge jeans don't go on together — one or the other"])
+      expect(messages('crew', 'jeans', 'sneakers', 'boots')).toEqual(["Black leather boots and White leather sneakers don't go on together — one or the other"])
+      expect(messages('crew', 'jeans', 'sneakers', 'coat', 'parka')).toEqual(["Green parka and Navy wool overcoat don't go on together — one or the other"])
     })
+  })
+  test('three of one layer are named together', () => {
+    const tees = [...wardrobe, garment({ id: 't1', name: 'Grey tee', category: 'top', subcategory: 'tshirt' }), garment({ id: 't2', name: 'White tee', category: 'top', subcategory: 'tshirt' }),
+      garment({ id: 't3', name: 'Black tee', category: 'top', subcategory: 'tshirt' })]
+    expect(completeness.check(cand('t1', 't2', 't3', 'jeans', 'sneakers'), ctx({}, tees)).map((v) => v.message))
+      .toEqual(["Black tee, Grey tee and White tee don't go on together — pick one"])
+  })
+  test('the note reads head to toe with shoes, and says when the closet has none', () => {
+    expect(completeness.note(cand('crew', 'jeans', 'sneakers'), ctx())).toBe('Head to toe: 3 pieces')
+    const noShoes = wardrobe.filter((g) => g.category !== 'shoes')
+    expect(completeness.note(cand('crew', 'jeans'), ctx({}, noShoes))).toBe('Top and bottom sorted — no shoes in the closet yet')
   })
   test('without clean shoes in the closet, top + bottom is complete', () => {
     const noShoes = wardrobe.filter((g) => g.category !== 'shoes')
@@ -54,6 +65,11 @@ describe('formality', () => {
     const v = formality.check(cand('oxford', 'jeans', 'loafers'), ctx({ requiredFormality: 4 }))
     expect(v).toHaveLength(1)
     expect(v[0].garmentIds).toContain('jeans')
+  })
+  test('messages and notes are plain words, no arrows or levels', () => {
+    expect(formality.check(cand('oxford', 'jeans', 'loafers'), ctx({ requiredFormality: 4 }))[0].message).toBe('Selvedge jeans is too casual for a smart day')
+    expect(formality.note(cand('oxford', 'trousers', 'loafers'), ctx({ requiredFormality: 4, events: [event({ title: 'Client pitch', formality: 4 })] }))).toBe('Dressed smart for Client pitch')
+    expect(formality.note(cand('crew', 'jeans', 'sneakers'), ctx({ requiredFormality: 2 }))).toBe('A casual day')
   })
   test('dress shoes on a casual day (required 2) pass', () =>
     expect(formality.check(cand('crew', 'jeans', 'loafers'), ctx({ requiredFormality: 2 }))).toEqual([]))
@@ -86,13 +102,13 @@ describe('weather', () => {
     ]
     const cold = (...ids: string[]) => weather.check(cand(...ids), ctx({ weather: wx({ tempLowC: 4 }) }, noCoat))
     test('the warmest look the closet allows passes', () => expect(cold('polo', 'flannel', 'zip', 'jeans')).toEqual([]))
-    test('anything lighter is still too light, and says how warm the closet can go', () => {
+    test('anything lighter is still too light, in plain words: warmest layers, a coat would help, no warmth points', () => {
       const v = cold('polo', 'zip', 'jeans')
       expect(v).toHaveLength(1)
-      expect(v[0].message).toBe('Too light for a low of 4° — layer up to 6, the warmest this closet allows')
+      expect(v[0].message).toBe('Too light for a low of 4° — wear your warmest layers; a coat would help')
     })
     test('the note says a coat would help', () =>
-      expect(weather.note(cand('polo', 'flannel', 'zip', 'jeans'), ctx({ weather: wx({ tempLowC: 4 }) }, noCoat))).toMatch(/warmest your closet allows.*coat/i))
+      expect(weather.note(cand('polo', 'flannel', 'zip', 'jeans'), ctx({ weather: wx({ tempLowC: 4 }) }, noCoat))).toBe('Weather: as warm as your closet goes for 4° — a coat would help'))
   })
   test.each([[22, 1, true], [22, 5, false], [15, 2, true], [15, 1, false], [8, 4, true], [8, 9, false], [7, 7, true], [7, 6, false]])(
     'low %d° with warmth %d → ok %s', (low, warmth, ok) => {
@@ -131,6 +147,25 @@ describe('runRules', () => {
   })
 })
 
+describe('notes with nothing to say are empty', () => {
+  test('no pairing, no poll, no style profile, no reuse after day one', async () => {
+    const { likedPairs } = await import('@/lib/rules/likedPairs')
+    const { pollWinner } = await import('@/lib/rules/pollWinner')
+    const { styleMatch } = await import('@/lib/rules/styleMatch')
+    const { capsuleReuse } = await import('@/lib/rules/capsuleReuse')
+    expect(likedPairs.note(cand('crew', 'jeans'), ctx())).toBe('')
+    expect(pollWinner.note(cand('crew', 'jeans'), ctx())).toBe('')
+    expect(styleMatch.note(cand('crew', 'jeans'), ctx())).toBe('')
+    expect(capsuleReuse.note(cand('crew', 'jeans'), { ...ctx(), trip: { counts: {} } })).toBe('Packing light: day one')
+    expect(capsuleReuse.note(cand('crew', 'jeans'), { ...ctx(), trip: { counts: { coat: 1 } } })).toBe('')
+  })
+  test('a trip piece past its limit is due a wash, in plain words', async () => {
+    const { wearLimit } = await import('@/lib/rules/wearLimit')
+    const c = { ...ctx(), trip: { counts: { jeans: 99 } } }
+    expect(wearLimit.check(cand('crew', 'jeans'), c).map((v) => v.message)).toEqual(['Selvedge jeans: worn 99 times this trip — due a wash'])
+  })
+})
+
 describe('likedPairs', () => {
   test('scores a candidate holding a remembered pair, and not one holding half of it', async () => {
     const { likedPairs } = await import('@/lib/rules/likedPairs')
@@ -141,5 +176,13 @@ describe('likedPairs', () => {
     expect(likedPairs.score!(cand(a, c), withNotes)).toBe(0)
     expect(likedPairs.check(cand(a, c), withNotes)).toEqual([])
     expect(likedPairs.note(cand(a, b), withNotes)).toBe('A pairing you like')
+  })
+})
+
+describe('fitting notes', () => {
+  test('notes with nothing to say are not shown', async () => {
+    const { shownNotes } = await import('@/components/today/FittingNotes')
+    expect(shownNotes([{ ruleId: 'weather', passed: true, note: 'Weather: layered for 9° to 14°' }, { ruleId: 'pollWinner', passed: true, note: '' }]).map((r) => r.ruleId))
+      .toEqual(['weather'])
   })
 })

@@ -12,6 +12,7 @@ export const capsuleReuse: Rule = {
   },
   note(c, ctx) {
     const reused = c.garmentIds.filter((id) => (ctx.trip?.counts[id] ?? 0) > 0).length
-    return reused ? `Packing light: reuses ${reused} piece${reused === 1 ? '' : 's'} already in the bag` : 'Packing light: first day of the capsule'
+    if (reused) return `Packing light: reuses ${reused} piece${reused === 1 ? '' : 's'} already in the bag`
+    return Object.keys(ctx.trip?.counts ?? {}).length ? '' : 'Packing light: day one'
   },
 }

@@ -48,6 +48,13 @@ describe('runThread', () => {
     expect(summariseCard(card)).toMatch(/^\[outfit [\w-]+ for \d{4}-\d{2}-\d{2}: .+\]$/)
   })
 
+  test('the model is told today’s date', async () => {
+    const { chat, seen } = capturing()
+    await runThread(user, web('hm'), { repo, models: { ...getModels(), chat } })
+    const day = localDate('America/New_York')
+    expect(seen[0][0].content).toContain(`Today is ${new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })} ${day}.`)
+  })
+
   test('only the last 20 messages go to the model', async () => {
     await filler(30)
     const { chat, seen } = capturing()
@@ -177,6 +184,7 @@ describe('scripted conversations (mock chat)', () => {
   test('delete asks first; "yes, delete" removes it', async () => {
     const { reply } = await say('delete the selvedge jeans')
     expect(reply.text).toMatch(/yes, delete/)
+    expect(reply.cards[0]).toMatchObject({ kind: 'pieces', pieces: [{ name: 'Selvedge jeans' }] })
     expect((await repo.listGarments('u1')).some((g) => g.name === 'Selvedge jeans')).toBe(true)
     await say('yes, delete')
     expect((await repo.listGarments('u1')).some((g) => g.name === 'Selvedge jeans')).toBe(false)
@@ -218,5 +226,15 @@ describe('clean', () => {
     const { clean } = await import('@/lib/agent/thread')
     expect(clean('Pulled your match with [outfit 55cd for 2026-10-30: Tailored] — oxford + oat knit.')).toBe('Pulled your match with this look — oxford + oat knit.')
     expect(clean('Found these [found in the photo, not added yet — keep_pieces with these ids: Tee (g1)] want them?')).toBe('Found these want them?')
+  })
+  test('bare ids the model echoes are dropped', async () => {
+    const { clean } = await import('@/lib/agent/thread')
+    expect(clean('The Navy tee (3f2a9c1e-1b2c-4d5e-8f90-123456789abc) works. Forgot it (3f9a1c2b). Use p3 (p3) here.')).toBe('The Navy tee works. Forgot it. Use p3 here.')
+  })
+})
+
+describe('summariseCard', () => {
+  test('a listing title’s brackets can’t cut the line short', () => {
+    expect(summariseCard({ kind: 'listings', products: [{ id: '1', title: 'Tee [2-pack] Black', store: 'Gap', url: 'u', imageUrl: 'i' }] })).toBe('[listings: 1. Tee 2-pack Black (Gap)]')
   })
 })

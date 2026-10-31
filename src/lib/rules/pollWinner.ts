@@ -10,7 +10,7 @@ export const pollWinner: Rule = {
     return 0.5 * c.garmentIds.filter((id) => ctx.poll!.garmentIds.includes(id)).length / c.garmentIds.length
   },
   note(c, ctx) {
-    if (!ctx.poll) return 'No poll for today'
+    if (!ctx.poll) return ''
     const same = c.garmentIds.length === ctx.poll.garmentIds.length && c.garmentIds.every((id) => ctx.poll!.garmentIds.includes(id))
     return same ? `Friends picked this, ${ctx.poll.score}` : `Friends picked another look, ${ctx.poll.score}`
   },

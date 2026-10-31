@@ -10,7 +10,7 @@ const boots = { cutoutUrl: '/boots.png', name: 'Black leather boots', category: 
 test('flat lay: every image is named with its piece and details, in order; the name decides the colour', () => {
   const p = renderPrompt('flatlay', [quarterZip, polo, jeans])
   expect(p).toContain('exactly 3 pieces')
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; cotton, quarter zip)')
   expect(p).toContain('Image 2: Red pique polo (top; pique)')
   expect(p).toContain('Image 3: Dark indigo jeans (bottom; slim fit; denim)')
   expect(p).toMatch(/where a name gives a colour, show that colour/i)
@@ -39,7 +39,7 @@ test('pieces go outerwear, tops, bottoms, shoes', () => {
 
 test('mannequin: names every piece, asks for a featureless mannequin, says no shoes when there are none', () => {
   const p = renderPrompt('mannequin', [quarterZip, jeans])
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; cotton, quarter zip)')
   expect(p).toContain('Image 2: Dark indigo jeans (bottom; slim fit; denim)')
   expect(p).toMatch(/featureless matte white mannequin \(no face, no hair, no skin\)/)
   expect(p).toContain('exactly these 2 pieces')
@@ -67,4 +67,47 @@ test('sleeve length goes in each piece’s details, from its tags or name', () =
 
 test('a single top says nothing about layering', () => {
   expect(renderPrompt('mannequin', [redPolo, jeans])).not.toMatch(/inside to outside|only its collar/)
+})
+
+test('brand reaches the prompt only as a logo the tags mention; no added text', () => {
+  expect(renderPrompt('flatlay', [quarterZip])).not.toContain('Polo Ralph Lauren')
+  const logo = { ...quarterZip, tags: ['cotton', 'embroidered logo'] }
+  expect(renderPrompt('mannequin', [logo, jeans])).toContain('(top; long sleeves; classic fit; logo: Polo Ralph Lauren; cotton, embroidered logo)')
+  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/no added text/i)
+})
+
+const oxford = { cutoutUrl: '/ox.png', name: 'White oxford shirt', category: 'top' as const, subcategory: 'shirt' as const, colors: ['white'], tags: ['button-down collar'], brand: null, fit: null }
+const coat = { cutoutUrl: '/coat.png', name: 'Navy wool overcoat', category: 'outerwear' as const, subcategory: 'coat' as const, colors: ['navy'], tags: ['wool'], brand: null, fit: null }
+
+test('mannequin and try-on: collars out over the knit, the shirt tucked or a short hem, outerwear open', () => {
+  for (const mode of ['mannequin', 'tryon'] as const) {
+    const p = renderPrompt(mode, [coat, quarterZip, oxford, jeans])
+    expect(p).toMatch(/collars of the shirts and polos under Heather blue quarter-zip sit outside its neckline/i)
+    expect(p).toMatch(/White oxford shirt is tucked in or shows a short hem/)
+    expect(p).toMatch(/Navy wool overcoat is worn open so the layers show/)
+  }
+  expect(renderPrompt('mannequin', [quarterZip, jeans])).not.toMatch(/neckline|worn open/)
+})
+
+test('mannequin build suits the clothes; try-on replaces all their clothes', () => {
+  expect(renderPrompt('mannequin', [quarterZip, jeans])).toMatch(/with a build that suits these clothes/)
+  const t = renderPrompt('tryon', [quarterZip, jeans])
+  expect(t).toMatch(/Replace all of the clothes they are wearing/)
+  expect(t).toMatch(/Keep the shoes they are already wearing/)
+})
+
+test('flat lay: layered tops overlap with the inner collar showing; shoes as a pair', () => {
+  const p = renderPrompt('flatlay', [quarterZip, oxford, jeans, boots])
+  expect(p).toMatch(/overlap slightly, the inner collar showing/)
+  expect(p).toMatch(/shoes at the bottom as a pair/)
+  expect(renderPrompt('flatlay', [quarterZip, jeans])).not.toMatch(/overlap/)
+})
+
+test('an explicit sleeve tag wins over the item word: a long sleeve tee is long-sleeved', async () => {
+  const { sleeves } = await import('@/lib/domain/layers')
+  const tee = { name: 'Black long sleeve tee', category: 'top' as const, subcategory: 'tshirt' as const, tags: ['cotton'] }
+  expect(sleeves(tee)).toBe('long')
+  expect(sleeves({ ...tee, name: 'Black tee', tags: ['long-sleeve'] })).toBe('long')
+  expect(sleeves({ ...tee, name: 'Grey quarter-zip', subcategory: 'sweater', tags: ['short sleeve'] })).toBe('short')
+  expect(sleeves({ ...tee, name: 'Black tee', tags: [] })).toBe('short')
 })

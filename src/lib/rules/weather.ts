@@ -21,7 +21,7 @@ export const RAIN_THRESHOLD = 50
 
 /** The warmest look the clean closet can make, one piece per layer: the warmest tee, shirt and knit stacked
  *  (or the warmest one-piece), plus the warmest outerwear. */
-export function warmestPossible(ctx: RuleContext): number {
+export function warmestPossible(ctx: Pick<RuleContext, 'garments'>): number {
   const best = new Map<string, number>()
   for (const g of ctx.garments.values()) {
     const l = layer(g)
@@ -43,7 +43,8 @@ export const weather: Rule = {
     // a closet with no coat can't reach a cold day's band: ask for its warmest look instead of the impossible
     const ceiling = warmestPossible(ctx)
     if (ceiling < lo) {
-      if (warmth < ceiling) v.push({ ruleId: 'weather', garmentIds: [], message: `Too light for a low of ${w.tempLowC}° — layer up to ${ceiling}, the warmest this closet allows` })
+      // no warmth number: the owner reads this too, and the model already sees each piece's warmth
+      if (warmth < ceiling) v.push({ ruleId: 'weather', garmentIds: [], message: `Too light for a low of ${w.tempLowC}° — wear your warmest layers; a coat would help` })
     } else if (warmth < lo) v.push({ ruleId: 'weather', garmentIds: [], message: `Too light for a low of ${w.tempLowC}°` })
     if (warmth > hi) v.push({ ruleId: 'weather', garmentIds: [], message: `Too warm for a low of ${w.tempLowC}°` })
     if (w.rainProbability >= RAIN_THRESHOLD) {
@@ -55,7 +56,7 @@ export const weather: Rule = {
   note(_c, ctx) {
     const w = ctx.day.weather
     const rain = w.rainProbability >= RAIN_THRESHOLD ? `, rain-safe for ${w.rainProbability}% rain` : ''
-    if (warmestPossible(ctx) < warmthBand(w.tempLowC)[0]) return `Weather: the warmest your closet allows for ${w.tempLowC}°${rain} — a coat would help`
+    if (warmestPossible(ctx) < warmthBand(w.tempLowC)[0]) return `Weather: as warm as your closet goes for ${w.tempLowC}°${rain} — a coat would help`
     return `Weather: layered for ${w.tempLowC}° to ${w.tempHighC}°${rain}`
   },
 }

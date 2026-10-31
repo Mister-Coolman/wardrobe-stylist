@@ -11,6 +11,7 @@ import { getModels } from '@/lib/models'
 import { sampleCloset } from '@/lib/fixtures/sampleCloset'
 import { MOCK_PRODUCTS } from '@/lib/shop/search'
 import { planToday } from '@/lib/today'
+import { defaultProfile } from '@/lib/profile'
 
 const user = { userId: 'u1', email: 'u1', googleAccessToken: null }
 let repo: Repo
@@ -52,6 +53,39 @@ describe('look tools', () => {
     ctx.models = { ...getModels(), stylist: { ...getModels().stylist, propose } }
     await call('plan_outfit', { wish: 'fall themed' })
     expect(propose.mock.calls[0][0].wish).toBe('fall themed')
+  })
+})
+
+describe('what a look tells the stylist', () => {
+  const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-/i
+  test('pieces and reasons by name, the title as summary, no ids', async () => {
+    const r = await call('plan_outfit')
+    const card = outfitOf(ctx.cards[0])
+    expect(r.pieces).toEqual(card.pieces.map((p) => p.name))
+    for (const k of Object.keys(r.rationale as object)) expect(card.pieces.map((p) => p.name)).toContain(k)
+    expect(r.summary).toMatch(new RegExp(`^${r.title}\\.`))
+    expect(JSON.stringify({ ...r, outfitId: '' })).not.toMatch(uuid)
+    expect(r.gap).toBeUndefined()
+  })
+
+  test('a closet that can’t reach a cold day says a coat would help', async () => {
+    for (const g of await repo.listGarments('u1')) if (g.category === 'outerwear' || g.subcategory === 'sweater') await repo.deleteGarment('u1', g.id)
+    const r = await call('plan_outfit')
+    expect(r.gap).toBe('a coat would help')
+  })
+
+  test('an empty closet asks for photos', async () => {
+    for (const g of await repo.listGarments('u1')) await repo.deleteGarment('u1', g.id)
+    expect((await call('plan_outfit')).summary).toBe('The closet is empty — send a photo of your clothes and I’ll add them.')
+  })
+
+  test('get_weather gives wind in the owner’s unit, no raw km/h key', async () => {
+    await repo.upsertProfile({ ...defaultProfile('u1'), tempUnit: 'F' })
+    const f = await call('get_weather')
+    expect(f.wind).toBe('11 mph')
+    expect(f.windKph).toBeUndefined()
+    await repo.upsertProfile({ ...defaultProfile('u1'), tempUnit: 'C' })
+    expect((await call('get_weather')).wind).toBe('18 km/h')
   })
 })
 
@@ -112,12 +146,36 @@ describe('closet tools', () => {
     expect(after).toMatchObject({ brand: 'Levi’s', fit: 'slim', name: jeans.name, tags: jeans.tags })
   })
 
-  test('delete_piece without confirm refuses and keeps the piece', async () => {
+  test('delete_piece without confirm refuses, keeps the piece and shows it so its id survives', async () => {
     const jeans = await named(/jeans/i)
-    expect((await call('delete_piece', { id: jeans.id, confirm: false })).error).toMatch(/ask/)
+    expect((await call('delete_piece', { id: jeans.id, confirm: false })).error).toMatch(/Delete the Selvedge jeans for good\? Say yes, delete/)
     expect(await named(/jeans/i)).toBeTruthy()
-    await call('delete_piece', { id: jeans.id, confirm: true })
+    expect(ctx.cards[0]).toMatchObject({ kind: 'pieces', pieces: [{ id: jeans.id }] })
+    ctx.userText = 'yes, delete'
+    expect((await call('delete_piece', { id: jeans.id, confirm: true })).summary).toMatch(/Removed/)
     expect(await named(/jeans/i)).toBeUndefined()
+  })
+
+  test('delete_piece with confirm: true is refused unless the owner’s latest message says yes', async () => {
+    const jeans = await named(/jeans/i)
+    for (const text of [undefined, 'match this look', 'delete the selvedge jeans']) {
+      ctx.userText = text
+      expect((await call('delete_piece', { id: jeans.id, confirm: true })).error).toMatch(/ask/i)
+    }
+    expect(await named(/jeans/i)).toBeTruthy()
+  })
+
+  test('search_wardrobe matches every word, in any order', async () => {
+    const r = await call('search_wardrobe', { query: 'white shirt' })
+    expect((r.pieces as { name: string }[]).map((p) => p.name)).toEqual(['White oxford shirt'])
+    expect((await call('search_wardrobe', { query: 'white blazer' })).count).toBe(0)
+  })
+
+  test('set_status says what happened in plain words', async () => {
+    const oxford = await named(/oxford/i)
+    expect((await call('set_status', { ids: [oxford.id], status: 'laundry' })).summary).toBe('White oxford shirt is in the laundry now.')
+    expect((await call('set_status', { ids: [oxford.id], status: 'worn' })).summary).toBe('White oxford shirt marked worn.')
+    expect((await call('set_status', { ids: [oxford.id], status: 'clean' })).summary).toBe('White oxford shirt is clean again.')
   })
 
   test('duplicate_piece adds another of a piece and shows the copy', async () => {
@@ -134,8 +192,9 @@ describe('closet tools', () => {
 
 describe('store tools', () => {
   test('shop_search pushes a listings card', async () => {
-    await call('shop_search', { query: 'black under armour sweatpants' })
+    const r = await call('shop_search', { query: 'black under armour sweatpants' })
     expect(ctx.cards[0]).toMatchObject({ kind: 'listings', products: [{ store: 'Under Armour' }] })
+    expect(r.summary).toMatch(/^Found \d+ listings?\.$/)
   })
 
   test('add_listing 2 adds the second listing of the newest card, confirmed, named from it', async () => {
@@ -211,6 +270,7 @@ describe('photo tools', () => {
   test('rate_outfit gives the day to judge the photo against', async () => {
     ctx.imageUrl = '/api/media/test/thread/me.jpg'
     const r = await call('rate_outfit')
-    expect(r).toMatchObject({ requiredFormality: expect.any(Number), weather: expect.any(String) })
+    expect(r).toMatchObject({ dressCode: expect.stringMatching(/^(sporty|casual|smart casual|smart|formal)$/), weather: expect.any(String) })
+    expect(r.requiredFormality).toBeUndefined()
   })
 })

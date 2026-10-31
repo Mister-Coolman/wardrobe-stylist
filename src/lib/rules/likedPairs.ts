@@ -9,6 +9,6 @@ export const likedPairs: Rule = {
     return (ctx.profile.stylistNotes ?? []).filter((n) => n.pieceIds.length >= 2 && n.pieceIds.every((id) => c.garmentIds.includes(id))).length
   },
   note(c, ctx) {
-    return likedPairs.score!(c, ctx) ? 'A pairing you like' : 'No remembered pairing in this look'
+    return likedPairs.score!(c, ctx) ? 'A pairing you like' : ''
   },
 }

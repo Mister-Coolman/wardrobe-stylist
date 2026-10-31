@@ -85,7 +85,7 @@ export async function sendReply(to: string, m: Message, storage: StorageLike): P
       ids.push(await sendText(to, `${lines.join('\n')}\nReply with a number to add it.`))
     } else if (c.kind === 'trip') {
       ids.push(await sendText(to, `${c.destination}, ${c.days} days — the packing list is in the app under Trips.`))
-    } else if (c.kind === 'pieces' && c.pending) {
+    } else if (c.kind === 'pieces' && c.pending && !m.text) {
       ids.push(await sendText(to, `Found: ${c.pieces.map((p) => p.name).join(', ')}. Reply “yes” to add them.`))
     }
   }

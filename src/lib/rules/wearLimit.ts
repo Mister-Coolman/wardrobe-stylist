@@ -1,4 +1,5 @@
 import { limitFor } from '@/lib/domain/wearLimits'
+import { plural } from '@/lib/ui/format'
 import type { Rule } from './types'
 import { piecesOf } from './types'
 
@@ -12,11 +13,11 @@ export const wearLimit: Rule = {
       const limit = limitFor(g, ctx.profile.wearLimits)
       const used = counts[g.id] ?? 0
       return limit != null && used + 1 > limit
-        ? [{ ruleId: 'wearLimit', garmentIds: [g.id], message: `${g.name} already worn ${used}× — limit ${limit} before a wash` }]
+        ? [{ ruleId: 'wearLimit', garmentIds: [g.id], message: `${g.name}: worn ${plural(used, 'time')} this trip — due a wash` }]
         : []
     })
   },
   note() {
-    return 'Rewear: within your limits for every piece'
+    return 'Nothing worn past its wears before a wash'
   },
 }

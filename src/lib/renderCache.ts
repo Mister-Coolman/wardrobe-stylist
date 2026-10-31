@@ -6,7 +6,7 @@ import { getStorage, MEDIA_PREFIX, userKey } from '@/lib/storage'
 import type { StorageLike } from '@/lib/storage'
 
 /** Bump when the render prompt changes, so looks drawn under the old prompt are drawn again */
-export const RENDER_VERSION = 2
+export const RENDER_VERSION = 3
 
 /** What the picture depends on: the view, each piece as the renderer is told about it, and the owner's photo for a try-on.
  *  Piece order doesn't matter (the renderer sorts them). */

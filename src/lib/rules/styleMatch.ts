@@ -22,7 +22,7 @@ export const styleMatch: Rule = {
   },
   note(c, ctx) {
     const s = ctx.profile.styleProfile
-    if (!s) return 'Style: no profile yet'
+    if (!s) return ''
     const on = piecesOf(c, ctx).filter((g) => perPiece(g, s) > 0).map((g) => g.name)
     return on.length ? `Your style: ${on.slice(0, 2).join(' and ')} fit what you save` : 'Your style: a step outside what you usually save'
   },
