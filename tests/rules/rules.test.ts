@@ -73,12 +73,35 @@ describe('weather', () => {
     expect(weather.check(cand('coat', 'crew', 'trousers', 'boots'), ctx(rainy))).toEqual([]))
   test('too light for 9° low is a violation', () =>
     expect(weather.check(cand('oxford', 'trousers', 'boots'), ctx(rainy))).toHaveLength(1))
+
+  describe('a closet that can’t reach the warmth the day asks for (no coat, 4° low)', () => {
+    // warmest legal stack: polo (1) + flannel (2) + knit (3) = 6, under the 7 a 4° low asks for
+    const noCoat = [
+      garment({ id: 'polo', name: 'Navy pique polo shirt', category: 'top', subcategory: 'tshirt', warmth: 1 }),
+      garment({ id: 'polo2', name: 'Red cotton polo shirt', category: 'top', subcategory: 'tshirt', warmth: 1 }),
+      garment({ id: 'flannel', name: 'Flannel shirt', category: 'top', subcategory: 'shirt', warmth: 2 }),
+      garment({ id: 'zip', name: 'Heather blue quarter-zip', category: 'top', subcategory: 'sweater', warmth: 3 }),
+      garment({ id: 'cardigan', name: 'Laundry cardigan', category: 'top', subcategory: 'sweater', warmth: 5, status: 'laundry' }),
+      garment({ id: 'jeans', name: 'Selvedge jeans', category: 'bottom', subcategory: 'jeans', warmth: 2 }),
+    ]
+    const cold = (...ids: string[]) => weather.check(cand(...ids), ctx({ weather: wx({ tempLowC: 4 }) }, noCoat))
+    test('the warmest look the closet allows passes', () => expect(cold('polo', 'flannel', 'zip', 'jeans')).toEqual([]))
+    test('anything lighter is still too light, and says how warm the closet can go', () => {
+      const v = cold('polo', 'zip', 'jeans')
+      expect(v).toHaveLength(1)
+      expect(v[0].message).toBe('Too light for a low of 4° — layer up to 6, the warmest this closet allows')
+    })
+    test('the note says a coat would help', () =>
+      expect(weather.note(cand('polo', 'flannel', 'zip', 'jeans'), ctx({ weather: wx({ tempLowC: 4 }) }, noCoat))).toMatch(/warmest your closet allows.*coat/i))
+  })
   test.each([[22, 1, true], [22, 5, false], [15, 2, true], [15, 1, false], [8, 4, true], [8, 9, false], [7, 7, true], [7, 6, false]])(
     'low %d° with warmth %d → ok %s', (low, warmth, ok) => {
       const gs = [
         { id: 't', name: 'Top', category: 'top', subcategory: 'sweater', warmth },
         { id: 'b', name: 'Bottom', category: 'bottom', subcategory: 'jeans' },
         { id: 's', name: 'Shoes', category: 'shoes', subcategory: 'boots' },
+        // a warm coat in the closet (not in the look), so the day's band applies rather than "the warmest you have"
+        { id: 'c', name: 'Coat', category: 'outerwear', subcategory: 'coat', warmth: 9 },
       ].map((g) => ({ ...ctx().garments.get('crew')!, ...g })) as never[]
       const v = weather.check(cand('t', 'b', 's'), ctx({ weather: wx({ tempLowC: low }) }, gs))
       expect(v.length === 0).toBe(ok)

@@ -32,6 +32,22 @@ test('"drinks after work" shows a look card; the thread survives a reload; the l
   await expect(page.getByTestId('day-strip')).toContainText('drinks after work (added)', { timeout: 30_000 })
 })
 
+test('the phone drops a slow reply: the thread keeps checking and shows it, with no error and no duplicate', async ({ page }) => {
+  await signIn(page)
+  await seedCloset(page)
+  await page.goto('/stylist')
+  // the server answers, but the connection is gone by the time it does (Safari or the network gave up)
+  await page.route('**/api/thread', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    await route.fetch()
+    await route.abort('failed')
+  })
+  await send(page, 'what should I wear')
+  await expect(looks(page)).toHaveCount(1, { timeout: 30_000 })
+  await expect(page.getByText('Couldn’t reach your stylist')).toBeHidden()
+  await expect(page.getByText('what should I wear', { exact: true })).toHaveCount(1)
+})
+
 test('Another look from the card gives a second look card', async ({ page }) => {
   await signIn(page)
   await seedCloset(page)

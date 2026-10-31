@@ -7,6 +7,9 @@ import { SwipeToReply } from './SwipeToReply'
 
 const STYLIST_FAILED = 'Couldn’t reach your stylist. Try again.'
 const EXAMPLES = ['Drinks after work', 'A good fall themed outfit', 'Pack for Chicago Thursday to Sunday']
+/** a dropped request: how long to keep checking the saved thread for the reply (the server allows 300 s), and how often */
+const REPLY_WAIT_MS = 300_000
+const POLL_MS = 3_000
 
 /** One line for a quoted message: its text, else what its card shows. */
 function quoteLine(m: Message): string {
@@ -41,14 +44,33 @@ export function Thread({ initial }: { initial: Message[] }) {
     const pending: Message = { id: `pending-${Date.now()}`, userId: '', role: 'user', text: text.trim(), cards: [], channel: 'web', replyTo: quoted, waIds: [],
       imageUrl: opts.image ? URL.createObjectURL(opts.image) : null, createdAt: new Date().toISOString() }
     setMessages((ms) => [...ms, pending]); setReplyTo(null); setFailed(null); setBusy(true)
+    const sentAt = Date.now()
     const res = await fetch('/api/thread', { method: 'POST', body: form }).catch(() => null)
-    const j = (await res?.json().catch(() => null)) as { user?: Message; reply?: Message } | null
+    const j = (await res?.json().catch(() => null)) as { user?: Message; reply?: Message; error?: string } | null
+    // no answer at all: the phone or network gave up on a slow reply, but the server keeps going and saves it
+    if (!j && (await awaitReply(text.trim(), sentAt, pending.id))) return setBusy(false)
     setBusy(false)
     if (!res?.ok || !j?.reply) {
       setMessages((ms) => ms.map((m) => (m.id === pending.id && j?.user ? j.user : m)))
       return setFailed({ text, image: opts.image, replyTo: quoted })
     }
     setMessages((ms) => [...ms.filter((m) => m.id !== pending.id), j.user!, j.reply!])
+  }
+
+  /** Checks the saved thread until the message sent at sentAt has a reply after it; true once it's shown. */
+  async function awaitReply(text: string, sentAt: number, pendingId: string): Promise<boolean> {
+    for (const until = Date.now() + REPLY_WAIT_MS; Date.now() < until;) {
+      await new Promise((r) => setTimeout(r, POLL_MS))
+      const saved = ((await (await fetch('/api/thread').catch(() => null))?.json().catch(() => null)) as { messages?: Message[] } | null)?.messages
+      if (!saved) continue
+      // clocks differ a little between phone and server
+      const mine = saved.findLastIndex((m) => m.role === 'user' && m.text === text && new Date(m.createdAt).getTime() > sentAt - 60_000)
+      if (mine < 0 || !saved.slice(mine + 1).some((m) => m.role === 'assistant')) continue
+      const ids = new Set(saved.map((m) => m.id))
+      setMessages((ms) => [...ms.filter((m) => m.id !== pendingId && !ids.has(m.id)), ...saved])
+      return true
+    }
+    return false
   }
 
   const byId = new Map(messages.map((m) => [m.id, m]))

@@ -4,7 +4,7 @@ import { piecesOf, type RuleContext } from './types'
 
 /** What a piece occupies on the body: tops layer (tee or polo, then a shirt, then a knit); everything else is one of a kind.
  *  null: as many as you like (accessories, socks). */
-function layer(g: Garment): string | null {
+export function layer(g: Garment): string | null {
   if (g.category === 'top') return g.subcategory === 'tshirt' ? 'base' : g.subcategory === 'sweater' ? 'knit' : 'shirt'
   return ['bottom', 'shoes', 'outerwear', 'onepiece'].includes(g.category) ? g.category : null
 }
