@@ -61,6 +61,11 @@ export const mockChat: ChatModel = {
     }
     if (/^another (look|one)/.test(text)) return calls(tool('another_look', dated))
     if (/^(i )?wore it/.test(text)) return outfit ? calls(tool('log_wear', { outfitId: outfit.outfitId })) : say('Which look?')
+    const view = text.match(/mannequin|flat ?lay|try (?:it )?on|on me/)
+    if (view && outfit) {
+      const mode = view[0] === 'mannequin' ? 'mannequin' : /flat/.test(view[0]) ? 'flatlay' : 'tryon'
+      return calls(tool('render_look', { outfitId: outfit.outfitId, mode, ...(/always|from now on|by default/.test(text) ? { always: true } : {}) }))
+    }
     if (/^swap a piece$/.test(text)) return say('Which piece, and for what? Say “swap the jeans for something smarter”.')
     const swap = text.match(/swap (?:the |my )?(.+?)(?: for (.+))?$/)
     if (swap && outfit) {

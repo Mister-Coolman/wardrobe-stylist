@@ -12,6 +12,7 @@ import { dayFor, planToday } from '@/lib/today'
 import { createTrip } from '@/lib/trips'
 import { duplicateGarment, MAX_COPIES, washPatch } from '@/lib/garments'
 import { piecesFromScan, runScan } from '@/lib/scan/pipeline'
+import { renderOutfit } from '@/lib/render'
 import { startListing } from '@/lib/shop/add'
 import { getProductSearch } from '@/lib/shop/search'
 import { getStorage } from '@/lib/storage'
@@ -47,6 +48,10 @@ const DEFS = {
   swap_piece: {
     description: 'Replan an outfit, keeping every piece except the dropped ones. drop: piece ids from the outfit; wish: what the replacement should be ("smarter", "warmer").',
     schema: z.object({ outfitId: z.string(), drop: z.array(z.string()).min(1), wish }),
+  },
+  render_look: {
+    description: 'Show a look as a picture: on a mannequin, as a flat lay, or tried on the owner (needs their photo in Settings). always: true when they want every look shown that way.',
+    schema: z.object({ outfitId: z.string(), mode: z.enum(['mannequin', 'flatlay', 'tryon']), always: z.boolean().optional() }),
   },
   set_status: { description: 'Mark pieces clean, worn or in the laundry (e.g. "spilled coffee on it")', schema: z.object({ ids: z.array(z.string()).min(1), status: z.enum(['clean', 'worn', 'laundry']) }) },
   edit_piece: {
@@ -152,6 +157,19 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       const outfit = await repo.getOutfit(user.userId, a.outfitId)
       if (!outfit) return { error: 'no such outfit' }
       return look(ctx, await planToday(repo, user, { fresh: true, swap: { outfitId: outfit.id, drop: a.drop, wish: a.wish }, models: ctx.models }))
+    }
+    case 'render_look': {
+      const outfit = await repo.getOutfit(user.userId, a.outfitId)
+      if (!outfit) return { error: 'no such outfit' }
+      const pieces = (await repo.listGarments(user.userId)).filter((g) => outfit.garmentIds.includes(g.id))
+      const profile = await profileFor(repo, user.userId)
+      const r = await renderOutfit(outfit, pieces, profile, a.mode)
+      if (r.error) return { error: 'couldn’t draw that look — try again in a moment', ...(r.note ? { note: r.note } : {}) }
+      await repo.updateOutfit(user.userId, outfit.id, { renderMode: r.renderMode, renderUrl: r.renderUrl })
+      if (a.always) await repo.upsertProfile({ ...profile, renderMode: r.renderMode })
+      ctx.cards.push(outfitCard({ ...outfit, renderUrl: r.renderUrl }, pieces))
+      const shownAs = r.renderMode === 'mannequin' ? 'on a mannequin' : r.renderMode === 'tryon' ? 'on you' : 'as a flat lay'
+      return { ok: true, summary: `${outfit.title} ${shownAs}.${a.always ? ' Looks will show this way from now on.' : ''}${r.note ? ` ${r.note}` : ''}` }
     }
     case 'set_status': {
       const gs = await piecesById(ctx, a.ids)

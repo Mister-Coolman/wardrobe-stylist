@@ -162,6 +162,13 @@ describe('scripted conversations (mock chat)', () => {
     for (const p of first.pieces) if (p.id !== bottom.id) expect(swapped.pieces.map((x) => x.id)).toContain(p.id)
   })
 
+  test('"show it on a mannequin" renders the look in view on a mannequin', async () => {
+    const { reply: a } = await say('what should I wear')
+    const { reply } = await say('show it on a mannequin')
+    expect(reply.cards[0]).toMatchObject({ kind: 'outfit', outfitId: (a.cards[0] as { outfitId: string }).outfitId })
+    expect((reply.cards[0] as { imageUrl?: string }).imageUrl).toMatch(/mannequin/)
+  })
+
   test('"I spilled coffee on the white oxford" puts it in the laundry', async () => {
     const { reply } = await say('I spilled coffee on the white oxford')
     expect(reply.cards[0]).toMatchObject({ kind: 'pieces', pieces: [{ name: 'White oxford shirt', status: 'laundry' }] })

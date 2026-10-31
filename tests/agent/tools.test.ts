@@ -54,6 +54,27 @@ describe('look tools', () => {
   })
 })
 
+describe('render_look', () => {
+  test('renders a look on a mannequin, as a new card with the picture; the default view stays as it was', async () => {
+    await call('plan_outfit')
+    const first = outfitOf(ctx.cards[0])
+    const r = await call('render_look', { outfitId: first.outfitId, mode: 'mannequin' })
+    expect(r.error).toBeUndefined()
+    const card = outfitOf(ctx.cards[1])
+    expect(card.outfitId).toBe(first.outfitId)
+    expect(card.imageUrl).toMatch(/mannequin/)
+    expect((await repo.getOutfit('u1', first.outfitId))?.renderMode).toBe('mannequin')
+    expect((await repo.getProfile('u1'))?.renderMode ?? 'flatlay').not.toBe('mannequin')
+  })
+  test('always: true makes it the default view', async () => {
+    await call('plan_outfit')
+    await call('render_look', { outfitId: outfitOf(ctx.cards[0]).outfitId, mode: 'mannequin', always: true })
+    expect((await repo.getProfile('u1'))?.renderMode).toBe('mannequin')
+  })
+  test('an unknown look is an error', async () =>
+    expect((await call('render_look', { outfitId: 'missing', mode: 'mannequin' })).error).toMatch(/no such outfit/))
+})
+
 describe('closet tools', () => {
   test('set_status puts a piece in the laundry and shows it', async () => {
     const oxford = await named(/oxford/i)

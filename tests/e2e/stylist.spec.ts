@@ -48,6 +48,17 @@ test('the phone drops a slow reply: the thread keeps checking and shows it, with
   await expect(page.getByText('what should I wear', { exact: true })).toHaveCount(1)
 })
 
+test('"show it on a mannequin" posts the look again with a mannequin picture', async ({ page }) => {
+  await signIn(page)
+  await seedCloset(page)
+  await page.goto('/stylist')
+  await send(page, 'what should I wear')
+  await expect(looks(page)).toHaveCount(1, { timeout: 30_000 })
+  await send(page, 'show it on a mannequin')
+  await expect(looks(page)).toHaveCount(2, { timeout: 30_000 })
+  await expect(looks(page).nth(1).locator('img[src*="mannequin"]')).toHaveCount(1)
+})
+
 test('Another look from the card gives a second look card', async ({ page }) => {
   await signIn(page)
   await seedCloset(page)
