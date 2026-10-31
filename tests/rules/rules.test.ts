@@ -4,7 +4,7 @@ import { formality } from '@/lib/rules/formality'
 import { weather } from '@/lib/rules/weather'
 import { availability } from '@/lib/rules/availability'
 import { dailyRules, runRules } from '@/lib/rules/registry'
-import { cand, ctx, event, wardrobe, weather as wx } from '../fixtures/wardrobe'
+import { cand, ctx, event, garment, wardrobe, weather as wx } from '../fixtures/wardrobe'
 
 describe('completeness', () => {
   test('missing shoes is a violation', () => {
@@ -18,6 +18,29 @@ describe('completeness', () => {
     expect(v.find((x) => x.message === 'Unknown piece')!.garmentIds).toEqual(['ghost'])
   })
   test('top + bottom + shoes passes', () => expect(completeness.check(cand('crew', 'jeans', 'sneakers'), ctx())).toEqual([]))
+  describe('one piece per layer', () => {
+    const polos = [...wardrobe,
+      garment({ id: 'navyPolo', name: 'Navy pique polo shirt', category: 'top', subcategory: 'tshirt' }),
+      garment({ id: 'redPolo', name: 'Red cotton polo shirt', category: 'top', subcategory: 'tshirt' }),
+      garment({ id: 'parka', name: 'Green parka', category: 'outerwear', subcategory: 'jacket' })]
+    const messages = (...ids: string[]) => completeness.check(cand(...ids), ctx({}, polos)).map((v) => v.message)
+
+    test('a quarter-zip over two polos is rejected, naming both polos', () => {
+      const v = completeness.check(cand('crew', 'navyPolo', 'redPolo', 'jeans', 'sneakers'), ctx({}, polos))
+      expect(v).toHaveLength(1)
+      expect(v[0].message).toBe('Two of the same layer: Navy pique polo shirt and Red cotton polo shirt')
+      expect(v[0].garmentIds).toEqual(['navyPolo', 'redPolo'])
+    })
+    test('real layering passes: a polo under a sweater, a tee under a shirt under a sweater', () => {
+      expect(messages('navyPolo', 'crew', 'jeans', 'sneakers')).toEqual([])
+      expect(messages('navyPolo', 'oxford', 'crew', 'jeans', 'sneakers')).toEqual([])
+    })
+    test('two bottoms, two pairs of shoes or two coats are rejected', () => {
+      expect(messages('crew', 'jeans', 'trousers', 'sneakers')).toEqual(['Two of the same layer: Charcoal wool trousers and Selvedge jeans'])
+      expect(messages('crew', 'jeans', 'sneakers', 'boots')).toEqual(['Two of the same layer: Black leather boots and White leather sneakers'])
+      expect(messages('crew', 'jeans', 'sneakers', 'coat', 'parka')).toEqual(['Two of the same layer: Green parka and Navy wool overcoat'])
+    })
+  })
   test('without clean shoes in the closet, top + bottom is complete', () => {
     const noShoes = wardrobe.filter((g) => g.category !== 'shoes')
     expect(completeness.check(cand('crew', 'jeans'), ctx({}, noShoes))).toEqual([])
