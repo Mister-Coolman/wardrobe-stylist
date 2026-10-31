@@ -1,4 +1,4 @@
-import type { CalendarEvent, Candidate, Garment, Level, RenderMode, StyleProfile } from '@/lib/domain/types'
+import type { CalendarEvent, Candidate, Garment, Level, RenderMode, StyleProfile, TempUnit } from '@/lib/domain/types'
 import type { DayContext, TripUsage, Violation } from '@/lib/rules/types'
 
 export class ModelError extends Error {
@@ -45,6 +45,8 @@ export interface ProposeInput {
   keep?: string[]; drop?: string[]
   /** what the owner asked for ("fall themed", "smarter"); a photo of a look to match */
   wish?: string; referenceImageUrl?: string
+  /** the owner's temperature unit: what the model is shown, so its reasons read right */
+  unit?: TempUnit
   /** the owner's standing preferences ("navy with olive", "I run warm") */
   notes?: string[]
 }

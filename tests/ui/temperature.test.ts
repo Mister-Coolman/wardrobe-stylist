@@ -22,3 +22,8 @@ test('withUnit converts every temperature in a note, and leaves °C text alone',
   expect(withUnit('Too light for a low of 8°', 'C')).toBe('Too light for a low of 8°')
   expect(withUnit('No temperatures here', 'F')).toBe('No temperatures here')
 })
+
+test('withUnit leaves a temperature that already names its unit alone', () => {
+  expect(withUnit('Warm enough for a 39°F morning', 'F')).toBe('Warm enough for a 39°F morning')
+  expect(withUnit('Fine at 4°C and 10°', 'F')).toBe('Fine at 4°C and 50°')
+})

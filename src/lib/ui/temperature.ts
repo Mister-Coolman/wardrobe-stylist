@@ -17,8 +17,8 @@ const convert = (c: number, unit: TempUnit) => Math.round(unit === 'F' ? (c * 9)
 /** Weather is stored in °C; this is how a temperature reaches the screen. */
 export const degrees = (c: number, unit: TempUnit) => `${convert(c, unit)}°`
 
-/** Rule and stylist notes are written in °C ("a low of 8°"); converts every temperature in one. */
-export const withUnit = (text: string, unit: TempUnit) => (unit === 'C' ? text : text.replace(/(-?\d+(?:\.\d+)?)°/g, (_, n) => degrees(Number(n), unit)))
+/** Rule and stylist notes are written in °C ("a low of 8°"); converts every temperature in one. One that names its unit ("39°F") is left as written. */
+export const withUnit = (text: string, unit: TempUnit) => (unit === 'C' ? text : text.replace(/(-?\d+(?:\.\d+)?)°(?![CF])/g, (_, n) => degrees(Number(n), unit)))
 
 /** For the stylist model: every temperature in a °C text, in the owner's unit and labelled ("4°" → "39°F"), so it can't be misread. */
 export const labelled = (text: string, unit: TempUnit) => text.replace(/(-?\d+(?:\.\d+)?)°(?![CF])/g, (_, n) => `${convert(Number(n), unit)}°${unit}`)

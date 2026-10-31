@@ -1,7 +1,8 @@
 // muse-spark-1.3 (POST /v1/chat/completions, JSON schema) for outfits, events, gaps and style;
 // POST /v1/responses with the web_search tool for product search (search grounding is Responses-only).
 import { z } from 'zod'
-import type { Candidate, Garment, Level } from '@/lib/domain/types'
+import type { Candidate, Garment, Level, TempUnit } from '@/lib/domain/types'
+import { labelled } from '@/lib/ui/temperature'
 import { GarmentTagsSchema, StyleProfileSchema } from '../schemas'
 import type { ProposeInput, Stylist } from '../types'
 import { metaFetch, structured, toDataUrl } from './client'
@@ -11,13 +12,15 @@ const Looks = z.object({ looks: z.array(z.object({
   title: z.string(), pieces: z.array(z.string()), why: z.array(z.object({ piece: z.string(), reason: z.string() })),
 })) })
 
-const RULES = `You are a sharp personal stylist. Build complete outfits ONLY from the numbered pieces listed — refer to them by their key (p1, p2…).
+/** The rules in the owner's unit: every temperature the model sees is one it can repeat to them. */
+const rules = (unit: TempUnit) => labelled(`You are a sharp personal stylist. Build complete outfits ONLY from the numbered pieces listed — refer to them by their key (p1, p2…).
 Every look needs a top and a bottom (or a one-piece), plus shoes when the wardrobe has any; add outerwear when it's cold or wet.
 One piece per layer: never two tees or polos, two shirts or two knits at once, and only one bottom, one pair of shoes and one outerwear. Layer only what really layers (a polo or tee under a shirt or a knit).
 Dress code is a 1–5 level (1 sporty · 2 casual · 3 smart casual · 4 smart · 5 formal); the look's least formal core piece must be at least the required level and not more than two levels above.
-Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (≥22° → 1–4, 15–21° → 2–6, 8–14° → 4–8, <8° → 7+). At 50%+ rain every piece must be rain-safe.
+Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (22° and up → 1–4, 15° to 21° → 2–6, 8° to 14° → 4–8, under 8° → 7+). At 50%+ rain every piece must be rain-safe.
 Honour the owner's standing preferences unless a rule above forbids it.
-Fit is the owner's note on how a piece sits: keep proportions balanced (slim with slim or classic; an oversized top over something slimmer). Only use pieces whose status is clean. Each reason is one short, specific line ("Handles the 5pm rain"). Titles are 2–4 words ("Rain-ready client day").`
+Fit is the owner's note on how a piece sits: keep proportions balanced (slim with slim or classic; an oversized top over something slimmer). Only use pieces whose status is clean.
+Each reason is one short line the owner reads under the piece: what it does for them today, in plain words ("Warm enough for a cold evening", "Smart enough for dinner", "Shrugs off the 5pm rain"). Never mention warmth points, dress-code levels, piece keys or rule names; give a temperature only as written here, with its unit. Titles are 2–4 words ("Rain-ready client day").`, unit)
 
 /** Short keys instead of UUIDs: models garble long ids. */
 function keyed(wardrobe: Garment[]) {
@@ -35,7 +38,7 @@ function dayBrief(input: ProposeInput) {
   const d = input.day, w = d.weather
   return {
     date: d.date, requiredFormality: d.requiredFormality,
-    weather: `${w.tempLowC}° to ${w.tempHighC}°, ${w.rainProbability}% rain, wind ${w.windKph} km/h, ${w.summary}`,
+    weather: labelled(`${w.tempLowC}° to ${w.tempHighC}°, ${w.rainProbability}% rain, wind ${w.windKph} km/h, ${w.summary}`, input.unit ?? 'C'),
     events: d.events.map((e) => `${e.allDay ? 'all day' : e.start ?? 'sometime'} ${e.title}${e.formality ? ` (dress ${e.formality})` : ''}`),
     ...(input.trip ? { alreadyWornThisTrip: input.trip.counts } : {}),
     ...(input.styleProfile ? { style: input.styleProfile } : {}),
@@ -53,7 +56,9 @@ function toCandidates(r: z.infer<typeof Looks>, toId: Map<string, string>): Cand
   }))
 }
 
-async function looks(input: ProposeInput, extra: string): Promise<Candidate[]> {
+/** The system and user text for one proposal; extra (a revision's rejections) is in °C like the rules, and is converted too. */
+export function stylistBrief(input: ProposeInput, extra: string): { system: string; text: string; toId: Map<string, string> } {
+  const unit = input.unit ?? 'C'
   const { toKey, toId, listing } = keyed(input.wardrobe)
   const avoid = (input.avoidOutfits ?? []).map((ids) => ids.map((id) => toKey.get(id)).filter(Boolean))
   const keys = (ids?: string[]) => (ids ?? []).map((id) => toKey.get(id)).filter(Boolean).join(', ')
@@ -63,10 +68,15 @@ async function looks(input: ProposeInput, extra: string): Promise<Candidate[]> {
     input.wish ? ` The owner wants: ${input.wish}.` : '',
     input.referenceImageUrl ? ' Match the look in the photo as closely as the closet allows; where it can’t, say why in the reasons.' : '',
   ].join('')
-  const text = JSON.stringify({ task: `Propose ${input.count} different looks.${asks}${extra}`, day: dayBrief(input), pieces: listing,
+  const text = JSON.stringify({ task: `Propose ${input.count} different looks.${asks}${labelled(extra, unit)}`, day: dayBrief(input), pieces: listing,
     ...(avoid.length ? { alreadyShown: avoid } : {}) })
+  return { system: rules(unit), text, toId }
+}
+
+async function looks(input: ProposeInput, extra: string): Promise<Candidate[]> {
+  const { system, text, toId } = stylistBrief(input, extra)
   const r = await structured('stylist', Looks, 'looks', [
-    { role: 'system', content: RULES },
+    { role: 'system', content: system },
     { role: 'user', content: input.referenceImageUrl
       ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: await toDataUrl(input.referenceImageUrl, 1024) } }]
       : text },

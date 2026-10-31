@@ -1,4 +1,5 @@
 import { drawLook } from '@/lib/renderCache'
+import { unitFor } from '@/lib/ui/temperature'
 import type { Candidate, Category, Garment, Outfit, Profile, RenderMode, RevisionEntry } from '@/lib/domain/types'
 import { ModelError } from '@/lib/models/types'
 import type { Models, ProposeInput } from '@/lib/models/types'
@@ -51,7 +52,7 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
   const rules = input.rules ?? dailyRules
   const ctx: RuleContext = { garments: new Map(wardrobe.map((g) => [g.id, g])), day: input.day, profile: input.profile, trip: input.trip, poll: input.poll }
   const base: ProposeInput = { day: input.day, wardrobe, count: CANDIDATES, styleProfile: input.profile.styleProfile, avoidOutfits: input.avoidOutfits, trip: input.trip,
-    keep: input.keep, drop: input.drop, wish: input.wish, referenceImageUrl: input.referenceImageUrl,
+    keep: input.keep, drop: input.drop, wish: input.wish, referenceImageUrl: input.referenceImageUrl, unit: unitFor(input.profile),
     notes: input.profile.stylistNotes?.length ? input.profile.stylistNotes.map((n) => n.text) : undefined }
   const revisionLog: RevisionEntry[] = []
   const all: Checked[] = []
