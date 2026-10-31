@@ -1,13 +1,8 @@
+import { layer } from '@/lib/domain/layers'
 import type { Garment } from '@/lib/domain/types'
 import type { Rule, Violation } from './types'
 import { piecesOf, type RuleContext } from './types'
 
-/** What a piece occupies on the body: tops layer (tee or polo, then a shirt, then a knit); everything else is one of a kind.
- *  null: as many as you like (accessories, socks). */
-export function layer(g: Garment): string | null {
-  if (g.category === 'top') return g.subcategory === 'tshirt' ? 'base' : g.subcategory === 'sweater' ? 'knit' : 'shirt'
-  return ['bottom', 'shoes', 'outerwear', 'onepiece'].includes(g.category) ? g.category : null
-}
 
 const hasCleanShoes = (ctx: RuleContext) => [...ctx.garments.values()].some((g) => g.category === 'shoes' && g.status === 'clean')
 

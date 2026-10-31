@@ -10,7 +10,7 @@ const boots = { cutoutUrl: '/boots.png', name: 'Black leather boots', category: 
 test('flat lay: every image is named with its piece and details, in order; the name decides the colour', () => {
   const p = renderPrompt('flatlay', [quarterZip, polo, jeans])
   expect(p).toContain('exactly 3 pieces')
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
   expect(p).toContain('Image 2: Red pique polo (top; pique)')
   expect(p).toContain('Image 3: Dark indigo jeans (bottom; slim fit; denim)')
   expect(p).toMatch(/where a name gives a colour, show that colour/i)
@@ -39,11 +39,32 @@ test('pieces go outerwear, tops, bottoms, shoes', () => {
 
 test('mannequin: names every piece, asks for a featureless mannequin, says no shoes when there are none', () => {
   const p = renderPrompt('mannequin', [quarterZip, jeans])
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; Polo Ralph Lauren; cotton, quarter zip)')
   expect(p).toContain('Image 2: Dark indigo jeans (bottom; slim fit; denim)')
   expect(p).toMatch(/featureless matte white mannequin \(no face, no hair, no skin\)/)
   expect(p).toContain('exactly these 2 pieces')
   expect(p).toContain('There are no shoes in this outfit: show no shoes.')
   expect(p).toMatch(/where a name gives a colour, show that colour/i)
   expect(renderPrompt('mannequin', [quarterZip, jeans, boots])).not.toMatch(/no shoes/)
+})
+
+const redPolo = { cutoutUrl: '/red.png', name: 'Red cotton polo shirt', category: 'top' as const, subcategory: 'tshirt' as const, colors: ['red'], tags: ['cotton', 'polo', 'short-sleeve'], brand: null, fit: null }
+
+test('mannequin and try-on: layers inside to outside with sleeve lengths; a short-sleeved layer under long sleeves shows no cuffs', () => {
+  for (const mode of ['mannequin', 'tryon'] as const) {
+    // given in either order, the polo is worn under the quarter-zip
+    const p = renderPrompt(mode, [quarterZip, redPolo, jeans])
+    expect(p).toContain('Worn inside to outside: Red cotton polo shirt (short sleeves), then Heather blue quarter-zip (long sleeves).')
+    expect(p).toMatch(/Red cotton polo shirt is short-sleeved and under long sleeves: only its collar shows.*no red.*cuffs/i)
+  }
+})
+
+test('sleeve length goes in each piece’s details, from its tags or name', () => {
+  const p = renderPrompt('flatlay', [quarterZip, redPolo])
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves;')
+  expect(p).toContain('Image 2: Red cotton polo shirt (top; short sleeves;')
+})
+
+test('a single top says nothing about layering', () => {
+  expect(renderPrompt('mannequin', [redPolo, jeans])).not.toMatch(/inside to outside|only its collar/)
 })

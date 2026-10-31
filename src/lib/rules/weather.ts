@@ -1,5 +1,5 @@
 import type { Garment } from '@/lib/domain/types'
-import { layer } from './completeness'
+import { layer } from '@/lib/domain/layers'
 import type { Rule, RuleContext, Violation } from './types'
 import { piecesOf } from './types'
 
