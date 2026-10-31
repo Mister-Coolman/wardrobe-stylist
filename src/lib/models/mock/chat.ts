@@ -33,6 +33,9 @@ export const mockChat: ChatModel = {
         const first = result.pieces[0].id
         if (/spilled|stain|dirty|in the wash|laundry/.test(text)) return calls(tool('set_status', { ids: [first], status: 'laundry' }))
         if (/^yes,? delete/.test(text)) return calls(tool('delete_piece', { id: first, confirm: true }))
+        const owned = text.match(/i (?:have|own) (two|three|\d+)/)
+        // "I have two of X": one already in the closet, so add the rest
+        if (owned) return calls(tool('duplicate_piece', { id: first, count: Math.max(1, ({ two: 2, three: 3 }[owned[1]] ?? Number(owned[1])) - 1) }))
       }
       return say(result.summary ?? (result.error ? `That didn’t work: ${result.error}.` : 'Done.'))
     }
@@ -69,6 +72,8 @@ export const mockChat: ChatModel = {
       const what = text.match(/on (?:the |my )?([\w ]+?)(?:[.,!?]|$)/)?.[1]
       return what ? calls(tool('search_wardrobe', { query: what })) : say('Which piece?')
     }
+    const owned = text.match(/^i (?:have|own) (?:two|three|\d+) (?:of )?(?:the |my |these )?(.+?)[.!?]?$/)
+    if (owned) return calls(tool('search_wardrobe', { query: owned[1] }))
     const del = text.match(/^(?:delete|remove|get rid of) (?:the |my )?(.+?)[.!?]?$/)
     if (del) return say(`Delete the ${del[1]} for good? Say “yes, delete”.`)
     if (/^yes,? delete/.test(text)) {

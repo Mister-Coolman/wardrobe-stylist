@@ -76,6 +76,17 @@ describe('closet tools', () => {
     await call('delete_piece', { id: jeans.id, confirm: true })
     expect(await named(/jeans/i)).toBeUndefined()
   })
+
+  test('duplicate_piece adds another of a piece and shows the copy', async () => {
+    const jeans = await named(/jeans/i)
+    const r = await call('duplicate_piece', { id: jeans.id })
+    const all = (await repo.listGarments('u1')).filter((g) => g.name === jeans.name)
+    expect(all).toHaveLength(2)
+    expect(r.summary).toMatch(/You now have 2/)
+    const copy = all.find((g) => g.id !== jeans.id)!
+    expect(ctx.cards[0]).toMatchObject({ kind: 'pieces', pieces: [{ id: copy.id, status: 'clean' }] })
+    expect((await call('duplicate_piece', { id: 'missing' })).error).toMatch(/no such piece/)
+  })
 })
 
 describe('store tools', () => {

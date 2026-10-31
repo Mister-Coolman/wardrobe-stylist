@@ -11,19 +11,23 @@ import type { Product } from '@/lib/shop/search'
 
 const LEVELS: Level[] = [1, 2, 3, 4, 5]
 
-export function GarmentEditor({ garment, onClose, onSaved, onDeleted, reviewing = false }: {
-  garment: Garment | null; onClose: () => void; onSaved: (g: Garment) => void; onDeleted: (id: string) => void; reviewing?: boolean
+export function GarmentEditor({ garment, onClose, onSaved, onDeleted, onDuplicated, reviewing = false }: {
+  garment: Garment | null; onClose: () => void; onSaved: (g: Garment) => void; onDeleted: (id: string) => void
+  /** the saved piece and its new copy; without it there's no Duplicate button */
+  onDuplicated?: (saved: Garment, copy: Garment) => void; reviewing?: boolean
 }) {
   return (
     <Sheet open={!!garment} onClose={onClose} label={garment ? `Edit ${garment.name}` : 'Edit piece'}>
-      {garment && <EditorBody key={garment.id} garment={garment} onSaved={onSaved} onDeleted={onDeleted} reviewing={reviewing} />}
+      {garment && <EditorBody key={garment.id} garment={garment} onSaved={onSaved} onDeleted={onDeleted} onDuplicated={reviewing ? undefined : onDuplicated} reviewing={reviewing} />}
     </Sheet>
   )
 }
 
-function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garment; onSaved: (g: Garment) => void; onDeleted: (id: string) => void; reviewing: boolean }) {
+function EditorBody({ garment, onSaved, onDeleted, onDuplicated, reviewing }: {
+  garment: Garment; onSaved: (g: Garment) => void; onDeleted: (id: string) => void; onDuplicated?: (saved: Garment, copy: Garment) => void; reviewing: boolean
+}) {
   const [g, setG] = useState(garment)
-  const [busy, setBusy] = useState<'save' | 'delete' | null>(null)
+  const [busy, setBusy] = useState<'save' | 'delete' | 'duplicate' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [details, setDetails] = useState(garment.tags.join(', '))
   const set = <K extends keyof Garment>(k: K, v: Garment[K]) => setG((x) => ({ ...x, [k]: v }))
@@ -55,15 +59,31 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
     setFindNote('Photo replaced with the store’s.')
   }
 
-  async function save() {
-    setBusy('save'); setError(null)
+  /** Saves the edits in the sheet; the saved piece, or null after showing the error */
+  async function persist(): Promise<Garment | null> {
     const tags = details.split(',').map((t) => t.trim()).filter(Boolean)
     const patch = { name: g.name, category: g.category, formality: g.formality, warmth: g.warmth, rainSafe: g.rainSafe, status: g.status,
       brand: g.brand?.trim() || null, fit: g.fit ?? null, tags, ...(reviewing ? { confirmed: true } : {}) }
-    const res = await fetch('/api/garments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: g.id, patch }) })
+    const res = await fetch('/api/garments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: g.id, patch }) }).catch(() => null)
+    if (!res?.ok) { setError('Couldn’t save that. Try again.'); return null }
+    return { ...g, ...patch, wearsSinceWash: g.status === 'clean' && garment.status !== 'clean' ? 0 : g.wearsSinceWash }
+  }
+  async function save() {
+    setBusy('save'); setError(null)
+    const saved = await persist()
     setBusy(null)
-    if (!res.ok) return setError('Couldn’t save that. Try again.')
-    onSaved({ ...g, ...patch, wearsSinceWash: g.status === 'clean' && garment.status !== 'clean' ? 0 : g.wearsSinceWash })
+    if (saved) onSaved(saved)
+  }
+  /** Another of this piece, with any edits made here saved first so the copy has them too */
+  async function duplicate() {
+    setBusy('duplicate'); setError(null)
+    const saved = await persist()
+    if (!saved) return setBusy(null)
+    const res = await fetch('/api/garments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ duplicateOf: g.id }) }).catch(() => null)
+    const j = (await res?.json().catch(() => null)) as { garments?: Garment[] } | null
+    setBusy(null)
+    if (!res?.ok || !j?.garments?.[0]) return setError('Couldn’t duplicate that. Try again.')
+    onDuplicated?.(saved, j.garments[0])
   }
   async function remove() {
     setBusy('delete'); setError(null)
@@ -133,7 +153,10 @@ function EditorBody({ garment, onSaved, onDeleted, reviewing }: { garment: Garme
       </div>
       {error && <p role="alert" className="text-error">{error}</p>}
       <div className="flex items-center justify-between gap-4">
-        <Button variant="tertiary" onClick={remove} loading={busy === 'delete'}>Delete piece</Button>
+        <div className="flex flex-wrap gap-x-4">
+          <Button variant="tertiary" onClick={remove} loading={busy === 'delete'}>Delete piece</Button>
+          {onDuplicated && <Button variant="tertiary" onClick={duplicate} loading={busy === 'duplicate'}>Duplicate</Button>}
+        </div>
         <Button onClick={save} loading={busy === 'save'}>{reviewing ? 'Keep piece' : 'Save'}</Button>
       </div>
     </div>

@@ -11,7 +11,7 @@ import { degrees, unitFor } from '@/lib/ui/temperature'
 import type { SessionUser } from '@/lib/session'
 import { dayFor, planToday } from '@/lib/today'
 import { createTrip } from '@/lib/trips'
-import { washPatch } from '@/lib/garments'
+import { duplicateGarment, MAX_COPIES, washPatch } from '@/lib/garments'
 import { piecesFromScan, runScan } from '@/lib/scan/pipeline'
 import { startListing } from '@/lib/shop/add'
 import { getProductSearch } from '@/lib/shop/search'
@@ -54,6 +54,10 @@ const DEFS = {
     description: 'Change a piece’s name, brand, fit or details (tags). Only the given fields change.',
     schema: z.object({ id: z.string(), name: z.string().min(1).max(80).optional(), brand: z.string().max(60).nullable().optional(),
       fit: z.enum(['slim', 'classic', 'relaxed', 'oversized']).nullable().optional(), tags: z.array(z.string().max(40)).max(12).optional() }),
+  },
+  duplicate_piece: {
+    description: 'Add another of a piece the owner has more than one of ("I have two of these", "I own 3 white tees"). count: how many more to add.',
+    schema: z.object({ id: z.string(), count: z.number().int().min(1).max(MAX_COPIES).optional() }),
   },
   delete_piece: { description: 'Remove a piece from the closet. Ask the owner first; pass confirm: true only after they say yes.', schema: z.object({ id: z.string(), confirm: z.boolean() }) },
   shop_search: { description: 'Search stores for a product the owner has or wants, e.g. "black Under Armour sweatpants". Shows listings they can add by number.', schema: z.object({ query: z.string().min(2).max(120) }) },
@@ -160,6 +164,12 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       const patch = Object.fromEntries((['name', 'brand', 'fit', 'tags'] as const).filter((k) => a[k] !== undefined).map((k) => [k, a[k]]))
       await repo.updateGarment(user.userId, g.id, patch)
       return shown(ctx, [g.id], `Updated ${g.name}.`)
+    }
+    case 'duplicate_piece': {
+      const copies = await duplicateGarment(repo, user.userId, a.id, a.count)
+      if (!copies.length) return { error: 'no such piece' }
+      const total = (await repo.listGarments(user.userId)).filter((g) => g.name === copies[0].name).length
+      return shown(ctx, copies.map((g) => g.id), `Added ${copies.length === 1 ? 'another' : copies.length} ${copies[0].name}. You now have ${total}.`)
     }
     case 'delete_piece': {
       const [g] = await piecesById(ctx, [a.id])

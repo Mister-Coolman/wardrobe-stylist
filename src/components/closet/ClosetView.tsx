@@ -21,6 +21,7 @@ export function ClosetView({ initial, limits, canSeed }: { initial: Garment[]; l
   const [garments, setGarments] = useState(initial)
   const [filter, setFilter] = useState<Filter>('all')
   const [open, setOpen] = useState<Garment | null>(null)
+  const [note, setNote] = useState('')
   const shown = useMemo(() => garments.filter(MATCH[filter]), [garments, filter])
   const laundry = garments.filter(MATCH.laundry).length
 
@@ -44,6 +45,7 @@ export function ClosetView({ initial, limits, canSeed }: { initial: Garment[]; l
         <h1 className="display text-3xl">Closet</h1>
         <span className="text-sm text-ink-muted tnum">{plural(garments.length, 'piece')}</span>
       </div>
+      <p role="status" className="mt-2 text-sm text-ink-muted empty:hidden">{note}</p>
       <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
         {filters.map(([f, label]) => <Tag key={f} selected={filter === f} onClick={() => setFilter(f)} className="shrink-0">{label}</Tag>)}
       </div>
@@ -62,7 +64,12 @@ export function ClosetView({ initial, limits, canSeed }: { initial: Garment[]; l
       </div>
       <GarmentEditor garment={open} onClose={() => setOpen(null)}
         onSaved={(g) => { setGarments((gs) => gs.map((x) => (x.id === g.id ? g : x))); setOpen(null) }}
-        onDeleted={(id) => { setGarments((gs) => gs.filter((x) => x.id !== id)); setOpen(null) }} />
+        onDeleted={(id) => { setGarments((gs) => gs.filter((x) => x.id !== id)); setOpen(null) }}
+        onDuplicated={(saved, copy) => {
+          // the copy sits next to the original
+          setGarments((gs) => gs.flatMap((x) => (x.id === saved.id ? [saved, copy] : [x])))
+          setOpen(null); setNote(`Added another ${copy.name}.`)
+        }} />
     </>
   )
 }

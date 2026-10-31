@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
-import { washPatch } from '@/lib/garments'
+import { duplicateGarment, MAX_COPIES, washPatch } from '@/lib/garments'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 
 const Patch = GarmentTagsSchema.partial().extend({
@@ -17,6 +17,19 @@ const Body = z.union([
 
 export async function GET() {
   return withUser(async (u) => Response.json({ garments: await (await getRepo()).listGarments(u.userId, { confirmed: true }) }))
+}
+
+const Duplicate = z.object({ duplicateOf: z.string(), count: z.number().int().min(1).max(MAX_COPIES).optional() })
+
+/** Another of a piece the owner has more than one of */
+export async function POST(req: Request) {
+  return withUser(async (u) => {
+    const body = Duplicate.safeParse(await req.json().catch(() => null))
+    if (!body.success) return Response.json({ error: 'bad_request' }, { status: 400 })
+    const garments = await duplicateGarment(await getRepo(), u.userId, body.data.duplicateOf, body.data.count)
+    if (!garments.length) return Response.json({ error: 'not_found' }, { status: 404 })
+    return Response.json({ garments })
+  })
 }
 
 export async function PATCH(req: Request) {

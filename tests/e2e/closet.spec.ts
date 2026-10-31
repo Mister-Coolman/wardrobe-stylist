@@ -23,6 +23,28 @@ test('a piece keeps the brand, fit and details you give it', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Relaxed' })).toHaveAttribute('aria-pressed', 'false')
 })
 
+test('duplicate a piece you own two of: a second tile, which keeps its own laundry status', async ({ page }) => {
+  await signIn(page)
+  await seedCloset(page)
+  await page.goto('/closet')
+  await expect(page.getByRole('button', { name: /Selvedge jeans/ })).toHaveCount(1)
+  await page.getByRole('button', { name: /Selvedge jeans/ }).click()
+  await page.getByRole('button', { name: 'Duplicate' }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(page.getByRole('status').filter({ hasText: 'Added another Selvedge jeans' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Selvedge jeans/ })).toHaveCount(2)
+
+  // one pair in the wash, the other still clean
+  await page.getByRole('button', { name: /Selvedge jeans/ }).first().click()
+  await page.getByRole('button', { name: 'In the laundry' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await page.reload()
+  await expect(page.getByRole('button', { name: /Selvedge jeans/ })).toHaveCount(2)
+  await page.getByRole('button', { name: /^Laundry/ }).click()
+  await expect(page.getByRole('button', { name: /Selvedge jeans/ })).toHaveCount(1)
+})
+
 test('add a piece from the web: search, pick a listing, review, add', async ({ page }) => {
   await signIn(page)
   await page.goto('/closet')

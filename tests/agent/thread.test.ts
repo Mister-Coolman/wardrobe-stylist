@@ -158,6 +158,12 @@ describe('scripted conversations (mock chat)', () => {
     expect((await repo.listGarments('u1')).some((g) => g.name === 'Selvedge jeans')).toBe(false)
   })
 
+  test('"I have two of the selvedge jeans" adds a second pair', async () => {
+    const { reply } = await say('I have two of the selvedge jeans')
+    expect(reply.text).toMatch(/You now have 2/)
+    expect((await repo.listGarments('u1')).filter((g) => g.name === 'Selvedge jeans')).toHaveLength(2)
+  })
+
   test('a store search, then "add 1" from it', async () => {
     vi.stubEnv('MEDIA_DIR', mkdtempSync(join(tmpdir(), 'media-')))
     const { reply } = await say('add my black under armour sweatpants')
