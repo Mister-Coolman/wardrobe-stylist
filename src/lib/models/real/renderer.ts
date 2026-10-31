@@ -10,7 +10,14 @@ import { metaFetch, toDataUrl } from './client'
 // colours come from the name: the owner may have corrected it ("Heather blue…") while the tagged colours still say grey.
 // A brand on its own invites printed lettering, so it goes in only as the logo the tags say is there.
 const logo = (p: RenderPiece) => p.brand && p.tags.some((t) => /logo/i.test(t)) ? `logo: ${p.brand}` : null
-const describe = (p: RenderPiece) => [p.category, sleeves(p) && `${sleeves(p)} sleeves`, p.fit && `${p.fit} fit`, logo(p), p.tags.join(', ')].filter(Boolean).join('; ')
+const SHADE = /\b(?:(?:light|dark|pale|deep|bright|heather|burma|forest|royal|sky|olive|charcoal|navy|stone)\s+)?(?:black|white|cream|ivory|gr[ae]y|charcoal|navy|blue|indigo|green|olive|red|burgundy|maroon|pink|purple|yellow|orange|brown|tan|beige|camel|khaki|stone|sand)\b/gi
+/** The colour to draw, spelled out: the name's colour words (corrected by the owner) over the tags. "Khaki" in a name is the
+ *  trouser style when another colour is named: "Burma Grey … Khaki Stretch Pants" came back beige. */
+function colour(p: RenderPiece): string | null {
+  const said = p.name.match(SHADE) ?? []
+  return said.find((w) => !/^khaki$/i.test(w)) ?? said[0] ?? (p.colors.join(' and ') || null)
+}
+const describe = (p: RenderPiece) => [p.category, colour(p) && `colour: ${colour(p)}`, sleeves(p) && `${sleeves(p)} sleeves`, p.fit && `${p.fit} fit`, logo(p), p.tags.join(', ')].filter(Boolean).join('; ')
 
 /** On a body, what goes over what: left to guess, the model gave a short-sleeved polo long red cuffs under a quarter-zip. */
 function worn(pieces: RenderPiece[]): string {
@@ -52,14 +59,14 @@ const noShoes = (pieces: RenderPiece[]) => pieces.some((p) => p.category === 'sh
 export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: RenderPiece[]): string {
   const first = mode === 'tryon' ? 2 : 1
   const list = renderOrder(pieces).map((p, i) => `Image ${i + first}: ${p.name} (${describe(p)})`).join('\n')
-  const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Where a name gives a colour, show that colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything.'
+  const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Show each piece in its given colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything.'
   if (mode === 'tryon') {
     return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. No added text or captions, and no readable lettering on labels.`
   }
   if (mode === 'mannequin') {
     return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} No added text or captions, and no readable lettering on labels.`
   }
-  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Every piece whole and inside the frame, with a margin of paper around the outfit. Nothing else in frame: no people, props or extra clothing. No added text or captions, and no readable lettering on labels.`
+  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Shot from far enough away that the whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides: nothing cut off at an edge. Nothing else in frame: no people, props or extra clothing. No added text or captions, and no readable lettering on labels.`
 }
 
 export const realRenderer: Renderer = {

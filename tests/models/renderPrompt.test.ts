@@ -10,10 +10,19 @@ const boots = { cutoutUrl: '/boots.png', name: 'Black leather boots', category: 
 test('flat lay: every image is named with its piece and details, in order; the name decides the colour', () => {
   const p = renderPrompt('flatlay', [quarterZip, polo, jeans])
   expect(p).toContain('exactly 3 pieces')
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; cotton, quarter zip)')
-  expect(p).toContain('Image 2: Red pique polo (top; pique)')
-  expect(p).toContain('Image 3: Dark indigo jeans (bottom; slim fit; denim)')
-  expect(p).toMatch(/where a name gives a colour, show that colour/i)
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; colour: Heather blue; long sleeves; classic fit; cotton, quarter zip)')
+  expect(p).toContain('Image 2: Red pique polo (top; colour: Red; pique)')
+  expect(p).toContain('Image 3: Dark indigo jeans (bottom; colour: Dark indigo; slim fit; denim)')
+  expect(p).toMatch(/show each piece in its given colour/i)
+})
+
+test('the colour comes from the name, and "khaki" there is the trouser style when another colour is named', () => {
+  const dockers = { ...jeans, name: 'Burma Grey Dockers Easy Straight Fit Khaki Stretch Pants', colors: ['gray'], tags: ['khaki', 'stretch'], subcategory: 'trousers' as const, fit: null }
+  const p = renderPrompt('flatlay', [quarterZip, dockers])
+  expect(p).toContain('Image 2: Burma Grey Dockers Easy Straight Fit Khaki Stretch Pants (bottom; colour: Burma Grey;')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; colour: Heather blue;')
+  expect(renderPrompt('flatlay', [{ ...dockers, name: 'Khaki chinos' }])).toContain('colour: Khaki;')
+  expect(renderPrompt('flatlay', [{ ...jeans, name: 'Dark wash jeans', colors: ['indigo'] }])).toContain('colour: indigo;')
 })
 
 test('flat lay: with no shoes it says so and never asks for them', () => {
@@ -39,12 +48,12 @@ test('pieces go outerwear, tops, bottoms, shoes', () => {
 
 test('mannequin: names every piece, asks for a featureless mannequin, says no shoes when there are none', () => {
   const p = renderPrompt('mannequin', [quarterZip, jeans])
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves; classic fit; cotton, quarter zip)')
-  expect(p).toContain('Image 2: Dark indigo jeans (bottom; slim fit; denim)')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; colour: Heather blue; long sleeves; classic fit; cotton, quarter zip)')
+  expect(p).toContain('Image 2: Dark indigo jeans (bottom; colour: Dark indigo; slim fit; denim)')
   expect(p).toMatch(/featureless matte white mannequin \(no face, no hair, no skin\)/)
   expect(p).toContain('exactly these 2 pieces')
   expect(p).toContain('There are no shoes in this outfit: show no shoes.')
-  expect(p).toMatch(/where a name gives a colour, show that colour/i)
+  expect(p).toMatch(/show each piece in its given colour/i)
   expect(renderPrompt('mannequin', [quarterZip, jeans, boots])).not.toMatch(/no shoes/)
 })
 
@@ -61,8 +70,8 @@ test('mannequin and try-on: layers inside to outside with sleeve lengths; a shor
 
 test('sleeve length goes in each piece’s details, from its tags or name', () => {
   const p = renderPrompt('flatlay', [quarterZip, redPolo])
-  expect(p).toContain('Image 1: Heather blue quarter-zip (top; long sleeves;')
-  expect(p).toContain('Image 2: Red cotton polo shirt (top; short sleeves;')
+  expect(p).toContain('Image 1: Heather blue quarter-zip (top; colour: Heather blue; long sleeves;')
+  expect(p).toContain('Image 2: Red cotton polo shirt (top; colour: Red; short sleeves;')
 })
 
 test('a single top says nothing about layering', () => {
@@ -72,7 +81,7 @@ test('a single top says nothing about layering', () => {
 test('brand reaches the prompt only as a logo the tags mention; no added text', () => {
   expect(renderPrompt('flatlay', [quarterZip])).not.toContain('Polo Ralph Lauren')
   const logo = { ...quarterZip, tags: ['cotton', 'embroidered logo'] }
-  expect(renderPrompt('mannequin', [logo, jeans])).toContain('(top; long sleeves; classic fit; logo: Polo Ralph Lauren; cotton, embroidered logo)')
+  expect(renderPrompt('mannequin', [logo, jeans])).toContain('(top; colour: Heather blue; long sleeves; classic fit; logo: Polo Ralph Lauren; cotton, embroidered logo)')
   for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/no added text or captions, and no readable lettering on labels/i)
 })
 
