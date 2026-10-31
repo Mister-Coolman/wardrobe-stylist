@@ -117,6 +117,7 @@ export function createSupabaseRepo(): Repo {
       const m = await repo.getMessage(userId, id)
       if (m) ok(await db.from('messages').update({ wa_ids: [...new Set([...m.waIds, ...waIds])] }).eq('id', id).eq('user_id', userId))
     },
+    async setCards(userId, id, cards) { ok(await db.from('messages').update({ cards }).eq('id', id).eq('user_id', userId)) },
   }
   return repo
 }

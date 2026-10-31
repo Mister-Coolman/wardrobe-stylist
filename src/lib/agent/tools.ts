@@ -90,7 +90,10 @@ const DEFS = {
     description: 'Plan outfits and a packing list for a trip',
     schema: z.object({ destination: z.string().min(1), startDate: date, endDate: date, days: z.number().int().min(1).max(21).optional() }),
   },
-  log_wear: { description: 'Record that the user wore an outfit', schema: z.object({ outfitId: z.string() }) },
+  log_wear: {
+    description: 'Record what the owner wore: a look in view by outfitId, or pieces they name by ids ("I wore my navy polo and jeans today"; get ids with search_wardrobe first)',
+    schema: z.object({ outfitId: z.string().optional(), ids: z.array(z.string()).min(1).max(12).optional(), date }).refine((x) => x.outfitId || x.ids, 'give outfitId or ids'),
+  },
   add_event: { description: 'Add something to the user’s day that isn’t on their calendar, e.g. "drinks after work"', schema: z.object({ title: z.string().min(1).max(80), date }) },
 } as const
 type ToolName = keyof typeof DEFS
@@ -134,6 +137,9 @@ export function outfitCard(o: Outfit, pieces: Garment[]): Card {
     pieces: pieces.map((p) => ({ id: p.id, name: p.name, cutoutUrl: p.cutoutUrl })) }
 }
 
+/** WhatsApp sends the look first and its picture after (drawing takes up to a minute), so planning there skips the drawing */
+const drawLater = (ctx: ToolContext) => ctx.channel === 'whatsapp' ? 'none' as const : undefined
+
 async function today(ctx: ToolContext, d?: string) {
   return d ?? localDate((await profileFor(ctx.repo, ctx.user.userId)).tz)
 }
@@ -171,11 +177,11 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     }
     case 'plan_outfit':
     case 'another_look':
-      return look(ctx, await planToday(repo, user, { date: await today(ctx, a.date), fresh: true, wish: a.wish, models: ctx.models }))
+      return look(ctx, await planToday(repo, user, { date: await today(ctx, a.date), fresh: true, wish: a.wish, renderMode: drawLater(ctx), models: ctx.models }))
     case 'swap_piece': {
       const outfit = await repo.getOutfit(user.userId, a.outfitId)
       if (!outfit) return { error: 'no such outfit' }
-      return look(ctx, await planToday(repo, user, { fresh: true, swap: { outfitId: outfit.id, drop: a.drop, wish: a.wish }, models: ctx.models }))
+      return look(ctx, await planToday(repo, user, { fresh: true, swap: { outfitId: outfit.id, drop: a.drop, wish: a.wish }, renderMode: drawLater(ctx), models: ctx.models }))
     }
     case 'set_today': {
       const outfit = await repo.getOutfit(user.userId, a.outfitId)
@@ -263,7 +269,7 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     }
     case 'recreate_look': {
       if (!ctx.imageUrl) return NO_PHOTO
-      return look(ctx, await planToday(repo, user, { date: await today(ctx, a.date), fresh: true, wish: a.wish, referenceImageUrl: ctx.imageUrl, models: ctx.models }))
+      return look(ctx, await planToday(repo, user, { date: await today(ctx, a.date), fresh: true, wish: a.wish, referenceImageUrl: ctx.imageUrl, renderMode: drawLater(ctx), models: ctx.models }))
     }
     case 'remember': {
       const profile = await profileFor(repo, user.userId)
@@ -307,10 +313,21 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
         summary: `Packed for ${trip.destination}: ${trip.dayPlans.length} days from ${trip.packingList.length} pieces.${trip.warnings.length ? ` ${trip.warnings.join(' ')}` : ''}` }
     }
     case 'log_wear': {
-      const outfit = await repo.getOutfit(user.userId, a.outfitId)
-      if (!outfit) return { error: 'no such outfit' }
-      await repo.logWear(user.userId, outfit.id, outfit.contextDate)
-      return { ok: true, summary: 'Logged.' }
+      if (a.outfitId) {
+        const outfit = await repo.getOutfit(user.userId, a.outfitId)
+        if (!outfit) return { error: 'no such outfit' }
+        await repo.logWear(user.userId, outfit.id, outfit.contextDate)
+        return { ok: true, summary: 'Logged.' }
+      }
+      const gs = await piecesById(ctx, a.ids ?? [])
+      if (!gs.length) return { error: 'say which look or which pieces they wore' }
+      // pieces they put together themselves become a look of their own, so wear counts, laundry limits and history work as for a planned one
+      const d = await today(ctx, a.date)
+      const outfit = await repo.saveOutfit({ userId: user.userId, contextDate: d, garmentIds: gs.map((g) => g.id), rationale: {}, title: 'What you wore',
+        ruleReport: [], revisionLog: [], renderMode: 'none', renderUrl: null, source: 'user' })
+      await repo.logWear(user.userId, outfit.id, d)
+      const washing = (await repo.listGarments(user.userId)).filter((g) => gs.some((x) => x.id === g.id) && g.status === 'laundry' && gs.find((x) => x.id === g.id)!.status !== 'laundry')
+      return shown(ctx, gs.map((g) => g.id), `Logged ${gs.map((g) => g.name).join(', ')} as worn.${washing.length ? ` ${washing.map((g) => g.name).join(', ')} ${washing.length === 1 ? 'is' : 'are'} due a wash, so in the laundry now.` : ''}`)
     }
     case 'add_event': {
       const d = await today(ctx, a.date)

@@ -40,6 +40,8 @@ export interface Repo {
   getMessage(userId: string, id: string): Promise<Message | null>
   messageByWaId(userId: string, waId: string): Promise<Message | null>
   addWaIds(userId: string, id: string, waIds: string[]): Promise<void>
+  /** A sent message's cards, once a look's picture is drawn after it went out */
+  setCards(userId: string, id: string, cards: Message['cards']): Promise<void>
 }
 
 /** Ids of the outfit's pieces that hit their wear limit with this wear. */

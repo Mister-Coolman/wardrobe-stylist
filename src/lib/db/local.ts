@@ -137,6 +137,9 @@ export function createLocalRepo(path: string): Repo {
     async addWaIds(userId, id, waIds) {
       tx((db) => { const m = db.messages.find((x) => x.id === id && x.userId === userId); if (m) m.waIds = [...new Set([...m.waIds, ...waIds])] })
     },
+    async setCards(userId, id, cards) {
+      tx((db) => { const m = db.messages.find((x) => x.id === id && x.userId === userId); if (m) m.cards = clone(cards) })
+    },
   }
 }
 

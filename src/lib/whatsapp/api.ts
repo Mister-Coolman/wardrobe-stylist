@@ -3,11 +3,12 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import sharp from 'sharp'
 import { runThread, STYLIST_FAILED } from '@/lib/agent/thread'
 import type { Repo } from '@/lib/db/repo'
-import type { Message, Profile } from '@/lib/domain/types'
+import type { Card, Message, Profile } from '@/lib/domain/types'
 import { ModelError } from '@/lib/models/types'
 import type { Models } from '@/lib/models/types'
+import { drawLook } from '@/lib/renderCache'
 import type { StorageLike } from '@/lib/storage'
-import { userKey } from '@/lib/storage'
+import { MEDIA_PREFIX, userKey } from '@/lib/storage'
 import { matchLinkCode } from './link'
 
 // WhatsApp Cloud API (Meta Graph). Replies arrive by webhook; we answer through the phone number's /messages endpoint.
@@ -98,6 +99,35 @@ export async function sendReply(to: string, m: Message, storage: StorageLike): P
   return ids.filter(Boolean)
 }
 
+/** Looks planned on WhatsApp go out without their picture (see drawLater in tools); here the picture follows in the owner's
+ *  render mode, and the outfit and the thread message keep it. A picture that fails is left out. */
+async function sendPictures(to: string, inboundId: string, reply: Message, deps: { repo: Repo; models: Models; storage: StorageLike }) {
+  const { repo, storage } = deps
+  const todo = reply.cards.filter((c): c is Extract<Card, { kind: 'outfit' }> => c.kind === 'outfit' && !c.imageUrl)
+  const profile = todo.length ? await repo.getProfile(reply.userId) : null
+  if (!profile) return
+  const mode = profile.renderMode === 'tryon' && !profile.personPhotoUrl ? 'flatlay' : profile.renderMode
+  if (mode === 'none') return
+  await markRead(inboundId)
+  const cards = [...reply.cards]
+  const closet = await repo.listGarments(reply.userId)
+  for (const c of todo) {
+    try {
+      const outfit = await repo.getOutfit(reply.userId, c.outfitId)
+      if (!outfit) continue
+      const pieces = outfit.garmentIds.map((id) => closet.find((g) => g.id === id)).filter((g) => !!g)
+      const url = await drawLook({ userId: reply.userId, mode, pieces, personPhotoUrl: profile.personPhotoUrl, renderer: deps.models.renderer, storage })
+      await repo.updateOutfit(reply.userId, outfit.id, { renderMode: mode, renderUrl: url })
+      cards[cards.indexOf(c)] = { ...c, imageUrl: url }
+      await repo.setCards(reply.userId, reply.id, cards)
+      const link = url.startsWith(MEDIA_PREFIX) ? await storage.signedUrl?.(url, 3600).catch(() => null) : null
+      if (link) await repo.addWaIds(reply.userId, reply.id, [await send(to, { type: 'image', image: { link, caption: outfit.title } })])
+    } catch (e) {
+      console.error('whatsapp picture failed', e)
+    }
+  }
+}
+
 /** Outside the 24-hour window only an approved template may go first: `morning_look`, or Meta's built-in `hello_world`. */
 export async function sendTemplate(to: string, name: string, bodyParams: string[]): Promise<string> {
   return send(to, { type: 'template', template: { name, language: { code: 'en_US' },
@@ -153,6 +183,7 @@ export async function handleInbound(body: unknown, deps: { repo: Repo; models: M
         { text: afterListings ? `Add ${text}` : text, imageUrl, channel: 'whatsapp', replyTo: quoted?.id ?? null, waId: msg.messageId },
         { repo, models: deps.models })
       await repo.addWaIds(userId, reply.id, await sendReply(msg.waId, reply, storage))
+      await sendPictures(msg.waId, msg.messageId, reply, deps)
     } catch (e) {
       console.error('whatsapp inbound failed', e)
       if (e instanceof ModelError) await sendText(msg.waId, STYLIST_FAILED).catch(() => {})

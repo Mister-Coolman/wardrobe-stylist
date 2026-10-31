@@ -28,6 +28,19 @@ const outfitOf = (c: Card | undefined) => { if (c?.kind !== 'outfit') throw new 
 const named = async (re: RegExp) => (await repo.listGarments('u1')).find((g) => re.test(g.name))!
 
 describe('look tools', () => {
+  test('log_wear by pieces: "I wore X and Y today" counts the wear for just those pieces', async () => {
+    const before = await repo.listGarments('u1')
+    const a = before[0], b = before.find((g) => g.category !== a.category)!
+    const r = await call('log_wear', { ids: [a.id, b.id] })
+    expect(r.error).toBeUndefined()
+    expect(r.summary).toContain(a.name)
+    const after = await repo.listGarments('u1')
+    for (const g of [a, b]) expect(after.find((x) => x.id === g.id)).toMatchObject({ wearCount: g.wearCount + 1, wearsSinceWash: g.wearsSinceWash + 1 })
+    for (const g of before) if (g.id !== a.id && g.id !== b.id) expect(after.find((x) => x.id === g.id)?.wearCount).toBe(g.wearCount)
+    expect(await call('log_wear', { ids: ['nope'] })).toMatchObject({ error: expect.any(String) })
+    expect(await call('log_wear', {})).toMatchObject({ error: expect.any(String) })
+  })
+
   test('swap_piece keeps every piece but the dropped one', async () => {
     await call('plan_outfit')
     const first = outfitOf(ctx.cards[0])

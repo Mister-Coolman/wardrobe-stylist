@@ -95,6 +95,35 @@ describe('handleInbound', () => {
     expect(sent.some((s) => s.type === 'interactive')).toBe(true)
   })
 
+  test('the look goes out before its picture: text and buttons first, then the drawing, which the thread and outfit keep', async () => {
+    await linkU1()
+    await repo.upsertProfile({ ...(await repo.getProfile('u1'))!, renderMode: 'mannequin' })
+    const storage = { ...createMemoryStorage(), signedUrl: async (u: string) => `https://signed${u}` }
+    const renderer = { render: vi.fn(async () => ({ url: 'data:image/png;base64,iVBORw0KGgo=' })) }
+    await handleInbound(inbound({ type: 'text', text: { body: 'what should I wear' } }), { repo, models: { ...getModels(), renderer }, storage })
+    expect(sent.map((s) => s.type)).toEqual(['text', 'interactive', 'image'])
+    const buttons = sent[1].body.interactive as { body: { text: string } }
+    expect(buttons.body.text).not.toBe('What next?')
+    expect((sent[2].body.image as { link: string }).link).toMatch(/^https:\/\/signed\/api\/media\/.*renders\/mannequin-/)
+    const reply = (await repo.listMessages('u1')).at(-1)!
+    const card = reply.cards.find((c) => c.kind === 'outfit')!
+    expect(card.kind === 'outfit' && card.imageUrl).toMatch(/^\/api\/media\//)
+    expect(reply.waIds).toHaveLength(3)
+    const outfit = await repo.getOutfit('u1', card.kind === 'outfit' ? card.outfitId : '')
+    expect(outfit).toMatchObject({ renderMode: 'mannequin', renderUrl: card.kind === 'outfit' ? card.imageUrl : '' })
+    // typing dots again while the picture is drawn
+    expect(reads).toHaveLength(2)
+  })
+
+  test('a picture that fails to draw leaves the look as sent', async () => {
+    await linkU1()
+    await repo.upsertProfile({ ...(await repo.getProfile('u1'))!, renderMode: 'flatlay' })
+    const renderer = { render: vi.fn(async () => { throw new Error('boom') }) }
+    await handleInbound(inbound({ type: 'text', text: { body: 'what should I wear' } }), { repo, models: { ...getModels(), renderer }, storage: createMemoryStorage() })
+    expect(sent.map((s) => s.type)).toEqual(['text', 'interactive'])
+    expect(renderer.render).toHaveBeenCalledOnce()
+  })
+
   test('the same message id twice is handled once', async () => {
     await linkU1()
     const body = inbound({ id: 'wamid.same', type: 'text', text: { body: 'what should I wear' } })
