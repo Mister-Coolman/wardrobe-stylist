@@ -22,7 +22,10 @@ describe('completeness', () => {
     const polos = [...wardrobe,
       garment({ id: 'navyPolo', name: 'Navy pique polo shirt', category: 'top', subcategory: 'tshirt' }),
       garment({ id: 'redPolo', name: 'Red cotton polo shirt', category: 'top', subcategory: 'tshirt' }),
-      garment({ id: 'parka', name: 'Green parka', category: 'outerwear', subcategory: 'jacket' })]
+      garment({ id: 'parka', name: 'Green parka', category: 'outerwear', subcategory: 'jacket' }),
+      // tagged before polos counted as tees
+      garment({ id: 'greenPolo', name: 'Dark green cotton polo shirt', category: 'top', subcategory: 'shirt', tags: ['cotton', 'polo'] }),
+      garment({ id: 'rlOxford', name: 'Polo Ralph Lauren oxford shirt', category: 'top', subcategory: 'shirt' })]
     const messages = (...ids: string[]) => completeness.check(cand(...ids), ctx({}, polos)).map((v) => v.message)
 
     test('a quarter-zip over two polos is rejected, naming both polos', () => {
@@ -30,6 +33,10 @@ describe('completeness', () => {
       expect(v).toHaveLength(1)
       expect(v[0].message).toBe("Navy pique polo shirt and Red cotton polo shirt don't go on together — one or the other")
       expect(v[0].garmentIds).toEqual(['navyPolo', 'redPolo'])
+    })
+    test('a polo tagged as a shirt still counts as a polo, but a Polo Ralph Lauren shirt is a shirt', () => {
+      expect(messages('crew', 'navyPolo', 'greenPolo', 'jeans', 'sneakers')).toEqual(["Dark green cotton polo shirt and Navy pique polo shirt don't go on together — one or the other"])
+      expect(messages('navyPolo', 'rlOxford', 'crew', 'jeans', 'sneakers')).toEqual([])
     })
     test('real layering passes: a polo under a sweater, a tee under a shirt under a sweater', () => {
       expect(messages('navyPolo', 'crew', 'jeans', 'sneakers')).toEqual([])

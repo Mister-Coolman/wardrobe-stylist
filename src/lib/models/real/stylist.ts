@@ -1,6 +1,7 @@
 // muse-spark-1.3 (POST /v1/chat/completions, JSON schema) for outfits, events, gaps and style;
 // POST /v1/responses with the web_search tool for product search (search grounding is Responses-only).
 import { z } from 'zod'
+import { layer } from '@/lib/domain/layers'
 import type { Candidate, Garment, Level, TempUnit } from '@/lib/domain/types'
 import { warmestPossible, warmthBand } from '@/lib/rules/weather'
 import { labelled } from '@/lib/ui/temperature'
@@ -29,7 +30,8 @@ function keyed(wardrobe: Garment[]) {
   const toKey = new Map(wardrobe.map((g, i) => [g.id, `p${i + 1}`]))
   const toId = new Map(wardrobe.map((g, i) => [`p${i + 1}`, g.id]))
   const listing = wardrobe.map((g) => ({
-    key: toKey.get(g.id), name: g.name, category: g.category, subcategory: g.subcategory, colors: g.colors,
+    // a polo filed as a shirt is told as a tshirt, the layer the rules count it as
+    key: toKey.get(g.id), name: g.name, category: g.category, subcategory: layer(g) === 'base' ? 'tshirt' : g.subcategory, colors: g.colors,
     pattern: g.pattern, formality: g.formality, warmth: g.warmth, rainSafe: g.rainSafe, tags: g.tags,
     ...(g.brand ? { brand: g.brand } : {}), ...(g.fit ? { fit: g.fit } : {}),
   }))

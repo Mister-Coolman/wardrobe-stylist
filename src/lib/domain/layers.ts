@@ -1,11 +1,18 @@
 import type { Garment } from './types'
 
-type Shape = Pick<Garment, 'category' | 'subcategory'>
+type Shape = Pick<Garment, 'category' | 'subcategory'> & Partial<Pick<Garment, 'name' | 'tags'>>
+
+/** Base-layer words, for pieces tagged before polos counted as tees ("Polo Ralph Lauren" is the brand, not the shirt) */
+const BASE_SAID = /\bpolo\b(?!\s+ralph)|\bt-?shirt\b|\btee\b|\bhenley\b|\btank\b/i
 
 /** What a piece occupies on the body: tops layer (tee or polo, then a shirt, then a knit); everything else is one of a kind.
  *  null: as many as you like (accessories, socks). */
 export function layer(g: Shape): string | null {
-  if (g.category === 'top') return g.subcategory === 'tshirt' ? 'base' : g.subcategory === 'sweater' ? 'knit' : 'shirt'
+  if (g.category === 'top') {
+    if (g.subcategory === 'tshirt') return 'base'
+    if (g.subcategory === 'sweater') return 'knit'
+    return BASE_SAID.test(`${g.name ?? ''} ${(g.tags ?? []).join(' ')}`) ? 'base' : 'shirt'
+  }
   return ['bottom', 'shoes', 'outerwear', 'onepiece'].includes(g.category) ? g.category : null
 }
 
