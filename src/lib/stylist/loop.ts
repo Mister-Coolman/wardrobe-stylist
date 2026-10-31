@@ -1,5 +1,6 @@
+import { drawLook } from '@/lib/renderCache'
 import type { Candidate, Category, Garment, Outfit, Profile, RenderMode, RevisionEntry } from '@/lib/domain/types'
-import { ModelError, RENDER_TIMEOUT_MS, withTimeout } from '@/lib/models/types'
+import { ModelError } from '@/lib/models/types'
 import type { Models, ProposeInput } from '@/lib/models/types'
 import { CandidateSchema } from '@/lib/models/schemas'
 import { dailyRules, runRules } from '@/lib/rules/registry'
@@ -139,9 +140,7 @@ async function render(input: PlanOutfitInput, c: Candidate, ctx: RuleContext): P
   if (mode === 'none') return { renderMode: 'none', renderUrl: null }
   const pieces = c.garmentIds.map((id) => ctx.garments.get(id)).filter((g): g is Garment => !!g)
   try {
-    const { url } = await withTimeout(
-      input.models.renderer.render({ mode, pieces, personPhotoUrl: input.profile.personPhotoUrl ?? undefined }),
-      RENDER_TIMEOUT_MS, 'renderer')
+    const url = await drawLook({ userId: input.profile.userId, mode, pieces, personPhotoUrl: input.profile.personPhotoUrl, renderer: input.models.renderer })
     return { renderMode: mode, renderUrl: url }
   } catch {
     return { renderMode: 'none', renderUrl: null }

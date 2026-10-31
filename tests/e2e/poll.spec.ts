@@ -5,7 +5,7 @@ test('ask friends: public poll page votes once, owner sees the result and can sw
   await signIn(page)
   await seedCloset(page)
   await page.goto('/today')
-  await expect(page.getByRole('heading', { name: /Look 01 —/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('list', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
   await page.getByRole('button', { name: 'Ask friends which look' }).click()
   const link = page.getByTestId('poll-link')
   await expect(link).toBeVisible({ timeout: 30_000 })

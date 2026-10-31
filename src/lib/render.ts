@@ -2,7 +2,7 @@ import 'server-only'
 import { createHash } from 'node:crypto'
 import type { Garment, Outfit, Profile, RenderMode } from '@/lib/domain/types'
 import { getModels } from '@/lib/models'
-import { RENDER_TIMEOUT_MS, withTimeout } from '@/lib/models/types'
+import { drawLook } from '@/lib/renderCache'
 import { getStorage, userKey } from '@/lib/storage'
 
 export const TRYON_NEEDS_PHOTO = 'Add a photo of you in Settings for try-on.'
@@ -30,8 +30,8 @@ export async function renderOutfit(outfit: Outfit, pieces: Garment[], profile: P
   if (mode === 'tryon' && !profile.personPhotoUrl) { mode = 'flatlay'; note = TRYON_NEEDS_PHOTO }
   try {
     if (opts.forceFail) throw new Error('forced render failure')
-    const { url } = await withTimeout(getModels().renderer.render({ mode, pieces, personPhotoUrl: profile.personPhotoUrl ?? undefined }), RENDER_TIMEOUT_MS, 'renderer')
-    return { renderMode: mode, renderUrl: await persistRender(profile.userId, url), note }
+    const url = await drawLook({ userId: profile.userId, mode, pieces, personPhotoUrl: profile.personPhotoUrl, renderer: getModels().renderer })
+    return { renderMode: mode, renderUrl: url, note }
   } catch (e) {
     console.error('render failed', e)
     return { renderMode: 'none', renderUrl: null, note, error: 'render_failed' }

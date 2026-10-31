@@ -16,7 +16,7 @@ test('demo script', async ({ page }) => {
 
   // 0:50 Today on a rainy day: suede loafers swapped out
   await page.goto('/today')
-  await expect(page.getByRole('heading', { name: /Look 01 —/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('list', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
   const notes = page.getByRole('list', { name: 'Fitting notes' })
   await expect(notes.getByText('↺')).toBeVisible()
   await expect(notes).toContainText(/loafers/i)

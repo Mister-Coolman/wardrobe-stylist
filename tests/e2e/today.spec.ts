@@ -6,7 +6,7 @@ test('rainy day: look with a revision note, add an event, log the wear', async (
   await seedCloset(page)
   await page.goto('/today')
 
-  await expect(page.getByRole('heading', { name: /Look 01 —/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('list', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
   // calendar isn't connected in e2e: the look still comes, and the strip says so
   await expect(page.getByText('Calendar not connected')).toBeVisible()
   await expect(page.getByText('Rain from 17:00')).toBeVisible()
@@ -37,11 +37,10 @@ test('Another look shows a different outfit', async ({ page }) => {
   await signIn(page)
   await seedCloset(page)
   await page.goto('/today')
-  await expect(page.getByRole('heading', { name: /Look 01 —/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 })
   const first = await page.getByRole('list', { name: 'Pieces' }).textContent()
   await page.getByRole('button', { name: 'Another look' }).click()
-  await expect(page.getByRole('heading', { name: /Look 02 —/ })).toBeVisible({ timeout: 30_000 })
-  expect(await page.getByRole('list', { name: 'Pieces' }).textContent()).not.toBe(first)
+  await expect(page.getByRole('list', { name: 'Pieces' })).not.toHaveText(first!, { timeout: 30_000 })
 })
 
 test('gap card shows a computed suggestion and can be dismissed', async ({ page }) => {
@@ -53,6 +52,6 @@ test('gap card shows a computed suggestion and can be dismissed', async ({ page 
   await card.getByRole('button', { name: 'Not now' }).click()
   await expect(card).toHaveCount(0)
   await page.reload()
-  await expect(page.getByRole('heading', { name: /Look 01/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('list', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('region', { name: 'Closet gap' })).toHaveCount(0)
 })

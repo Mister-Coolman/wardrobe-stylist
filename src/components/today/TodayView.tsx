@@ -122,7 +122,7 @@ export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempU
         <MissingPieces missing={r.missing} closetEmpty={!wardrobe.length} />
       ) : (
         <>
-          <h1 className="display mt-6 text-3xl">Look {String(r.lookNumber).padStart(2, '0')} — {r.outfit.title}</h1>
+          <h1 className="display mt-6 text-3xl">{r.outfit.title}</h1>
           {plan.day.changeSuggestion && <p className="mt-2 text-sm text-warn">{plan.day.changeSuggestion}</p>}
           <div className="mt-4">
             <RenderModePicker value={mode ?? r.outfit.renderMode} disabled={!!busy || render.busy} onChange={applyMode} />
