@@ -13,7 +13,7 @@ About 15 minutes, all yours: these are account and secret steps. Nothing here go
 
 The temporary token dies after 24 hours. For the demo, make a permanent one:
 
-1. Go to **Business settings → Users → System users**, then **Add**. Name it "stylist" with the Admin role.
+1. Go to **Business settings → Users → System users**, then **Add**. Give it any name Meta accepts (it rejects some short single words; try something like "Wardrobe Stylist Bot") and the Admin role.
 2. **Assign assets**: add your app with full control.
 3. **Generate new token**: choose your app, then the permissions `whatsapp_business_messaging` and `whatsapp_business_management`. Copy the token.
 
