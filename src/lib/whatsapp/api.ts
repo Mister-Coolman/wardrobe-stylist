@@ -58,6 +58,12 @@ async function send(to: string, payload: Record<string, unknown>): Promise<strin
 }
 const sendText = (to: string, body: string) => send(to, { type: 'text', text: { body } })
 
+/** Blue ticks on the owner's message, and typing dots until our reply lands (Meta drops them after 25 s). Never blocks the reply. */
+const markRead = (messageId: string) => graph(`/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: messageId, typing_indicator: { type: 'text' } }),
+}).catch((e) => console.error('whatsapp read receipt failed', e))
+
 /** A photo the owner sent: Graph gives a short-lived url, fetched with the same token. */
 export async function downloadMedia(mediaId: string): Promise<Buffer> {
   const { url } = (await (await graph(`/${mediaId}`)).json()) as { url: string }
@@ -120,6 +126,7 @@ export async function handleInbound(body: unknown, deps: { repo: Repo; models: M
   for (const msg of parseInbound(body)) {
     if (seen.has(msg.messageId)) continue
     remember(msg.messageId)
+    await markRead(msg.messageId)
     try {
       const text = msg.text?.trim() ?? ''
       const linking = matchLinkCode(await repo.listProfiles(), text)

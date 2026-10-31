@@ -17,15 +17,18 @@ const inbound = (msg: object) => ({ object: 'whatsapp_business_account', entry: 
 
 let repo: Repo
 let sent: { to: string; type: string; body: Record<string, unknown> }[]
+let reads: Record<string, unknown>[]
+let readFails = false
 beforeEach(async () => {
   vi.stubEnv('WEATHER', 'fixture')
   vi.stubEnv('WHATSAPP_TOKEN', 't'); vi.stubEnv('WHATSAPP_PHONE_ID', 'p')
   repo = createLocalRepo(join(mkdtempSync(join(tmpdir(), 'wa-')), 'db.json'))
-  sent = []
+  sent = []; reads = []; readFails = false
   let n = 0
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     if (String(url).endsWith('/p/messages')) {
       const body = JSON.parse(String(init?.body))
+      if (body.status === 'read') { reads.push(body); return readFails ? new Response('nope', { status: 500 }) : Response.json({ success: true }) }
       sent.push({ to: body.to, type: body.type, body })
       return Response.json({ messages: [{ id: `wamid.out${n++}` }] })
     }
@@ -77,6 +80,19 @@ describe('handleInbound', () => {
     const buttons = sent.find((s) => s.type === 'interactive')!
     expect((buttons.body.interactive as { action: { buttons: { reply: { title: string } }[] } }).action.buttons.map((b) => b.reply.title)).toEqual(['Another look', 'Swap a piece', 'Wore it'])
     expect(msgs[1].waIds.length).toBeGreaterThan(0)
+  })
+
+  test('each message gets blue ticks and the typing dots straight away', async () => {
+    await linkU1()
+    await handleInbound(inbound({ id: 'wamid.tick', type: 'text', text: { body: 'what should I wear' } }), deps())
+    expect(reads).toEqual([{ messaging_product: 'whatsapp', status: 'read', message_id: 'wamid.tick', typing_indicator: { type: 'text' } }])
+  })
+
+  test('a failed read receipt still gets a reply', async () => {
+    await linkU1()
+    readFails = true
+    await handleInbound(inbound({ type: 'text', text: { body: 'what should I wear' } }), deps())
+    expect(sent.some((s) => s.type === 'interactive')).toBe(true)
   })
 
   test('the same message id twice is handled once', async () => {
