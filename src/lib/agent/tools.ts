@@ -7,7 +7,6 @@ import type { Product } from '@/lib/shop/search'
 import { localDate } from '@/lib/domain/dates'
 import type { Models, ToolSpec } from '@/lib/models/types'
 import { profileFor } from '@/lib/profile'
-import { degrees, unitFor } from '@/lib/ui/temperature'
 import type { SessionUser } from '@/lib/session'
 import { dayFor, planToday } from '@/lib/today'
 import { createTrip } from '@/lib/trips'
@@ -135,8 +134,9 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     }
     case 'get_weather': {
       const { day } = await dayFor(repo, user, await today(ctx, a.date))
-      const unit = unitFor(await profileFor(repo, user.userId))
-      return { date: day.date, ...day.weather, summary: `${degrees(day.weather.tempHighC, unit)}${unit} high, ${degrees(day.weather.tempLowC, unit)}${unit} low, ${day.weather.summary}` }
+      // °C here; the thread converts every tool result to the owner's unit
+      const w = day.weather
+      return { date: day.date, rainProbability: w.rainProbability, windKph: w.windKph, summary: `${w.tempHighC}° high, ${w.tempLowC}° low, ${w.summary}` }
     }
     case 'search_wardrobe': {
       const q = (a.query as string | undefined)?.toLowerCase()
@@ -198,10 +198,9 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
     case 'rate_outfit': {
       if (!ctx.imageUrl) return NO_PHOTO
       const { day } = await dayFor(repo, user, await today(ctx, a.date))
-      const unit = unitFor(await profileFor(repo, user.userId))
       const w = day.weather
       return { date: day.date, requiredFormality: day.requiredFormality,
-        weather: `${degrees(w.tempLowC, unit)}–${degrees(w.tempHighC, unit)}${unit}, ${w.rainProbability}% rain, ${w.summary}`,
+        weather: `${w.tempLowC}°–${w.tempHighC}°, ${w.rainProbability}% rain, ${w.summary}`,
         events: day.events.map((e) => `${e.start ?? ''} ${e.title}${e.formality ? ` (dress ${e.formality}/5)` : ''}`.trim()),
         summary: 'Judge the outfit in the photo against this day: warmth, rain, dress code.' }
     }

@@ -55,4 +55,13 @@ describe('weather', () => {
     })))
     expect(await fetchWeather(40.7, -74, '2026-10-27', 'America/New_York')).toEqual({ tempHighC: 14, tempLowC: 9, rainProbability: 80, windKph: 22, summary: 'Rain from 17:00' })
   })
+  test('the low and high are for the hours you’re dressed (7:00–22:00), not the 5 a.m. low', async () => {
+    // New Haven, 31 Oct: 4° before dawn, 11° by 7:00, 14° at 15:00, 9° at 22:00
+    const temps = Array.from({ length: 24 }, (_, h) => (h < 6 ? 4 : h < 7 ? 8 : h <= 15 ? 11 + (h - 7) * 0.4 : h <= 22 ? 14 - (h - 15) * (5 / 7) : 6))
+    vi.stubGlobal('fetch', vi.fn(async () => json({
+      daily: { temperature_2m_max: [14.2], temperature_2m_min: [4], precipitation_probability_max: [0], wind_speed_10m_max: [10], weather_code: [1] },
+      hourly: { precipitation_probability: Array(24).fill(0), temperature_2m: temps },
+    })))
+    expect(await fetchWeather(41.3, -72.9, '2026-10-31', 'America/New_York')).toMatchObject({ tempLowC: 9, tempHighC: 14 })
+  })
 })

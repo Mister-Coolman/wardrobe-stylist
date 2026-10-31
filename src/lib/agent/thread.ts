@@ -3,6 +3,7 @@ import type { Repo } from '@/lib/db/repo'
 import type { Card, Message } from '@/lib/domain/types'
 import type { ChatMessage, Models } from '@/lib/models/types'
 import { profileFor } from '@/lib/profile'
+import { labelled, unitFor } from '@/lib/ui/temperature'
 import type { SessionUser } from '@/lib/session'
 import { dispatchTool, toolSpecs } from './tools'
 import type { ToolContext } from './tools'
@@ -71,9 +72,11 @@ export async function runThread(user: SessionUser, input: { text: string; imageU
   const history = recent.map((m) => toChat(m, m.id === saved.id))
   const last = history.at(-1)
   if (quotedMsg && last?.role === 'user') last.quoted = spelled(quotedMsg)
-  const notes = (await profileFor(repo, user.userId)).stylistNotes ?? []
+  const profile = await profileFor(repo, user.userId)
+  const unit = unitFor(profile)
+  const notes = profile.stylistNotes ?? []
   const known = notes.length ? `\nWhat the owner has told you to remember (forget by id):\n${notes.map((n) => `- (${n.id}) ${n.text}`).join('\n')}` : ''
-  const convo: ChatMessage[] = [{ role: 'system', content: SYSTEM + known }, ...history]
+  const convo: ChatMessage[] = [{ role: 'system', content: `${SYSTEM}\nTemperatures are in °${unit}; say them that way.${known}` }, ...history]
 
   let text = TOO_MANY_ROUNDS
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -82,7 +85,8 @@ export async function runThread(user: SessionUser, input: { text: string; imageU
     convo.push({ role: 'assistant', content: turn.content, toolCalls: turn.toolCalls })
     for (const call of turn.toolCalls) {
       const result = await dispatchTool(call.name, call.arguments, ctx).catch((e: unknown) => ({ error: e instanceof Error ? e.message : 'tool failed' }))
-      convo.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result) })
+      // tools speak °C (and the stylist's notes do too); the owner reads their own unit
+      convo.push({ role: 'tool', toolCallId: call.id, content: labelled(JSON.stringify(result), unit) })
     }
   }
   const reply = await repo.addMessage({ userId: user.userId, role: 'assistant', text, cards: ctx.cards, imageUrl: null,

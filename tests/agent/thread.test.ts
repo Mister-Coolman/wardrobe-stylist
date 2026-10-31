@@ -77,6 +77,23 @@ describe('runThread', () => {
     expect(u.replyTo).toBeNull()
   })
 
+  test('temperatures reach the stylist in the owner’s unit, labelled, with no raw °C numbers', async () => {
+    await repo.upsertProfile({ userId: 'u1', homeCity: 'New Haven', homeLat: 41.3, homeLon: -72.9, tz: 'America/New_York', personPhotoUrl: null,
+      renderMode: 'none', wearLimits: {}, styleProfile: null, tempUnit: 'F' })
+    const seen: ChatMessage[][] = []
+    let n = 0
+    const chat: ChatModel = { complete: async (m) => { seen.push(structuredClone(m)); return n++ === 0
+      ? { content: null, toolCalls: [{ id: 'w', name: 'get_weather', arguments: '{}' }, { id: 'p', name: 'plan_outfit', arguments: '{}' }] }
+      : { content: 'ok', toolCalls: [] } } }
+    await runThread(user, web('what should I wear'), { repo, models: { ...getModels(), chat } })
+    expect(seen[0][0].content).toMatch(/°F/)
+    const tools = seen[1].filter((m) => m.role === 'tool').map((m) => m.content).join('\n')
+    // the fixture day is 9° to 14°C: 48°F to 57°F
+    expect(tools).toContain('57°F high, 48°F low')
+    expect(tools).not.toMatch(/tempLowC|tempHighC/)
+    expect(tools).not.toMatch(/\d°(?![CF])/)
+  })
+
   test('a failing tool still gives a reply in plain words and keeps the user message', async () => {
     let n = 0
     const chat: ChatModel = { complete: async (msgs) => n++ === 0

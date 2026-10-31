@@ -16,17 +16,21 @@ const CODES: [number[], string][] = [
   [[51, 53, 55, 56, 57], 'Drizzle'], [[61, 63, 65, 66, 67, 80, 81, 82], 'Rain'], [[71, 73, 75, 77, 85, 86], 'Snow'], [[95, 96, 99], 'Storms'],
 ]
 
+/** The hours a look is dressed for */
+const DAY_START = 7
+const DAY_END = 22
+
 export async function fetchWeather(lat: number, lon: number, date: string, tz: string): Promise<Weather> {
   const url = new URL('https://api.open-meteo.com/v1/forecast')
   url.search = new URLSearchParams({
     latitude: String(lat), longitude: String(lon), timezone: tz, start_date: date, end_date: date,
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,weather_code',
-    hourly: 'precipitation_probability',
+    hourly: 'precipitation_probability,temperature_2m',
   }).toString()
   const res = await fetch(url, { signal: AbortSignal.timeout(8_000) })
   if (!res.ok) throw new Error(`weather ${res.status}`)
   const j = (await res.json()) as {
-    daily: Record<string, (number | null)[]>; hourly?: { precipitation_probability?: (number | null)[] }
+    daily: Record<string, (number | null)[]>; hourly?: { precipitation_probability?: (number | null)[]; temperature_2m?: (number | null)[] }
   }
   const d = (k: string) => j.daily[k]?.[0] ?? 0
   const rain = Math.round(d('precipitation_probability_max'))
@@ -34,7 +38,11 @@ export async function fetchWeather(lat: number, lon: number, date: string, tz: s
   const code = d('weather_code')
   const summary = firstWet > 0 ? `Rain from ${String(firstWet).padStart(2, '0')}:00`
     : firstWet === 0 ? 'Rain all day' : CODES.find(([cs]) => cs.includes(code))?.[1] ?? 'Mixed'
-  return { tempHighC: Math.round(d('temperature_2m_max')), tempLowC: Math.round(d('temperature_2m_min')), rainProbability: rain, windKph: Math.round(d('wind_speed_10m_max')), summary }
+  // dress for the hours you're out (7:00–22:00): the day's low is usually just before dawn
+  const awake = (j.hourly?.temperature_2m ?? []).slice(DAY_START, DAY_END + 1).filter((t): t is number => t != null)
+  const low = awake.length ? Math.min(...awake) : d('temperature_2m_min')
+  const high = awake.length ? Math.max(...awake) : d('temperature_2m_max')
+  return { tempHighC: Math.round(high), tempLowC: Math.round(low), rainProbability: rain, windKph: Math.round(d('wind_speed_10m_max')), summary }
 }
 
 /** Manual weather when the forecast is unavailable (Today screen asks warm / mild / cold). */
