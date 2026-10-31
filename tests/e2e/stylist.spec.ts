@@ -152,6 +152,22 @@ test('the mic on Closet opens the Stylist thread', async ({ page }) => {
   await expect(page).toHaveURL(/\/stylist/)
 })
 
+test('"Make it today’s" on an earlier look puts that look on Today', async ({ page }) => {
+  await signIn(page)
+  await seedCloset(page)
+  await page.goto('/stylist')
+  await send(page, 'what should I wear')
+  await looks(page).first().getByRole('button', { name: 'Another look' }).click()
+  await expect(looks(page)).toHaveCount(2, { timeout: 30_000 })
+  const first = await piecesOf(looks(page).first())
+  await looks(page).first().getByRole('button', { name: 'Make it today’s' }).click()
+  await expect(page.getByText(/Today.s look is now/)).toBeVisible({ timeout: 30_000 })
+  await page.goto('/today')
+  await expect(page.getByRole('list', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
+  const today = (await page.getByRole('list', { name: 'Pieces' }).getByRole('listitem').allTextContents()).join(' ')
+  for (const name of first) expect(today).toContain(name)
+})
+
 test('Wore it on a look card logs it; Today says Logged after a reload', async ({ page }) => {
   await signIn(page)
   await seedCloset(page)

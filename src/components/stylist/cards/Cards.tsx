@@ -75,7 +75,7 @@ function OutfitCard({ card, say, busy }: { card: Extract<Card, { kind: 'outfit' 
         {card.pieces.map((p) => <li key={p.id}>{p.name}</li>)}
       </ul>
       <div className="mt-1 flex flex-wrap gap-x-5">
-        {(['Another look', 'Swap a piece', 'Wore it'] as const).map((t) => (
+        {(['Another look', 'Swap a piece', 'Wore it', 'Make it today’s'] as const).map((t) => (
           <button key={t} type="button" disabled={busy} onClick={() => say(t, { replyTo: t !== 'Another look' })}
             className="min-h-11 text-sm font-medium underline underline-offset-[3px] disabled:opacity-50">{t}</button>
         ))}

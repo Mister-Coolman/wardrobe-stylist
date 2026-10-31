@@ -10,6 +10,7 @@ import type { Card } from '@/lib/domain/types'
 import { getModels } from '@/lib/models'
 import { sampleCloset } from '@/lib/fixtures/sampleCloset'
 import { MOCK_PRODUCTS } from '@/lib/shop/search'
+import { planToday } from '@/lib/today'
 
 const user = { userId: 'u1', email: 'u1', googleAccessToken: null }
 let repo: Repo
@@ -52,6 +53,27 @@ describe('look tools', () => {
     await call('plan_outfit', { wish: 'fall themed' })
     expect(propose.mock.calls[0][0].wish).toBe('fall themed')
   })
+})
+
+describe('set_today', () => {
+  test('an earlier look becomes what Today shows; the thread gets its card', async () => {
+    await call('plan_outfit')
+    await call('another_look')
+    const first = outfitOf(ctx.cards[0])
+    const r = await call('set_today', { outfitId: first.outfitId })
+    expect(r.summary).toMatch(/Today.s look is now/)
+    const plan = await planToday(repo, user)
+    expect(plan.result.ok && plan.result.pieces.map((p) => p.id)).toEqual(first.pieces.map((p) => p.id))
+    expect(outfitOf(ctx.cards[2]).pieces.map((p) => p.id)).toEqual(first.pieces.map((p) => p.id))
+  })
+  test('the look already on Today says so and adds nothing', async () => {
+    await call('plan_outfit')
+    const before = (await repo.listOutfitsFor('u1', outfitOf(ctx.cards[0]).date)).length
+    expect((await call('set_today', { outfitId: outfitOf(ctx.cards[0]).outfitId })).summary).toMatch(/already today/i)
+    expect(await repo.listOutfitsFor('u1', outfitOf(ctx.cards[0]).date)).toHaveLength(before)
+  })
+  test('an unknown look is an error', async () =>
+    expect((await call('set_today', { outfitId: 'missing' })).error).toMatch(/no such outfit/))
 })
 
 describe('render_look', () => {

@@ -49,6 +49,10 @@ const DEFS = {
     description: 'Replan an outfit, keeping every piece except the dropped ones. drop: piece ids from the outfit; wish: what the replacement should be ("smarter", "warmer").',
     schema: z.object({ outfitId: z.string(), drop: z.array(z.string()).min(1), wish }),
   },
+  set_today: {
+    description: 'Make a look the one the Today screen shows ("wear this one today", "make it today’s"): the look they quoted, else the one they mean.',
+    schema: z.object({ outfitId: z.string() }),
+  },
   render_look: {
     description: 'Show a look as a picture: on a mannequin, as a flat lay, or tried on the owner (needs their photo in Settings). always: true when they want every look shown that way.',
     schema: z.object({ outfitId: z.string(), mode: z.enum(['mannequin', 'flatlay', 'tryon']), always: z.boolean().optional() }),
@@ -157,6 +161,19 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       const outfit = await repo.getOutfit(user.userId, a.outfitId)
       if (!outfit) return { error: 'no such outfit' }
       return look(ctx, await planToday(repo, user, { fresh: true, swap: { outfitId: outfit.id, drop: a.drop, wish: a.wish }, models: ctx.models }))
+    }
+    case 'set_today': {
+      const outfit = await repo.getOutfit(user.userId, a.outfitId)
+      if (!outfit) return { error: 'no such outfit' }
+      const date = await today(ctx)
+      // Today shows the day's newest look, so an earlier one (or another day's) comes back as today's newest
+      if ((await repo.listOutfitsFor(user.userId, date)).at(-1)?.id === outfit.id) return { ok: true, summary: 'That’s already today’s look.' }
+      const { id: _id, ...rest } = outfit
+      const saved = await repo.saveOutfit({ ...rest, contextDate: date })
+      const closet = await repo.listGarments(user.userId)
+      const pieces = saved.garmentIds.map((id) => closet.find((g) => g.id === id)).filter((g): g is Garment => !!g)
+      ctx.cards.push(outfitCard(saved, pieces))
+      return { ok: true, outfitId: saved.id, summary: `Today’s look is now ${saved.title}.` }
     }
     case 'render_look': {
       const outfit = await repo.getOutfit(user.userId, a.outfitId)

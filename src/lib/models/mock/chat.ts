@@ -61,6 +61,7 @@ export const mockChat: ChatModel = {
     }
     if (/^another (look|one)/.test(text)) return calls(tool('another_look', dated))
     if (/^(i )?wore it/.test(text)) return outfit ? calls(tool('log_wear', { outfitId: outfit.outfitId })) : say('Which look?')
+    if (/make it today|today.s look|wear (?:it|this|that)(?: one)? today/.test(text)) return outfit ? calls(tool('set_today', { outfitId: outfit.outfitId })) : say('Which look?')
     const view = text.match(/mannequin|flat ?lay|try (?:it )?on|on me/)
     if (view && outfit) {
       const mode = view[0] === 'mannequin' ? 'mannequin' : /flat/.test(view[0]) ? 'flatlay' : 'tryon'
