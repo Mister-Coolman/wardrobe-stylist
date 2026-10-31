@@ -100,13 +100,13 @@ describe.each(stores)('%s', (_name, make) => {
   test('every record type round-trips unchanged', async () => {
     const p = { ...profile, styleProfile: { summary: 's', traits: ['a'], palette: ['navy'], avoid: [], sourceImages: ['/x.png'] }, wearLimits: { jeans: 5, tshirt: null } }
     await repo.upsertProfile(p)
-    expect(await repo.getProfile('u1')).toEqual(p)
+    expect(await repo.getProfile('u1')).toMatchObject(p) // a live row also carries its column defaults (null, [])
     expect(await repo.getProfile('someone-else')).toBeNull()
 
     const input = strip(garment({ id: 'x', name: 'Selvedge jeans', category: 'bottom', subcategory: 'jeans', lastWornAt: '2026-10-20', wearLimitOverride: 3 }))
     const [g] = await repo.insertGarments([input])
-    expect(strip(g)).toEqual(input)
-    expect(strip((await repo.listGarments('u1'))[0])).toEqual(input)
+    expect(strip(g)).toMatchObject(input)
+    expect(strip((await repo.listGarments('u1'))[0])).toMatchObject(input)
 
     const o = { userId: 'u1', garmentIds: [g.id], rationale: { [g.id]: 'why' }, title: 'T', contextDate: '2026-10-27',
       ruleReport: [{ rule: 'weather', passed: true, note: 'n' }], revisionLog: [], renderMode: 'flatlay' as const, renderUrl: null, source: 'user' as const }
