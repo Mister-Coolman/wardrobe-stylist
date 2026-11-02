@@ -1,5 +1,6 @@
 import { SettingsView } from '@/components/settings/SettingsView'
 import { getRepo } from '@/lib/db/repo'
+import { isDemo } from '@/lib/demo'
 import { profileFor } from '@/lib/profile'
 import { requireUser } from '@/lib/session'
 
@@ -7,5 +8,5 @@ export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
   const u = await requireUser()
-  return <SettingsView profile={await profileFor(await getRepo(), u.userId)} email={u.email} whatsapp={!!process.env.WHATSAPP_TOKEN} />
+  return <SettingsView profile={await profileFor(await getRepo(), u.userId)} email={u.email} whatsapp={!!process.env.WHATSAPP_TOKEN && !isDemo(u.userId)} />
 }

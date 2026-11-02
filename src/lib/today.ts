@@ -2,6 +2,7 @@ import 'server-only'
 import type { CalendarEvent, Garment, Outfit, Profile, RenderMode, Weather } from '@/lib/domain/types'
 import { localDate } from '@/lib/domain/dates'
 import type { Repo } from '@/lib/db/repo'
+import { demoEvents, isDemo } from '@/lib/demo'
 import { CalendarAuthError, fetchCalendarEvents } from '@/lib/integrations/calendar'
 import { fetchWeather, MANUAL_WEATHER } from '@/lib/integrations/weather'
 import { getModels } from '@/lib/models'
@@ -40,6 +41,7 @@ export async function weatherFor(profile: Profile, date: string, manual?: Manual
 }
 
 export async function calendarFor(user: SessionUser, date: string, tz: string): Promise<{ events: CalendarEvent[]; connected: boolean }> {
+  if (isDemo(user.userId)) return { events: demoEvents(user.userId, date), connected: true }
   if (!user.googleAccessToken) return { events: [], connected: false }
   try {
     return { events: await fetchCalendarEvents(user.googleAccessToken, date, tz, user.userId), connected: true }

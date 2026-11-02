@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation'
 import { currentUser, devLoginEmail } from '@/lib/session'
 import { DevLogin } from './DevLogin'
 import { GoogleSignIn } from './GoogleSignIn'
+import { TryDemo } from './TryDemo'
 
-export default async function Onboarding({ searchParams }: { searchParams: Promise<{ connect?: string }> }) {
-  const { connect } = await searchParams
+export default async function Onboarding({ searchParams }: { searchParams: Promise<{ connect?: string; demo?: string }> }) {
+  const { connect, demo } = await searchParams
   if ((await currentUser()) && !connect) redirect('/stylist')
   const dev = devLoginEmail()
   return (
@@ -18,6 +19,8 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       </div>
       <div className="flex flex-col gap-3">
         {process.env.AUTH_GOOGLE_ID && <GoogleSignIn />}
+        {process.env.DEMO_SOURCE_USER && process.env.AUTH_SECRET && !connect && <TryDemo />}
+        {demo === 'full' && <p className="text-error">The demo is full for today. Try again tomorrow.</p>}
         {dev && <DevLogin email={dev} />}
         {!process.env.AUTH_GOOGLE_ID && !dev && <p className="text-error">Sign-in isn’t configured on this server.</p>}
       </div>

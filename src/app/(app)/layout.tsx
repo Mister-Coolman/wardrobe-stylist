@@ -4,6 +4,7 @@ import { GearSix } from '@phosphor-icons/react/dist/ssr'
 import { BottomNav } from '@/components/shell/BottomNav'
 import { ChatLauncher } from '@/components/shell/ChatLauncher'
 import { getRepo } from '@/lib/db/repo'
+import { isDemo } from '@/lib/demo'
 import { requireUser } from '@/lib/session'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           className="absolute right-2 top-[calc(12px+env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center text-ink-muted">
           <GearSix size={24} weight="light" aria-hidden />
         </Link>
+        {isDemo(u.userId) && <p className="label mb-4 text-ink-muted">Demo · a copy of a real closet · sample calendar</p>}
         {children}
       </main>
       <ChatLauncher />

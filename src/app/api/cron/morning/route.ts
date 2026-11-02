@@ -1,5 +1,6 @@
 import { morningNote } from '@/lib/agent/morning'
 import { getRepo } from '@/lib/db/repo'
+import { isDemo } from '@/lib/demo'
 import { getStorage } from '@/lib/storage'
 import { morningSender } from '@/lib/whatsapp/api'
 
@@ -12,7 +13,8 @@ export async function GET(req: Request) {
   const repo = await getRepo()
   const send = morningSender(repo, getStorage())
   let sent = 0
-  for (const p of await repo.listProfiles()) {
+  // demo visitors get no morning note: it would plan (and pay for) a look nobody reads
+  for (const p of (await repo.listProfiles()).filter((p) => !isDemo(p.userId))) {
     try { if (await morningNote(repo, p, { send })) sent++ } catch (e) { console.error('morning note failed', p.userId, e) }
   }
   return Response.json({ sent })

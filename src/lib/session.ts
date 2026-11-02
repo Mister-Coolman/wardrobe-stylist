@@ -1,6 +1,7 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { DEMO_COOKIE, demoSession } from '@/lib/demo'
 
 export const DEV_COOKIE = 'ws_dev_user'
 
@@ -16,7 +17,10 @@ export function devLoginEmail(): string | null {
 
 export async function currentUser(): Promise<SessionUser | null> {
   const dev = devLoginEmail()
-  if (dev && (await cookies()).get(DEV_COOKIE)?.value === dev) return { userId: dev, email: dev, googleAccessToken: null }
+  const jar = await cookies()
+  if (dev && jar.get(DEV_COOKIE)?.value === dev) return { userId: dev, email: dev, googleAccessToken: null }
+  const demo = demoSession(jar.get(DEMO_COOKIE)?.value)
+  if (demo) return demo
   if (!process.env.AUTH_SECRET) return null
   const { auth } = await import('@/auth')
   const s = await auth()

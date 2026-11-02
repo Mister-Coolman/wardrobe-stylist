@@ -1,11 +1,14 @@
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
+import { isDemo } from '@/lib/demo'
 import { profileFor } from '@/lib/profile'
 import { newLinkCode } from '@/lib/whatsapp/link'
 
 /** A fresh link code and the number to text it to */
 export async function POST() {
   return withUser(async (u) => {
+    // the test number only reaches numbers the owner has added, so a demo visitor's link could never work
+    if (isDemo(u.userId)) return Response.json({ error: 'not in the demo' }, { status: 403 })
     const repo = await getRepo()
     const { code, expires } = newLinkCode()
     await repo.upsertProfile({ ...(await profileFor(repo, u.userId)), whatsappLinkCode: code, whatsappLinkExpires: expires })
