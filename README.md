@@ -1,63 +1,81 @@
 # Wardrobe Stylist
 
-Film your closet once. Each morning, get one outfit that fits your calendar, the weather and what's actually clean. When you travel, get a packing list that won't run you out of shirts.
+**A stylist you can text, who knows every piece in your closet.** Film your closet once. Each morning you get one outfit that fits your calendar, the weather and what's actually clean, in the app or on WhatsApp. When you travel, you get a packing list that won't run you out of shirts.
+
+**Try it:** [www.wardrobe-stylist.xyz](https://www.wardrobe-stylist.xyz). Tap **Try the demo**; no account needed. You get your own copy of a real closet and a sample calendar.
 
 Built for Meta's Global AI Developer Hackathon (track: **Build for Your World**).
 
-> **All code in this repository was written during the hackathon, 27 Oct – 4 Nov 2026.** The design docs in `docs/` (spec, UI style guide, plan) were written on 26 Oct, before the build window. The commit history shows one commit per planned task.
+> **All code in this repository was written during the hackathon, 27 Oct – 4 Nov 2026.** The design docs in `docs/` (spec, UI style guide, plan) were written on 26 Oct, before the build window.
+
+## The problem
+
+I own plenty of clothes and still wear the same few things. Every morning is a decision made without knowing what the day holds, and packing for a trip is the same problem multiplied by every day away. A stylist would fix that, but a stylist has to know your closet, your week and your laundry. This one does.
 
 ## What it does
 
-- **Closet scan.** Pan your phone across the closet, hold pieces up one at a time, or take a photo.
-  - Each garment comes back as a cutout with tags: category, colors, how formal, how warm, rain-safe.
-  - Duplicates are merged, and nothing is used until you confirm it.
-- **Today.** One look for the day, built from:
-  - your calendar, which sets the dress code;
-  - the forecast at the place you'll actually be;
-  - only clothes that are clean.
+**Scan your closet once.** Pan your phone across the rail, hold pieces up one at a time, or take a photo.
+- **SAM 3.1** finds each garment, and **Muse Spark** tags it: category, colours, how formal, how warm, rain-safe, brand and fit.
+- Duplicates are merged, and nothing is used until you confirm it.
+- Missing something? Find it online by name and add it with the store's photo.
 
-  Each piece says why it's there. *Fitting notes* show the checks that ran, plus anything the stylist swapped on the way (*"↺ Swapped suede loafers → boots — 80% rain"*). Then it asks: *"Anything today that's not on your calendar?"*
-- **Show it your way.** Try-on (on a photo of you), flat lay, or just the pieces. If rendering fails, it falls back to the pieces and never blocks the outfit.
-- **Trips.** A look for every day and a packing checklist. It respects how often *you* rewear each kind of clothing: t-shirts once, jeans five times, all editable. If the closet can't cover the trip, it says exactly what's short.
-- **Talk to it.** Hold the mic: "drinks after work", "pack for Chicago Thursday to Sunday". The agent calls the same planner, so the rules still apply.
-- **One piece to add.** It computes how many new outfits a single purchase would make possible across a smart day, a rainy day and a cold day.
-- **Stretch goals:**
-  - *Which look?* — share a link, friends vote, wear the winner.
-  - *Your style* — screenshots of outfits you like become an editable style profile that nudges choices.
+**Text your stylist.** One saved conversation, in the app and on WhatsApp; both show the same thread.
+- *"Something for drinks after work"* gets a look, then its picture.
+- Swipe-reply to a look to swap a piece. *"I spilled coffee on the white shirt"* sends it to the laundry.
+- *"I wore the navy polo and jeans today"* logs the wear. Pieces at their limit go to the laundry, and the next look won't use them.
+- Send a photo to add the clothes in it, to ask *"how do I look?"*, or to say *"match this look"* from a picture you like.
+- It remembers what you tell it (*"I never wear navy with black"*) and sends one look each morning without being asked.
 
-## Meta models
+**Today.** One look for the day, built from:
+- your calendar, which sets the dress code;
+- the forecast where you'll actually be;
+- only clothes that are clean.
 
-| Job | Model | Where |
-|---|---|---|
-| Find each garment in a closet video or photo | **SAM 3.1** (`sam-3.1`) | `segmenter` |
-| Tag cutouts; propose and revise outfits; classify events; chat agent; product search | **Muse Spark** (`muse-spark-1.3`) | `tagger`, `stylist`, `chat` |
-| Try-on and flat-lay renders | **Muse Image** (`muse-image-1.0`) | `renderer` |
-| Voice input | **Muse Voice Transcribe** (`muse-voice-transcribe-1.0`) | `transcriber` |
+Each piece says why it's there. *Fitting notes* show the checks that ran and anything the stylist changed on the way (*"↺ Swapped suede loafers → boots — 80% rain"*).
 
-Every model call goes through one of these adapters in `src/lib/models/`. Each adapter has a real implementation and a mock, selected with `MODELS=real|mock`. The mocks need no keys and make no network calls, so the whole app runs offline. Notes on how SAM is called and how it did on test scans: [`docs/notes/sam-check.md`](docs/notes/sam-check.md).
+**See it your way.** On a photo of you, on a mannequin, as a flat lay, or just the pieces. If drawing fails, you get the pieces; the look is never blocked.
+
+**Trips.** A look for every day and a packing checklist. It respects how often *you* rewear each kind of clothing (t-shirts once, jeans five times, all editable). If the closet can't cover the trip, it says exactly what's short.
+
+**One piece to buy.** It works out how many new outfits a single purchase would unlock across a smart day, a rainy day and a cold day.
+
+**Extras:** *Which look?* sends a link where friends vote and you wear the winner. *Your style* turns screenshots of outfits you like into a style profile that nudges choices.
+
+## Meta models and platforms
+
+| Job | Meta model or platform |
+|---|---|
+| Find each garment in a closet video or photo | **SAM 3.1** |
+| Tag pieces; propose and revise outfits; read the calendar; run the stylist agent and its tools; read photos | **Muse Spark** |
+| Draw the look: try-on, mannequin, flat lay | **Muse Image** |
+| Hold-to-talk voice messages | **Muse Voice Transcribe** |
+| Text the stylist, with read receipts, typing dots, buttons and pictures | **WhatsApp Cloud API** |
+
+Every model call goes through one adapter in `src/lib/models/` (`segmenter`, `tagger`, `stylist`, `chat`, `renderer`, `transcriber`). Each has a real implementation and a mock, picked with `MODELS=real|mock`; the mocks need no keys and no network, so the whole app runs offline. How SAM is called, and how it did on real scans: [`docs/notes/sam-check.md`](docs/notes/sam-check.md).
 
 ## How an outfit gets picked
 
-The model proposes; the code decides.
+**The model proposes; the code decides.**
 
 ```mermaid
 flowchart LR
-  A[Calendar + added events] --> C[Day context<br/>dress code · weather · change suggestion]
+  A[Calendar + added events] --> C[Day context<br/>dress code · weather]
   B[Open-Meteo forecast] --> C
   C --> D[Muse Spark proposes 3 looks]
   W[(Confirmed, clean garments)] --> D
-  D --> E{Rule engine<br/>completeness · formality · weather · availability<br/>+ wear limits on trips}
+  D --> E{Rule engine<br/>completeness · layering · formality<br/>weather · availability · wear limits}
   E -- all rejected --> F[Revise with the violations<br/>max 2 rounds]
   F --> E
   E -- survivors --> G[Rank by soft scores<br/>capsule reuse · friends' pick · style]
-  G --> H[Render: try-on / flat lay / pieces]
+  G --> H[Muse Image draws it]
   H --> I[Look + fitting notes]
 ```
 
-- **Rules are small pure functions** (`src/lib/rules/`). Hard rules reject a look; soft rules only rank. Anything the model returns that doesn't parse, or that names a garment you don't own, counts as a violation.
+- **Rules are small pure functions** (`src/lib/rules/`). Hard rules reject a look, and soft rules only rank. A model answer that doesn't parse, or that names a garment you don't own, counts as a violation.
+- **Layering is checked, not hoped for.** A tee or polo, then a shirt, then a knit, then a coat; never two polos at once. The picture prompt names every piece, its colour and what goes over what.
 - **If nothing passes after two revisions**, you get the closest look and an honest note, not a crash.
-- **Trips** plan day by day and carry wear counts forward, with renders off.
-- **The chat agent** (`src/lib/agent/`) can only reach clothes through tools such as `plan_outfit` and `plan_trip`; it never picks garments itself.
+- **The stylist agent** (`src/lib/agent/`) reaches your clothes only through tools such as `plan_outfit`, `swap_piece`, `log_wear` and `plan_trip`. It never picks garments itself, so the rules hold in chat and on WhatsApp too.
+- **On WhatsApp, the look goes out first** and its picture follows when it's drawn, so a reply never waits on the image.
 
 ## Run it
 
@@ -75,14 +93,20 @@ npm install
 npm run dev
 ```
 
-In `.env.local`, `MODELS=mock` works with no keys. Set `DEV_USER_EMAIL` to sign in without Google during development. On an empty closet, *Load the sample closet* gives you twelve pieces to try.
+`MODELS=mock` works with no keys. Set `DEV_USER_EMAIL` to sign in without Google during development. On an empty closet, *Load the sample closet* gives you twelve pieces to try.
 
 | Setting | Needed for |
 |---|---|
-| `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in and calendar. The scope is `calendar.readonly`. |
-| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Postgres and storage (`supabase/migrations/0001_init.sql`). Without them, data lives in `.data/`. |
-| `MODELS=real`, `META_API_BASE_URL`, `META_API_KEY` | The Meta Model API |
-| `NEXT_PUBLIC_FEATURE_POLL=1`, `NEXT_PUBLIC_FEATURE_STYLE=1` | The stretch features |
+| `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in and calendar (scope `calendar.readonly`; nothing is written back) |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Postgres and storage (`supabase/migrations/`). Without them, data lives in `.data/`. |
+| `MODELS=real`, `META_API_BASE_URL`, `META_API_KEY` | The Meta models |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_DISPLAY_NUMBER`, `WHATSAPP_TEMPLATE` | Texting on WhatsApp ([setup](docs/notes/whatsapp-setup.md)) |
+| `CRON_SECRET` | The morning note |
+| `SERPAPI_KEY` | Finding pieces online |
+| `DEMO_SOURCE_USER` | *Try the demo*: whose confirmed closet demo visitors get a copy of |
+| `NEXT_PUBLIC_FEATURE_POLL=1`, `NEXT_PUBLIC_FEATURE_STYLE=1` | The extras |
+
+WhatsApp runs on Meta's test number, which only messages numbers added to the app, so it's shown in the demo video rather than open to everyone.
 
 ## Tests
 
@@ -102,16 +126,16 @@ npm run test:e2e
 npm run check:slop
 ```
 
-- `npm test`: unit tests for rules, the outfit loop, trips, gaps, scan, agent and repo.
-- `npm run test:e2e`: browser tests in mock mode, including the demo walkthrough in `tests/e2e/demo.spec.ts`.
-- `npm run check:slop`: a grep for the UI style guide's banned patterns.
-- Live checks, which cost money or touch your project, run only when asked:
+- `npm test`: unit tests for the rules, the outfit loop, layering, trips, gaps, scan, the agent and its tools, WhatsApp, the picture prompts and the repo.
+- `npm run test:e2e`: browser tests in mock mode, including the demo walkthrough (`tests/e2e/demo.spec.ts`) and *Try the demo*.
+- `npm run check:slop`: a check for the UI style guide's banned patterns.
+- Live checks cost money or touch your project, so they run only when asked:
   - `META_CONTRACT=1 npx vitest run tests/models/real.contract.test.ts` calls each Meta model once.
-  - `SUPABASE_CONTRACT=1 npx vitest run tests/db/repo.test.ts` runs the repo tests against your Supabase project as test users `u1` and `someone-else`, deleting their rows before and after.
+  - `SUPABASE_CONTRACT=1 npx vitest run tests/db/repo.test.ts` runs the repo tests against your Supabase project as throwaway test users, deleting their rows before and after.
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 with design tokens only · Zod · sharp · Auth.js · Supabase · Open-Meteo · Vitest · Playwright.
+Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 with design tokens only · Zod · sharp · Auth.js · Supabase · Open-Meteo · SerpApi · Vitest · Playwright · Vercel.
 
 Visual rules: [`docs/ui-style-guide.md`](docs/ui-style-guide.md) — "The Lookbook".
-Design: [`docs/superpowers/specs/2026-10-26-wardrobe-stylist-design.md`](docs/superpowers/specs/2026-10-26-wardrobe-stylist-design.md).
+Design: [the main spec](docs/superpowers/specs/2026-10-26-wardrobe-stylist-design.md) and [the stylist thread](docs/superpowers/specs/2026-10-30-stylist-thread-design.md).
