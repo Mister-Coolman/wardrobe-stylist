@@ -39,19 +39,23 @@ function worn(pieces: RenderPiece[]): string {
   return `\n${lines.join(' ')}`
 }
 
-/** Where each piece lies. Left at "overlap slightly", the model laid a polo out whole above the quarter-zip and the trousers' waistband across the knit. */
+/** Where each piece lies. Left at "overlap slightly", the model laid a polo out whole above the quarter-zip and the trousers' waistband across the knit;
+ *  nested but with nothing said about sleeves, the polo's short sleeves stuck out past the quarter-zip's shoulders. */
 function layout(pieces: RenderPiece[]): string {
   const has = (c: string) => pieces.some((p) => p.category === c)
   const torso = insideOut(pieces)
   const outer = torso.at(-1)
   const inner = torso.slice(0, -1).map((p) => p.name)
   const tops = outer && inner.length
-    ? `the tops nested as they are worn, as a stylist would lay them: ${inner.join(' and ')} under ${outer.name}, showing only ${inner.length > 1 ? 'their collars' : 'its collar'} at the neckline and a strip of hem below it, not laid out on ${inner.length > 1 ? 'their' : 'its'} own${layer(outer) === 'outerwear' ? `; ${outer.name} lies open` : ''}`
+    ? `the tops nested as they are worn, as a stylist would lay them: ${inner.join(' and ')} under ${outer.name}, showing only ${inner.length > 1 ? 'their collars' : 'its collar'} at the neckline and a strip of hem below it, not laid out on ${inner.length > 1 ? 'their' : 'its'} own, ${inner.length > 1 ? 'their' : 'its'} sleeves folded out of sight under ${outer.name}: none showing past its shoulders${layer(outer) === 'outerwear' ? `; ${outer.name} lies open` : ''}`
     : (has('top') || has('outerwear') || has('onepiece')) && 'the top across the top'
-  const rows = [tops, has('bottom') && 'bottoms below, the waistband just under the hem without covering it, laid straight with the legs pointing down',
+  const rows = [tops, has('bottom') && `bottoms below, the waistband just under the hem without covering it, laid straight with the legs pointing down${pieces.some((p) => p.category === 'bottom' && /stripe/i.test(`${p.name} ${p.tags.join(' ')}`)) ? '' : ', their outside seams the same colour as the legs with no stripe down the side'}`,
     has('shoes') && 'shoes at the bottom as a pair', has('accessory') && 'accessories to the side']
   return `Lay them out: ${rows.filter(Boolean).join(', ')}.${has('shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'}`
 }
+
+// a real label in the photo (IZOD) came back as made-up letters ("LEOD"), so labels are asked for blank
+const NO_TEXT = 'No added text or captions, and no readable lettering on labels: show no neck labels at all, the inside of every collar plain fabric.'
 
 const noShoes = (pieces: RenderPiece[]) => pieces.some((p) => p.category === 'shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'
 
@@ -59,14 +63,14 @@ const noShoes = (pieces: RenderPiece[]) => pieces.some((p) => p.category === 'sh
 export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: RenderPiece[]): string {
   const first = mode === 'tryon' ? 2 : 1
   const list = renderOrder(pieces).map((p, i) => `Image ${i + first}: ${p.name} (${describe(p)})`).join('\n')
-  const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Show each piece in its given colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything.'
+  const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Show each piece in its given colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything. Background left at the edges of a cutout (a strip of bed, wall or floor) is not part of the piece: do not draw it.'
   if (mode === 'tryon') {
-    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. No added text or captions, and no readable lettering on labels.`
+    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. ${NO_TEXT}`
   }
   if (mode === 'mannequin') {
-    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} No added text or captions, and no readable lettering on labels.`
+    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} ${NO_TEXT}`
   }
-  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Shot from far enough away that the whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides: nothing cut off at an edge. Nothing else in frame: no people, props or extra clothing. No added text or captions, and no readable lettering on labels.`
+  return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Shot from far enough away that the whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides: nothing cut off at an edge. Nothing else in frame: no people, props or extra clothing. ${NO_TEXT}`
 }
 
 export const realRenderer: Renderer = {

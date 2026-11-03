@@ -121,3 +121,22 @@ test('an explicit sleeve tag wins over the item word: a long sleeve tee is long-
   expect(sleeves({ ...tee, name: 'Grey quarter-zip', subcategory: 'sweater', tags: ['short sleeve'] })).toBe('short')
   expect(sleeves({ ...tee, name: 'Black tee', tags: [] })).toBe('short')
 })
+
+test('flat lay: inner layers keep their sleeves out of sight under the outer piece', () => {
+  const p = renderPrompt('flatlay', [quarterZip, redPolo, jeans])
+  expect(p).toContain('Red cotton polo shirt under Heather blue quarter-zip')
+  expect(p).toMatch(/sleeves folded out of sight under Heather blue quarter-zip: none showing past its shoulders/)
+})
+
+test('every mode: background left at a cutout’s edges isn’t drawn, and neck labels are blank', () => {
+  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) {
+    const p = renderPrompt(mode, [quarterZip, jeans])
+    expect(p).toMatch(/background left at the edges of a cutout .* is not part of the piece/i)
+    expect(p).toMatch(/show no neck labels at all/i)
+  }
+})
+
+test('flat lay: trousers get plain side seams unless they say they’re striped', () => {
+  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/no stripe down the side/)
+  expect(renderPrompt('flatlay', [quarterZip, { ...jeans, name: 'Black track pants', tags: ['side stripe'] }])).not.toMatch(/no stripe down the side/)
+})
