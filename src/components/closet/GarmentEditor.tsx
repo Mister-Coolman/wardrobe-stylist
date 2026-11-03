@@ -27,7 +27,7 @@ function EditorBody({ garment, onSaved, onDeleted, onDuplicated, reviewing }: {
   garment: Garment; onSaved: (g: Garment) => void; onDeleted: (id: string) => void; onDuplicated?: (saved: Garment, copy: Garment) => void; reviewing: boolean
 }) {
   const [g, setG] = useState(garment)
-  const [busy, setBusy] = useState<'save' | 'delete' | 'duplicate' | null>(null)
+  const [busy, setBusy] = useState<'save' | 'delete' | 'duplicate' | 'rotate' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [details, setDetails] = useState(garment.tags.join(', '))
   const set = <K extends keyof Garment>(k: K, v: Garment[K]) => setG((x) => ({ ...x, [k]: v }))
@@ -57,6 +57,17 @@ function EditorBody({ garment, onSaved, onDeleted, onDuplicated, reviewing }: {
     const { cutoutUrl, photoUrl } = (await res.json()) as { cutoutUrl: string; photoUrl: string }
     setG((x) => ({ ...x, cutoutUrl, photoUrl })); setPhoto('done')
     setFindNote('Photo replaced with the store’s.')
+  }
+
+  /** A piece the scan left sideways: a quarter turn clockwise, saved straight away */
+  async function rotate() {
+    setBusy('rotate'); setError(null)
+    const res = await fetch('/api/garments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: g.id, rotate: true }) }).catch(() => null)
+    const j = (await res?.json().catch(() => null)) as { cutoutUrl?: string } | null
+    setBusy(null)
+    if (!res?.ok || !j?.cutoutUrl) return setError('Couldn’t turn that photo. Try again.')
+    const cutoutUrl = j.cutoutUrl
+    setG((x) => ({ ...x, cutoutUrl, ...(x.photoUrl === x.cutoutUrl ? { photoUrl: cutoutUrl } : {}) }))
   }
 
   /** Saves the edits in the sheet; the saved piece, or null after showing the error */
@@ -96,9 +107,12 @@ function EditorBody({ garment, onSaved, onDeleted, onDuplicated, reviewing }: {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start gap-4">
-        <div className="h-24 w-24 shrink-0 bg-studio p-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={g.cutoutUrl} alt="" className="h-full w-full object-contain" />
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <div className="h-24 w-24 bg-studio p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={g.cutoutUrl} alt="" className="h-full w-full object-contain" />
+          </div>
+          {g.cutoutUrl.startsWith('/api/media/') && <Button variant="tertiary" onClick={rotate} loading={busy === 'rotate'}>Rotate</Button>}
         </div>
         <label className="field flex-1">
           <span>Name</span>

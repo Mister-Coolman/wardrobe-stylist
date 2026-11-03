@@ -158,6 +158,11 @@ export async function cutout(frame: Buffer, mask: Buffer, opts: { minus?: Buffer
 export type RGB = [number, number, number]
 export const colorDistance = (a: RGB, b: RGB) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 
+/** A cutout rotated clockwise by turn degrees, so a piece photographed sideways stands upright */
+export async function turned(png: Buffer, turn: number): Promise<Buffer> {
+  return sharp(png).rotate(turn).png().toBuffer()
+}
+
 /** Mean color of a cutout's opaque pixels. */
 export async function cutoutColor(png: Buffer): Promise<RGB> {
   const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })

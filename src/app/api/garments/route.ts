@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
-import { duplicateGarment, MAX_COPIES, namePatch, washPatch } from '@/lib/garments'
+import { duplicateGarment, MAX_COPIES, namePatch, rotateCutout, washPatch } from '@/lib/garments'
+import { getStorage } from '@/lib/storage'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 
 const Patch = GarmentTagsSchema.partial().extend({
@@ -12,6 +13,8 @@ const Patch = GarmentTagsSchema.partial().extend({
 })
 const Body = z.union([
   z.object({ confirmIds: z.array(z.string()).min(1) }),
+  // a piece the scan left sideways: a quarter turn clockwise
+  z.object({ id: z.string(), rotate: z.literal(true) }),
   z.object({ id: z.string(), patch: Patch }),
 ])
 
@@ -40,6 +43,10 @@ export async function PATCH(req: Request) {
     const data = body.data
     if ('confirmIds' in data) {
       for (const id of data.confirmIds) await repo.updateGarment(u.userId, id, { confirmed: true })
+    } else if ('rotate' in data) {
+      const cutoutUrl = await rotateCutout(repo, getStorage(), u.userId, data.id)
+      if (!cutoutUrl) return Response.json({ error: 'not_found' }, { status: 404 })
+      return Response.json({ ok: true, cutoutUrl })
     } else {
       const current = (await repo.listGarments(u.userId)).find((g) => g.id === data.id)
       if (!current) return Response.json({ error: 'not_found' }, { status: 404 })

@@ -13,11 +13,14 @@ formality: 1 gym kit, graphic tee, running shoes; 2 plain tee, hoodie, shorts, c
 rainSafe: true if getting wet won't damage or ruin it (cotton, denim, wool, synthetics, rubber, treated leather); false for suede, nubuck, silk, linen, cashmere, canvas sneakers, light-coloured leather.
 colors: plain lowercase words (navy, oat, charcoal). tags: material and notable details only (pique, deck polo, embroidered logo, tapered leg); for tops and outerwear always include the sleeve length (short sleeve, long sleeve, sleeveless) and the neckline or collar (crewneck, V-neck, button-down collar, polo collar, quarter-zip, hooded).
 brand: only when a logo, label or signature mark is legible (Nautica, Uniqlo UT, Polo Ralph Lauren); otherwise null. Never guess.
-fit: slim (close to the body, tapered), classic (straight, regular), relaxed (loose, roomy) or oversized (dropped shoulders, deliberately big); null when the cutout can't show it.`
+fit: slim (close to the body, tapered), classic (straight, regular), relaxed (loose, roomy) or oversized (dropped shoulders, deliberately big); null when the cutout can't show it.
+turn: degrees to rotate the photo clockwise so the piece stands upright, collar or waistband at the top and hem or legs at the bottom (shoes: sole at the bottom). 0 when it already is; 90 when the top of the piece points left; 180 when it's upside down; 270 when the top points right.`
+
+const TaggedSchema = GarmentTagsSchema.extend({ turn: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]) })
 
 export const realTagger: Tagger = {
   async tag(cutoutUrl) {
-    return structured('tagger', GarmentTagsSchema, 'garment_tags', [
+    return structured('tagger', TaggedSchema, 'garment_tags', [
       { role: 'system', content: GUIDE },
       { role: 'user', content: [{ type: 'text', text: 'Tag this piece.' }, { type: 'image_url', image_url: { url: await toDataUrl(cutoutUrl, 768) } }] },
     ], { effort: 'minimal' })

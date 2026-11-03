@@ -18,6 +18,19 @@ test('photo scan → review → add → closet; delete removes a piece', async (
   await expect(page.getByText('6 pieces')).toBeVisible()
   await expect(page.getByText('Selvedge jeans')).toBeVisible()
 
+  // a piece scanned sideways: Rotate turns its photo, and the closet keeps the turned one
+  await page.getByRole('button', { name: /Navy wool overcoat/ }).click()
+  const photo = page.getByRole('dialog').locator('img').first()
+  const before = await photo.getAttribute('src')
+  await page.getByRole('button', { name: 'Rotate' }).click()
+  await expect(photo).not.toHaveAttribute('src', before!)
+  const after = await photo.getAttribute('src')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await page.reload()
+  await page.getByRole('button', { name: /Navy wool overcoat/ }).click()
+  await expect(page.getByRole('dialog').locator('img').first()).toHaveAttribute('src', after!)
+  await page.keyboard.press('Escape')
+
   await page.getByRole('button', { name: /Selvedge jeans/ }).click()
   await page.getByRole('button', { name: 'Delete piece' }).click()
   await expect(page.getByText('5 pieces')).toBeVisible()

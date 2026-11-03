@@ -1,5 +1,9 @@
 import type { Repo } from '@/lib/db/repo'
 import type { Garment } from '@/lib/domain/types'
+import { turned } from '@/lib/scan/cutout'
+import { putCutout } from '@/lib/scan/pipeline'
+import { MEDIA_PREFIX, userKey } from '@/lib/storage'
+import type { StorageLike } from '@/lib/storage'
 
 /** A garment edit; moving a piece back to clean resets its wear count, renaming a clean piece does not. */
 export function washPatch(current: Garment, patch: Partial<Garment>): Partial<Garment> {
@@ -33,6 +37,16 @@ export function namePatch(current: Garment, patch: Partial<Garment>): Partial<Ga
   const saved = words(current.colors)
   if (!named.length || [...words(named)].some((w) => saved.has(w))) return patch
   return { ...patch, colors: named }
+}
+
+/** Turns a piece's cutout a quarter turn clockwise, for a piece the scan left sideways. The new image gets its own url,
+ *  so looks drawn with the old one are drawn again. null when it isn't theirs or has no stored cutout (a sample piece). */
+export async function rotateCutout(repo: Repo, storage: StorageLike, userId: string, id: string): Promise<string | null> {
+  const g = (await repo.listGarments(userId)).find((x) => x.id === id)
+  if (!g?.cutoutUrl.startsWith(`${MEDIA_PREFIX}${userKey(userId)}/`)) return null
+  const cutoutUrl = await putCutout(storage, userId, await turned(await storage.read(g.cutoutUrl), 90))
+  await repo.updateGarment(userId, g.id, { cutoutUrl, ...(g.photoUrl === g.cutoutUrl ? { photoUrl: cutoutUrl } : {}) })
+  return cutoutUrl
 }
 
 export const MAX_COPIES = 5

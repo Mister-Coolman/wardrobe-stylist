@@ -27,9 +27,12 @@ export interface Segmenter {
 
 export type GarmentTags = Pick<Garment, 'name' | 'category' | 'subcategory' | 'colors' | 'pattern' | 'formality' | 'warmth' | 'rainSafe' | 'tags' | 'brand' | 'fit'>
 /** What a store listing's title says about a piece; colors: the colours the title names, often none */
+/** Degrees clockwise that make a piece upright: collar or waistband at the top */
+export type Turn = 0 | 90 | 180 | 270
 export type ListingDetails = Pick<GarmentTags, 'name' | 'category' | 'brand' | 'fit' | 'tags' | 'colors'>
 export interface Tagger {
-  tag(cutoutUrl: string): Promise<GarmentTags>
+  /** turn: how far the cutout must be rotated to stand upright, when the tagger can tell */
+  tag(cutoutUrl: string): Promise<GarmentTags & { turn?: Turn }>
   sameItem(a: string, b: string): Promise<boolean>
   /** currentName: the owner's name for the piece, whose colour is kept when the title gives none */
   fromListing(title: string, currentName?: string): Promise<ListingDetails>

@@ -148,6 +148,17 @@ describe('runScan', () => {
     expect(await repo.listGarments('u1')).toHaveLength(2)
   })
 
+  test('a piece the tagger says is turned is stored upright; an upright one is left as cut', async () => {
+    const tags = [{ ...FIXTURE_TAGS[0], turn: 90 }, { ...FIXTURE_TAGS[1], turn: 0 }]
+    const { repo, storage, job, models } = await setup([await track('a', [0, 0, 60, 30]), await track('b', [0, 50, 60, 30])], tags)
+    await runScan(job.id, { userId: 'u1', models, repo, storage })
+    const gs = await repo.listGarments('u1')
+    const size = async (url: string) => { const m = await sharp(await storage.read(url)).metadata(); return [m.width! > m.height! ? 'wide' : 'tall'] }
+    expect(await size(gs.find((g) => g.name === FIXTURE_TAGS[0].name)!.cutoutUrl)).toEqual(['tall'])
+    expect(await size(gs.find((g) => g.name === FIXTURE_TAGS[1].name)!.cutoutUrl)).toEqual(['wide'])
+    expect(gs.every((g) => !('turn' in g))).toBe(true)
+  })
+
   test('zero tracks → failed with the retry message', async () => {
     const { repo, storage, job, models } = await setup([])
     await runScan(job.id, { userId: 'u1', models, repo, storage })

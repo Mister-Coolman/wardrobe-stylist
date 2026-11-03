@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
 import type { Garment, ScanJob } from '@/lib/domain/types'
 import type { Repo } from '@/lib/db/repo'
-import type { FrameMask, GarmentTags, ListingDetails, Models } from '@/lib/models/types'
+import type { FrameMask, GarmentTags, ListingDetails, Models, Turn } from '@/lib/models/types'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 import type { StorageLike } from '@/lib/storage'
 import { userKey } from '@/lib/storage'
-import { bestFrame, colorDistance, cutout, cutoutColor, sharpnessUnder, type RGB } from './cutout'
+import { bestFrame, colorDistance, cutout, cutoutColor, sharpnessUnder, turned, type RGB } from './cutout'
 
 export const NO_CLOTHES = 'No clothes found — try holding each piece up to the camera.'
 export const SCAN_FAILED = 'The scan stopped partway — try again, or take a single photo.'
@@ -54,8 +54,7 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
       const seen = tracks[t].masks.map((m) => frameSeconds(job.frameUrls[m.frameIndex], m.frameIndex))
       let png: Buffer
       try { png = await cutout(await frameAt(best.frameIndex), best.maskPng, { minus: hangers.get(best.frameIndex) }) } catch { continue }
-      const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
-      const cutoutUrl = await storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
+      const cutoutUrl = await putCutout(storage, userId, png)
       cut.push({ cutoutUrl, photoUrl: job.frameUrls[best.frameIndex], seen: seen.length, quality: best.area * (sharpness.get(best) ?? 1), color: await cutoutColor(png), first: Math.min(...seen), last: Math.max(...seen) })
     }
     // tag a few at a time; results keep scan order
@@ -64,7 +63,10 @@ export async function runScan(jobId: string, deps: { userId: string; models: Pic
     await Promise.all(Array.from({ length: Math.min(TAG_CONCURRENCY, cut.length) }, async () => {
       while (next < cut.length) {
         const k = next++
-        found[k] = { ...cut[k], tags: await tagWithRetry(models, cut[k].cutoutUrl) }
+        const { tags, turn } = await tagWithRetry(models, cut[k].cutoutUrl)
+        // a piece laid or held sideways is stored upright, so its tile and the pictures drawn from it are too
+        const cutoutUrl = turn ? await putCutout(storage, userId, await turned(await storage.read(cut[k].cutoutUrl), turn)) : cut[k].cutoutUrl
+        found[k] = { ...cut[k], cutoutUrl, tags }
         await repo.updateScanJob(jobId, { progress: ++done / cut.length })
       }
     }))
@@ -110,19 +112,25 @@ export async function cutoutFromPhoto(frameUrl: string, deps: { userId: string; 
   const largest = masks.sort((a, b) => b.area - a.area)[0]
   if (!largest) return null
   const hangers = await models.segmenter.hangers?.(frameUrl).catch(() => []) ?? []
-  const png = await cutout(await storage.read(frameUrl), largest.maskPng, { minus: hangers })
-  const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
-  return storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
+  return putCutout(storage, userId, await cutout(await storage.read(frameUrl), largest.maskPng, { minus: hangers }))
 }
 
-async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promise<GarmentTags> {
+const TURNS: Turn[] = [90, 180, 270]
+
+async function tagWithRetry(models: Pick<Models, 'tagger'>, url: string): Promise<{ tags: GarmentTags; turn: Turn }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const parsed = GarmentTagsSchema.safeParse(await models.tagger.tag(url))
-      if (parsed.success) return parsed.data
+      const raw = await models.tagger.tag(url)
+      const parsed = GarmentTagsSchema.safeParse(raw)
+      if (parsed.success) return { tags: parsed.data, turn: TURNS.find((t) => t === raw.turn) ?? 0 }
     } catch { /* retry once, then leave for manual tagging */ }
   }
-  return UNTAGGED
+  return { tags: UNTAGGED, turn: 0 }
+}
+
+export async function putCutout(storage: StorageLike, userId: string, png: Buffer): Promise<string> {
+  const hash = createHash('sha256').update(png).digest('hex').slice(0, 20)
+  return storage.put(`${userKey(userId)}/cutouts/${hash}.png`, png, 'image/png')
 }
 
 /** Same category and close in color → ask the tagger (against every such piece at once); duplicates keep the larger mask.
