@@ -59,3 +59,12 @@ test('a cold day the closet can’t reach says so up front, so no round is spent
   expect(brief().day).not.toHaveProperty('cold')
   expect(stylistBrief(input('F'), '').system).toMatch(/When day\.cold is set, follow it instead of the warmth table/)
 })
+
+test('the styling guidance: contrast between top and bottom, three colours at most, texture, one focal piece, rotation', () => {
+  const { system } = stylistBrief(input('C'), '')
+  expect(system).toMatch(/three colours/i)
+  expect(system).toMatch(/navy top on dark indigo jeans/)
+  expect(system).toMatch(/texture/i)
+  expect(system).toMatch(/one focal piece/i)
+  expect(system).toMatch(/alreadyShown/)
+})
