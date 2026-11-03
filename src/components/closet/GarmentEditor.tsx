@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { Category, Fit, Garment, Level } from '@/lib/domain/types'
 import { CATEGORY, FIT, FORMALITY, WARMTH } from '@/lib/ui/format'
 import { Button } from '@/components/ui/Button'
+import { LineInput } from '@/components/ui/LineInput'
 import { Sheet } from '@/components/ui/Sheet'
 import { Tag } from '@/components/ui/Tag'
 import { ShopSearch } from '@/components/shop/ShopSearch'
@@ -114,9 +115,9 @@ function EditorBody({ garment, onSaved, onDeleted, onDuplicated, reviewing }: {
           </div>
           {g.cutoutUrl.startsWith('/api/media/') && <Button variant="tertiary" onClick={rotate} loading={busy === 'rotate'}>Rotate</Button>}
         </div>
-        <label className="field flex-1">
+        <label className="field min-w-0 flex-1">
           <span>Name</span>
-          <input className="input" value={g.name} onChange={(e) => set('name', e.target.value)} />
+          <LineInput value={g.name} onChange={(v) => set('name', v)} />
         </label>
       </div>
       <label className="field">
@@ -137,7 +138,7 @@ function EditorBody({ garment, onSaved, onDeleted, onDuplicated, reviewing }: {
       </fieldset>
       <label className="field">
         <span>Details</span>
-        <input className="input" value={details} placeholder="e.g. pique, deck polo, tapered" onChange={(e) => setDetails(e.target.value)} />
+        <LineInput value={details} placeholder="e.g. pique, deck polo, tapered" onChange={setDetails} />
         <span className="text-sm text-ink-muted">Material, cut, anything the stylist should know. Separate with commas.</span>
       </label>
       <div className="flex flex-col gap-3 border-t border-rule pt-4">
