@@ -10,7 +10,7 @@ import type { DayContext, Rule, RuleContext, TripUsage, Violation } from '@/lib/
 export interface PlanOutfitInput {
   day: DayContext; wardrobe: Garment[]; profile: Profile; models: Pick<Models, 'stylist' | 'renderer'>
   rules?: Rule[]; trip?: TripUsage; renderMode?: RenderMode
-  /** garment-id sets already shown for this day ("Another look") */
+  /** garment-id sets already shown ("Another look"): a candidate with the same pieces is rejected, except on a trip */
   avoidOutfits?: string[][]
   /** stretch: friends' pick for the day, used by the pollWinner soft rule */
   poll?: RuleContext['poll']
@@ -54,6 +54,8 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
   const base: ProposeInput = { day: input.day, wardrobe, count: CANDIDATES, styleProfile: input.profile.styleProfile, avoidOutfits: input.avoidOutfits, trip: input.trip,
     keep: input.keep, drop: input.drop, wish: input.wish, referenceImageUrl: input.referenceImageUrl, unit: unitFor(input.profile),
     notes: input.profile.stylistNotes?.length ? input.profile.stylistNotes.map((n) => n.text) : undefined }
+  // a trip only asks for variety: a long trip on a small closet has to repeat looks
+  const shown = new Set(input.trip ? [] : (input.avoidOutfits ?? []).map(setKey))
   const revisionLog: RevisionEntry[] = []
   const all: Checked[] = []
   let rejected: RevisionEntry['rejected'] = []
@@ -80,6 +82,8 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
       // ids the model made up are dropped; the rest of its suggestion is judged on its merits
       const candidate = { ...parsed.data, garmentIds: parsed.data.garmentIds.filter((id) => ctx.garments.has(id)) }
       const res = runRules(candidate, ctx, rules)
+      // asking the stylist not to repeat isn't enough: it still hands back a look already shown
+      if (shown.has(setKey(candidate.garmentIds))) res.violations.push({ ruleId: 'repeat', garmentIds: [], message: 'Already shown — pick different pieces' })
       const checked = { candidate, ...res, order: all.length }
       all.push(checked)
       if (res.violations.length) roundRejected.push({ candidate, violations: res.violations })
@@ -99,7 +103,7 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
     bestEffort = true
   }
   // never show a look with nothing real in it: fall back to the best combination the rules can find
-  if (bestEffort && (!pick || corePieces(pick.candidate, ctx) < 2)) pick = fallback(ctx, rules) ?? pick
+  if (bestEffort && (!pick || corePieces(pick.candidate, ctx) < 2 || shown.has(setKey(pick.candidate.garmentIds)))) pick = fallback(ctx, rules, shown) ?? pick
   if (!pick) throw new ModelError('stylist', 'bad_output', 'no usable candidates')
 
   const { renderMode, renderUrl } = await render(input, pick.candidate, ctx)
@@ -113,11 +117,13 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
   }
 }
 
+const setKey = (ids: string[]) => [...ids].sort().join(',')
+
 const CORE = new Set(['top', 'bottom', 'onepiece', 'shoes'])
 const corePieces = (c: Candidate, ctx: RuleContext) => c.garmentIds.filter((id) => CORE.has(ctx.garments.get(id)?.category ?? '')).length
 
 /** Deterministic top × bottom (× shoes when there are any, ± outerwear) search, fewest hard violations first. */
-function fallback(ctx: RuleContext, rules: Rule[]): Checked | undefined {
+function fallback(ctx: RuleContext, rules: Rule[], shown: Set<string>): Checked | undefined {
   const gs = [...ctx.garments.values()].filter((g) => g.status === 'clean')
   const by = (c: string) => gs.filter((g) => g.category === c)
   const bases = [...by('top').flatMap((t) => by('bottom').map((b) => [t.id, b.id])), ...by('onepiece').map((o) => [o.id])]
@@ -128,6 +134,7 @@ function fallback(ctx: RuleContext, rules: Rule[]): Checked | undefined {
   for (const base of bases) for (const shoe of shoes) for (const o of [null, ...by('outerwear')]) {
     if (++n > 2000) return best
     const candidate: Candidate = { garmentIds: [...(o ? [o.id] : []), ...base, ...(shoe ? [shoe] : [])], rationale: {}, title: 'Closest fit from your closet' }
+    if (shown.has(setKey(candidate.garmentIds))) continue
     const res = runRules(candidate, ctx, rules)
     if (!best || res.violations.length < best.violations.length) best = { candidate, ...res, order: n }
     if (!res.violations.length) return best

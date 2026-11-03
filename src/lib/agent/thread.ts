@@ -70,7 +70,8 @@ export async function runThread(user: SessionUser, input: { text: string; imageU
   const listingsFrom = (ms: Message[]) => ms.flatMap((m) => m.cards).filter((c) => c.kind === 'listings').at(-1)
   const listings = (quotedMsg && listingsFrom([quotedMsg])) || listingsFrom(recent)
   const ctx: ToolContext = { user, repo, models: deps.models, geocode: deps.geocode, cards: [], channel: input.channel, userText: input.text,
-    imageUrl: input.imageUrl ?? quotedMsg?.imageUrl ?? undefined, lastListings: listings?.kind === 'listings' ? listings.products : undefined }
+    imageUrl: input.imageUrl ?? quotedMsg?.imageUrl ?? undefined, lastListings: listings?.kind === 'listings' ? listings.products : undefined,
+    shownLooks: recent.flatMap((m) => m.cards).flatMap((c) => c.kind === 'outfit' ? [{ date: c.date, garmentIds: c.pieces.map((p) => p.id) }] : []) }
 
   const history = recent.map((m) => toChat(m, m.id === saved.id))
   const last = history.at(-1)

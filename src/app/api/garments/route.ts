@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { withUser } from '@/lib/api'
 import { getRepo } from '@/lib/db/repo'
-import { duplicateGarment, MAX_COPIES, washPatch } from '@/lib/garments'
+import { duplicateGarment, MAX_COPIES, namePatch, washPatch } from '@/lib/garments'
 import { GarmentTagsSchema } from '@/lib/models/schemas'
 
 const Patch = GarmentTagsSchema.partial().extend({
@@ -43,7 +43,7 @@ export async function PATCH(req: Request) {
     } else {
       const current = (await repo.listGarments(u.userId)).find((g) => g.id === data.id)
       if (!current) return Response.json({ error: 'not_found' }, { status: 404 })
-      await repo.updateGarment(u.userId, current.id, washPatch(current, data.patch))
+      await repo.updateGarment(u.userId, current.id, washPatch(current, namePatch(current, data.patch)))
     }
     return Response.json({ ok: true })
   })

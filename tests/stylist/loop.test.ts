@@ -64,6 +64,29 @@ describe('planOutfit', () => {
     expect(r.outfit.ruleReport.find((x) => x.ruleId === 'completeness')?.passed).toBe(true)
   })
 
+  test('a look already shown is rejected and revised, not handed back', async () => {
+    const r0 = await planOutfit({ day: day(), wardrobe, profile, models })
+    if (!r0.ok) throw new Error('expected an outfit')
+    const shown = r0.outfit.garmentIds
+    const same = [{ garmentIds: shown, rationale: {}, title: 'Same again' }]
+    const stylist = stub({ propose: async () => same, revise: async (i) => models.stylist.propose({ ...i, avoidOutfits: [shown] }) })
+    const r = await planOutfit({ day: day(), wardrobe, profile, models: { ...models, stylist }, avoidOutfits: [shown] })
+    if (!r.ok) throw new Error('expected an outfit')
+    expect([...r.outfit.garmentIds].sort()).not.toEqual([...shown].sort())
+    expect(r.outfit.revisionLog[0].rejected[0].violations[0].ruleId).toBe('repeat')
+  })
+
+  test('a stylist that only repeats the shown look still gets a different one from the fallback', async () => {
+    const r0 = await planOutfit({ day: day(), wardrobe, profile, models })
+    if (!r0.ok) throw new Error('expected an outfit')
+    const shown = r0.outfit.garmentIds
+    const same = [{ garmentIds: [...shown].reverse(), rationale: {}, title: 'Same again' }]
+    const stylist = stub({ propose: async () => same, revise: async () => same })
+    const r = await planOutfit({ day: day(), wardrobe, profile, models: { ...models, stylist }, avoidOutfits: [shown] })
+    if (!r.ok) throw new Error('expected an outfit')
+    expect([...r.outfit.garmentIds].sort()).not.toEqual([...shown].sort())
+  })
+
   test('everything in the laundry → insufficient_wardrobe naming every core category', async () => {
     const r = await planOutfit({ day: day(), wardrobe: wardrobe.map((g) => ({ ...g, status: 'laundry' as const })), profile, models })
     expect(r).toEqual({ ok: false, reason: 'insufficient_wardrobe', missing: ['top', 'bottom'] })

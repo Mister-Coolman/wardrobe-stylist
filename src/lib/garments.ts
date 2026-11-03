@@ -7,6 +7,34 @@ export function washPatch(current: Garment, patch: Partial<Garment>): Partial<Ga
   return patch
 }
 
+const COLOR_WORDS = new Set(['black', 'white', 'grey', 'gray', 'navy', 'blue', 'red', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'tan',
+  'beige', 'cream', 'ivory', 'olive', 'khaki', 'maroon', 'burgundy', 'teal', 'charcoal', 'indigo', 'camel', 'oat', 'rust', 'mustard', 'lavender',
+  'gold', 'silver', 'sand', 'stone', 'taupe', 'coral', 'mint'])
+const SHADES = new Set(['light', 'dark', 'pale', 'deep', 'bright', 'heather'])
+const norm = (w: string) => (w === 'gray' ? 'grey' : w)
+
+/** The colours a piece's name gives, a shade kept with its colour ("heather blue"); khaki only when it's the sole colour, else it's a style */
+export function colorsFromName(name: string): string[] {
+  const runs: string[][] = [[]]
+  for (const w of name.toLowerCase().split(/[^a-z]+/)) {
+    if (COLOR_WORDS.has(w) || SHADES.has(w)) runs.at(-1)!.push(w)
+    else if (runs.at(-1)!.length) runs.push([])
+  }
+  const colors = runs.filter((r) => r.some((w) => COLOR_WORDS.has(w))).map((r) => r.join(' '))
+  return colors.length > 1 ? colors.filter((c) => c !== 'khaki') : colors
+}
+
+/** A rename whose colours the saved ones contradict ("Heather blue …" saved as grey from a dim photo) takes the name's colours:
+ *  the stylist and the pictures read the saved colours, the owner reads the name. */
+export function namePatch(current: Garment, patch: Partial<Garment>): Partial<Garment> {
+  if (!patch.name || patch.colors) return patch
+  const named = colorsFromName(patch.name)
+  const words = (cs: string[]) => new Set(cs.flatMap((c) => c.toLowerCase().split(/\s+/)).filter((w) => COLOR_WORDS.has(w)).map(norm))
+  const saved = words(current.colors)
+  if (!named.length || [...words(named)].some((w) => saved.has(w))) return patch
+  return { ...patch, colors: named }
+}
+
 export const MAX_COPIES = 5
 
 /** Another of a piece the owner has more than one of: same details and photo (deleting a piece leaves its image),

@@ -11,6 +11,7 @@ import { getModels } from '@/lib/models'
 import { sampleCloset } from '@/lib/fixtures/sampleCloset'
 import { MOCK_PRODUCTS } from '@/lib/shop/search'
 import { planToday } from '@/lib/today'
+import { addDays } from '@/lib/domain/dates'
 import { defaultProfile } from '@/lib/profile'
 
 const user = { userId: 'u1', email: 'u1', googleAccessToken: null }
@@ -58,6 +59,28 @@ describe('look tools', () => {
     await call('another_look')
     const [a, b] = ctx.cards.map(outfitOf)
     expect(b.outfitId).not.toBe(a.outfitId)
+    expect(b.pieces.map((p) => p.id).sort()).not.toEqual(a.pieces.map((p) => p.id).sort())
+  })
+
+  test('another_look is for the day of the newest look in view, whatever date the model guesses', async () => {
+    await call('plan_outfit')
+    const a = outfitOf(ctx.cards[0])
+    ctx.cards = []
+    ctx.shownLooks = [{ date: a.date, garmentIds: a.pieces.map((p) => p.id) }]
+    await call('another_look', { date: addDays(a.date, 1) })
+    const b = outfitOf(ctx.cards[0])
+    expect(b.date).toBe(a.date)
+    expect(b.pieces.map((p) => p.id).sort()).not.toEqual(a.pieces.map((p) => p.id).sort())
+  })
+
+  test('a look in view is not handed back for another day either', async () => {
+    await call('plan_outfit')
+    const a = outfitOf(ctx.cards[0])
+    ctx.cards = []
+    ctx.shownLooks = [{ date: a.date, garmentIds: a.pieces.map((p) => p.id) }]
+    await call('plan_outfit', { date: addDays(a.date, 1) })
+    const b = outfitOf(ctx.cards[0])
+    expect(b.date).toBe(addDays(a.date, 1))
     expect(b.pieces.map((p) => p.id).sort()).not.toEqual(a.pieces.map((p) => p.id).sort())
   })
 
@@ -157,6 +180,12 @@ describe('closet tools', () => {
     await call('edit_piece', { id: jeans.id, brand: 'Levi’s', fit: 'slim' })
     const after = await named(/jeans/i)
     expect(after).toMatchObject({ brand: 'Levi’s', fit: 'slim', name: jeans.name, tags: jeans.tags })
+  })
+
+  test('edit_piece: a new name with a different colour updates the saved colours', async () => {
+    const jeans = await named(/jeans/i)
+    await call('edit_piece', { id: jeans.id, name: 'Black selvedge jeans' })
+    expect((await named(/jeans/i)).colors).toEqual(['black'])
   })
 
   test('delete_piece without confirm refuses, keeps the piece and shows it so its id survives', async () => {

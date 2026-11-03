@@ -10,7 +10,7 @@ import { profileFor } from '@/lib/profile'
 import type { SessionUser } from '@/lib/session'
 import { dayFor, planToday } from '@/lib/today'
 import { createTrip } from '@/lib/trips'
-import { duplicateGarment, MAX_COPIES, washPatch } from '@/lib/garments'
+import { duplicateGarment, MAX_COPIES, namePatch, washPatch } from '@/lib/garments'
 import { piecesFromScan, runScan } from '@/lib/scan/pipeline'
 import { renderOutfit } from '@/lib/render'
 import { startListing } from '@/lib/shop/add'
@@ -31,6 +31,8 @@ export interface ToolContext {
   channel: Message['channel']
   /** the owner's latest message: the only thing that can say yes to a delete */
   userText?: string
+  /** looks on the outfit cards in the recent thread, oldest first: a new look doesn't repeat them, and "another look" is for the newest one's day */
+  shownLooks?: { date: string; garmentIds: string[] }[]
 }
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD, defaults to today')
@@ -48,7 +50,7 @@ const DEFS = {
     description: 'Plan a fresh outfit for a day. The only way to choose clothes — never pick garments yourself. wish: what the owner asked for ("fall themed", "all black").',
     schema: z.object({ date, wish }),
   },
-  another_look: { description: 'A different outfit for the same day than the ones already shown', schema: z.object({ date, wish }) },
+  another_look: { description: 'A different outfit for the same day as the newest look shown (date is used only when no look is in view)', schema: z.object({ date, wish }) },
   swap_piece: {
     description: 'Replan an outfit, keeping every piece except the dropped ones. drop: piece ids from the outfit; wish: what the replacement should be ("smarter", "warmer"). To change the feel of the whole look, use plan_outfit with a wish instead.',
     schema: z.object({ outfitId: z.string(), drop: z.array(z.string()).min(1), wish }),
@@ -176,8 +178,12 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
         summary: gs.length ? `${gs.length} match: ${gs.slice(0, 5).map((g) => g.name).join(', ')}` : 'Nothing like that in the closet.' }
     }
     case 'plan_outfit':
-    case 'another_look':
-      return look(ctx, await planToday(repo, user, { date: await today(ctx, a.date), fresh: true, wish: a.wish, renderMode: drawLater(ctx), models: ctx.models }))
+    case 'another_look': {
+      // the model has asked for "another look" on the wrong day; the look being replaced says which day it is
+      const d = name === 'another_look' ? ctx.shownLooks?.at(-1)?.date ?? a.date : a.date
+      const avoid = ctx.shownLooks?.map((l) => l.garmentIds)
+      return look(ctx, await planToday(repo, user, { date: await today(ctx, d), fresh: true, wish: a.wish, avoid, renderMode: drawLater(ctx), models: ctx.models }))
+    }
     case 'swap_piece': {
       const outfit = await repo.getOutfit(user.userId, a.outfitId)
       if (!outfit) return { error: 'no such outfit' }
@@ -220,7 +226,7 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       const [g] = await piecesById(ctx, [a.id])
       if (!g) return { error: 'no such piece' }
       const patch = Object.fromEntries((['name', 'brand', 'fit', 'tags'] as const).filter((k) => a[k] !== undefined).map((k) => [k, a[k]]))
-      await repo.updateGarment(user.userId, g.id, patch)
+      await repo.updateGarment(user.userId, g.id, namePatch(g, patch))
       return shown(ctx, [g.id], `Updated ${g.name}.`)
     }
     case 'duplicate_piece': {

@@ -60,10 +60,10 @@ export async function dayFor(repo: Repo, user: SessionUser, date: string | null,
   return { profile, day, calendarConnected: connected }
 }
 
-/** Reuses the latest outfit for the day unless `fresh`; a fresh plan avoids every look already shown that day. */
-/** wish: what the owner asked for; referenceImageUrl: a look to match; swap: replan an outfit with some pieces left out */
+/** Reuses the latest outfit for the day unless `fresh`; a fresh plan avoids every look already shown that day, and `avoid`'s. */
+/** wish: what the owner asked for; referenceImageUrl: a look to match; swap: replan an outfit with some pieces left out; avoid: garment sets shown elsewhere */
 export async function planToday(repo: Repo, user: SessionUser, opts: { date?: string | null; fresh?: boolean; manual?: ManualWeather; renderMode?: RenderMode
-  wish?: string; referenceImageUrl?: string; swap?: { outfitId: string; drop: string[]; wish?: string }; models?: Models } = {}): Promise<TodayPlan> {
+  wish?: string; referenceImageUrl?: string; swap?: { outfitId: string; drop: string[]; wish?: string }; avoid?: string[][]; models?: Models } = {}): Promise<TodayPlan> {
   const models = opts.models ?? getModels()
   const swapping = opts.swap ? await repo.getOutfit(user.userId, opts.swap.outfitId) : null
   if (opts.swap && !swapping) throw new Error('no such outfit')
@@ -83,7 +83,7 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping ? [keepRule(keep, drop)] : []),
     // only when there's a remembered pairing, so other looks don't get a "no pairing" note
     ...(profile.stylistNotes?.some((n) => n.pieceIds.length >= 2) ? [likedPairs] : [])]
-  const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: shown.map((o) => o.garmentIds), poll, rules,
+  const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: [...shown.map((o) => o.garmentIds), ...(opts.avoid ?? [])], poll, rules,
     keep: swapping ? keep : undefined, drop: swapping ? drop : undefined, wish: opts.swap?.wish ?? opts.wish, referenceImageUrl: opts.referenceImageUrl })
   if (!r.ok) return { day, calendarConnected, result: r }
   if (r.outfit.renderUrl) {
