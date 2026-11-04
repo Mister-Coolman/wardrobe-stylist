@@ -82,6 +82,13 @@ describe('formality', () => {
     expect(formality.check(cand('crew', 'jeans', 'loafers'), ctx({ requiredFormality: 2 }))).toEqual([]))
   test('far too dressy (more than required + 2) is a violation', () =>
     expect(formality.check(cand('oxford', 'trousers', 'loafers'), ctx({ requiredFormality: 1 }))).toHaveLength(1))
+  test('a casual day leans casual: each smart piece (a dress shirt, wool trousers) counts against a look, a smart day doesn’t mind', () => {
+    const casual = ctx({ requiredFormality: 2 })
+    expect(formality.score!(cand('crew', 'jeans', 'sneakers'), casual)).toBe(0)
+    expect(formality.score!(cand('oxford', 'jeans', 'sneakers'), casual)).toBe(-1)
+    expect(formality.score!(cand('oxford', 'trousers', 'sneakers'), casual)).toBe(-2)
+    expect(formality.score!(cand('oxford', 'trousers', 'loafers'), ctx({ requiredFormality: 4 }))).toBe(0)
+  })
 })
 
 describe('weather', () => {

@@ -162,3 +162,15 @@ test('flat lay: trousers get plain side seams, said without naming a stripe, unl
   expect(p).not.toMatch(/stripe/i)
   expect(renderPrompt('flatlay', [quarterZip, { ...jeans, name: 'Black track pants', tags: ['side stripe'] }])).not.toMatch(/outside seams the same colour/)
 })
+
+const graphicTee = { cutoutUrl: '/tee.png', name: 'Blue-Grey graphic tee', category: 'top' as const, subcategory: 'tshirt' as const, colors: ['grey'], tags: ['graphic print', 'short-sleeve'], brand: null, fit: null }
+const buttonUp = { cutoutUrl: '/shirt.png', name: 'Teal button-up dress shirt', category: 'top' as const, subcategory: 'dress_shirt' as const, colors: ['teal'], tags: ['long sleeve', 'buttons'], brand: null, fit: null }
+
+test('a tee under a button-up: the shirt lies unbuttoned and open, the tee’s front and print showing between its fronts', () => {
+  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) {
+    const p = renderPrompt(mode, [buttonUp, graphicTee, jeans])
+    expect(p).toMatch(/Teal button-up dress shirt(, which lies| is worn) unbuttoned and open/)
+    expect(p).not.toMatch(/print staying on the chest, covered/)
+  }
+  expect(renderPrompt('flatlay', [buttonUp, graphicTee, jeans])).toMatch(/print showing between/)
+})

@@ -32,6 +32,13 @@ export const formality: Rule = {
     }
     return []
   },
+  // a casual day is the default, and "another look" there came back as a teal dress shirt and flat-front trousers: those
+  // pass (a graphic tee under them is casual enough) but rank below a look of casual pieces. Shoes don't count.
+  score(c, ctx) {
+    const req = ctx.day.requiredFormality
+    if (req > 2) return 0
+    return 0 - piecesOf(c, ctx).filter((g) => (g.category === 'top' || g.category === 'bottom') && g.formality >= 4).length
+  },
   note(_c, ctx) {
     const req = ctx.day.requiredFormality
     const top = [...ctx.day.events].filter((e) => !e.allDay && e.formality).sort((a, b) => b.formality! - a.formality!)[0]

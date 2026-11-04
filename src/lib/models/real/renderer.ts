@@ -43,7 +43,16 @@ function worn(pieces: RenderPiece[]): string {
   for (const p of under.filter((p) => layer(p) === 'shirt')) lines.push(`${p.name} is tucked in or shows a short hem below the knit.`)
   const outer = layers.find((p) => layer(p) === 'outerwear')
   if (outer) lines.push(`${outer.name} is worn open so the layers show.`)
+  const shirt = openShirt(layers)
+  if (shirt) lines.push(`${shirt.name} is worn unbuttoned and open over ${layers[0].name}, the tee's front and any print on it showing between the shirt's fronts.`)
   return `\n${lines.join(' ')}`
+}
+
+/** A button shirt worn as the outer layer over a tee is worn open: buttoned, it hid the graphic the look was built
+ *  around, and the tee showed only as a strip of hem. */
+function openShirt(torso: RenderPiece[]): RenderPiece | null {
+  const outer = torso.at(-1)
+  return outer && torso.length > 1 && layer(outer) === 'shirt' && torso.slice(0, -1).every((p) => layer(p) === 'base') ? outer : null
 }
 
 /** Where each piece lies. Left at "overlap slightly", the model laid a polo out whole above the quarter-zip and the trousers' waistband across the knit;
@@ -56,7 +65,9 @@ function layout(pieces: RenderPiece[]): string {
   // asked for a strip of hem, the model slid a chest print down into it so it would show; with the hem tucked away it
   // left the whole tee out (2 of 2 drawings, caught by the check), so the hem shows and is said to be plain
   const printed = torso.slice(0, -1).some((p) => /graphic|print/i.test(`${p.name} ${p.tags.join(' ')}`))
-  const tops = outer && inner.length
+  const tops = outer && inner.length && openShirt(torso)
+    ? `the tops nested as they are worn: ${inner.join(' and ')} under ${outer.name}, which lies unbuttoned and open, its two fronts parted down the middle with the tee's front and its print showing between them, the tee's sleeves folded out of sight under ${outer.name}`
+    : outer && inner.length
     ? `the tops nested as they are worn, as a stylist would lay them: ${inner.join(' and ')} under ${outer.name}, showing only ${inner.length > 1 ? 'their collars' : 'its collar'} at the neckline${printed ? ' and a strip of its plain hem below it, its print staying on the chest, covered' : ' and a strip of hem below it'}, not laid out on ${inner.length > 1 ? 'their' : 'its'} own, ${inner.length > 1 ? 'their' : 'its'} sleeves folded out of sight under ${outer.name}: none showing past its shoulders${layer(outer) === 'outerwear' ? `; ${outer.name} lies open` : ''}`
     : (has('top') || has('outerwear') || has('onepiece')) && 'the top across the top'
   const rows = [tops, has('bottom') && `bottoms below, the waistband just under the hem without covering it, laid straight with the legs pointing down${pieces.some((p) => p.category === 'bottom' && /stripe/i.test(`${p.name} ${p.tags.join(' ')}`)) ? '' : ', each leg one even colour from waistband to hem, the outside seams the same colour as the legs'}`,
