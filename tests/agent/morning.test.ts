@@ -2,7 +2,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { morningExtra, morningNote } from '@/lib/agent/morning'
+import { morningExtra, morningNote, savedWhen } from '@/lib/agent/morning'
+import { planToday } from '@/lib/today'
+import { localDate } from '@/lib/domain/dates'
 import { createLocalRepo } from '@/lib/db/local'
 import type { Repo } from '@/lib/db/repo'
 import { sampleCloset } from '@/lib/fixtures/sampleCloset'
@@ -23,10 +25,29 @@ describe('morningNote', () => {
     const send = vi.fn(async () => {})
     const m = await morningNote(repo, profile, { send })
     expect(m).toMatchObject({ role: 'assistant', channel: 'system', cards: [{ kind: 'outfit' }] })
-    expect(m!.text).toMatch(/^Morning\. .+: .+\./)
+    expect(m!.text).toMatch(/^Morning\. A fresh pick for today, .+: .+\./)
     expect(m!.text).toMatch(/Rain from 17:00/)
     expect(send).toHaveBeenCalledOnce()
     expect(await repo.listMessages('u1')).toHaveLength(1)
+  })
+
+  test('a look already saved for the day says so, and when, from the message that showed it', async () => {
+    await closet()
+    const today = localDate(profile.tz)
+    const p = await planToday(repo, { userId: 'u1', email: '', googleAccessToken: null }, { date: today })
+    if (!p.result.ok) throw new Error('no look')
+    const m = await morningNote(repo, profile, {})
+    expect(m!.text).toMatch(new RegExp(`^Morning\\. Going with the look already saved for today, ${p.result.outfit.title}: `))
+    expect((m!.cards[0] as { outfitId: string }).outfitId).toBe(p.result.outfit.id)
+  })
+
+  test('when a saved look was saved, in the owner’s zone', () => {
+    const tz = 'America/New_York', today = '2026-11-04'
+    expect(savedWhen(new Date('2026-11-04T01:30:00Z'), tz, today)).toBe('last night')
+    expect(savedWhen(new Date('2026-11-03T15:00:00Z'), tz, today)).toBe('yesterday')
+    expect(savedWhen(new Date('2026-11-04T10:00:00Z'), tz, today)).toBe('earlier today')
+    expect(savedWhen(new Date('2026-11-01T15:00:00Z'), tz, today)).toBe('on Sunday')
+    expect(savedWhen(new Date('2026-10-20T15:00:00Z'), tz, today)).toBeNull()
   })
 
   test('a second run the same day sends nothing', async () => {
