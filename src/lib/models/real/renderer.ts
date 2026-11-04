@@ -17,7 +17,12 @@ function colour(p: RenderPiece): string | null {
   const said = p.name.match(SHADE) ?? []
   return said.find((w) => !/^khaki$/i.test(w)) ?? said[0] ?? (p.colors.join(' and ') || null)
 }
-const describe = (p: RenderPiece) => [p.category, colour(p) && `colour: ${colour(p)}`, sleeves(p) && `${sleeves(p)} sleeves`, p.fit && `${p.fit} fit`, logo(p), p.tags.join(', ')].filter(Boolean).join('; ')
+/** Tags without the brand: a "Dockers" tag came back as a DOCKERS patch on the waistband, a label the photo doesn't show */
+const details = (p: RenderPiece) => {
+  const brand = (p.brand ?? '').toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+  return p.tags.filter((t) => !brand.some((w) => t.toLowerCase().includes(w))).join(', ')
+}
+const describe = (p: RenderPiece) => [p.category, colour(p) && `colour: ${colour(p)}`, sleeves(p) && `${sleeves(p)} sleeves`, p.fit && `${p.fit} fit`, logo(p), details(p)].filter(Boolean).join('; ')
 
 /** On a body, what goes over what: left to guess, the model gave a short-sleeved polo long red cuffs under a quarter-zip. */
 function worn(pieces: RenderPiece[]): string {
@@ -40,22 +45,28 @@ function worn(pieces: RenderPiece[]): string {
 }
 
 /** Where each piece lies. Left at "overlap slightly", the model laid a polo out whole above the quarter-zip and the trousers' waistband across the knit;
- *  nested but with nothing said about sleeves, the polo's short sleeves stuck out past the quarter-zip's shoulders. */
+ *  nested but with nothing said about sleeves, the polo's short sleeves stuck out past the quarter-zip's shoulders.
+ *  Whatever the framing words, the model fills about 94% of the picture's height, so full-length trousers ran off the
+ *  bottom in up to half the flat lays; folded once at the knee, as flat-lay stylists do, 0 of 8. */
 function layout(pieces: RenderPiece[]): string {
   const has = (c: string) => pieces.some((p) => p.category === c)
   const torso = insideOut(pieces)
   const outer = torso.at(-1)
   const inner = torso.slice(0, -1).map((p) => p.name)
+  // asked for a strip of hem, the model slid a chest print down into it so it would show
+  const printed = torso.slice(0, -1).some((p) => /graphic|print/i.test(`${p.name} ${p.tags.join(' ')}`))
   const tops = outer && inner.length
-    ? `the tops nested as they are worn, as a stylist would lay them: ${inner.join(' and ')} under ${outer.name}, showing only ${inner.length > 1 ? 'their collars' : 'its collar'} at the neckline and a strip of hem below it, not laid out on ${inner.length > 1 ? 'their' : 'its'} own, ${inner.length > 1 ? 'their' : 'its'} sleeves folded out of sight under ${outer.name}: none showing past its shoulders${layer(outer) === 'outerwear' ? `; ${outer.name} lies open` : ''}`
+    ? `the tops nested as they are worn, as a stylist would lay them: ${inner.join(' and ')} under ${outer.name}, showing only ${inner.length > 1 ? 'their collars' : 'its collar'} at the neckline${printed ? ', the hem tucked up out of sight so the print stays covered' : ' and a strip of hem below it'}, not laid out on ${inner.length > 1 ? 'their' : 'its'} own, ${inner.length > 1 ? 'their' : 'its'} sleeves folded out of sight under ${outer.name}: none showing past its shoulders${layer(outer) === 'outerwear' ? `; ${outer.name} lies open` : ''}`
     : (has('top') || has('outerwear') || has('onepiece')) && 'the top across the top'
-  const rows = [tops, has('bottom') && `bottoms below, the waistband just under the hem without covering it, laid straight with the legs pointing down${pieces.some((p) => p.category === 'bottom' && /stripe/i.test(`${p.name} ${p.tags.join(' ')}`)) ? '' : ', their outside seams the same colour as the legs with no stripe down the side'}`,
+  const rows = [tops, has('bottom') && `bottoms below, the waistband just under the hem without covering it, laid straight with the legs pointing down, folded once at the knee so the lower legs lie back over the thighs${pieces.some((p) => p.category === 'bottom' && /stripe/i.test(`${p.name} ${p.tags.join(' ')}`)) ? '' : ', each leg one even colour from waistband to hem, the outside seams the same colour as the legs'}`,
     has('shoes') && 'shoes at the bottom as a pair', has('accessory') && 'accessories to the side']
   return `Lay them out: ${rows.filter(Boolean).join(', ')}.${has('shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'}`
 }
 
-// a real label in the photo (IZOD) came back as made-up letters ("LEOD"), so labels are asked for blank
-const NO_TEXT = 'No added text or captions, and no readable lettering on labels: show no neck labels at all, the inside of every collar plain fabric.'
+// A real label in the photo (IZOD) came back as made-up letters ("LEOD"). Naming the label at all draws one: "show no neck
+// labels" and "a blank neck label" both came back lettered (a TOMMY HILFIGER label inside a plain shirt), so the neckline
+// is described as what it should be, without the word.
+const NO_TEXT = 'Inside every neckline is plain fabric, and waistbands are plain. No added text or captions.'
 
 const noShoes = (pieces: RenderPiece[]) => pieces.some((p) => p.category === 'shoes') ? '' : ' There are no shoes in this outfit: show no shoes.'
 
@@ -63,12 +74,16 @@ const noShoes = (pieces: RenderPiece[]) => pieces.some((p) => p.category === 'sh
 export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: RenderPiece[]): string {
   const first = mode === 'tryon' ? 2 : 1
   const list = renderOrder(pieces).map((p, i) => `Image ${i + first}: ${p.name} (${describe(p)})`).join('\n')
-  const keep = 'The names are the owner\'s own descriptions. Keep each piece as named and photographed: its sleeve length, collar, buttons, logos and fabric. Show each piece in its given colour, even if the photo\'s lighting makes it look different. Do not restyle or swap anything. Background left at the edges of a cutout (a strip of bed, wall or floor) is not part of the piece: do not draw it.'
+  const keep = [
+    'Each image shows one garment cut out of a photo: any scrap of bed, wall or floor left at its edges is not part of the garment.',
+    `The names are the owner's own descriptions. Copy each piece as named and photographed: its sleeve length, collar, buttons, fabric, and every print and logo exactly where it sits on the piece. A print on a layer that another piece covers stays hidden under it.`,
+    'Show each piece in its given colour, in neutral daylight, even if the photo\'s lighting makes it look different. Draw each piece exactly once. Do not restyle or swap anything.',
+  ].join(' ')
   if (mode === 'tryon') {
-    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo, plain light background, natural light. ${NO_TEXT}`
+    return `Image 1 is a person. Dress this exact person in exactly these ${pieces.length} pieces, keeping their face, body and pose:\n${list}${worn(pieces)}\n${keep} Replace all of the clothes they are wearing.${pieces.some((p) => p.category === 'shoes') ? '' : ' Keep the shoes they are already wearing.'} Full-length photo with the whole person inside the frame and space above the head and below the feet, plain light background, natural light. ${NO_TEXT}`
   }
   if (mode === 'mannequin') {
-    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} ${NO_TEXT}`
+    return `A full-length studio photograph of a featureless matte white mannequin (no face, no hair, no skin) with a build that suits these clothes, standing on a plain light background, dressed in exactly these ${pieces.length} pieces:\n${list}${worn(pieces)}\n${keep}${noShoes(pieces)} Camera straight on at waist height, the whole mannequin inside the frame with space above its head and below its feet. ${NO_TEXT}`
   }
   return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Shot from far enough away that the whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides: nothing cut off at an edge. Nothing else in frame: no people, props or extra clothing. ${NO_TEXT}`
 }
@@ -76,12 +91,15 @@ export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: Re
 export const realRenderer: Renderer = {
   async render({ mode, pieces, personPhotoUrl }) {
     const ordered = renderOrder(pieces)
-    const sources = mode === 'tryon' && personPhotoUrl ? [personPhotoUrl, ...ordered.map((p) => p.cutoutUrl)] : ordered.map((p) => p.cutoutUrl)
-    const images = await Promise.all(sources.slice(0, 10).map(async (u) => ({ image_url: await toDataUrl(u, 1024) })))
+    const person = mode === 'tryon' && personPhotoUrl ? [await toDataUrl(personPhotoUrl, 1024)] : []
+    // cutouts go as transparent PNGs: put on white, each piece filled its image and the model drew them bigger, cropping the trousers
+    const images = [...person, ...await Promise.all(ordered.map((p) => toDataUrl(p.cutoutUrl, 1024)))].slice(0, 10).map((u) => ({ image_url: u }))
     const res = await metaFetch('renderer', '/images/edits', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && !personPhotoUrl ? 'flatlay' : mode, ordered), images, n: 1,
-        size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low' }),
+        // high (several passes, same price) cropped as many trousers as low in a before/after on 8 flat lays, and is slower. Searching would bring in outside pictures.
+        size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low',
+        tool_enablement: { enable_web_search: false, enable_image_search: false, enable_shell: false } }),
     }, RENDER_TIMEOUT_MS)
     const j = (await res.json()) as { data?: { b64_json?: string; url?: string }[] }
     const d = j.data?.[0]

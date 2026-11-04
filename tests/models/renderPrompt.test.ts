@@ -32,8 +32,9 @@ test('flat lay: with no shoes it says so and never asks for them', () => {
   expect(renderPrompt('flatlay', [quarterZip, jeans, boots])).toMatch(/shoes at the bottom/i)
 })
 
-test('flat lay: trousers are laid straight, legs down', () => {
-  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/legs pointing down/i)
+test('flat lay: trousers are laid straight, legs down, folded once at the knee so the outfit fits the frame', () => {
+  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/legs pointing down, folded once at the knee so the lower legs lie back over the thighs/i)
+  expect(renderPrompt('mannequin', [quarterZip, jeans])).not.toMatch(/folded once/)
 })
 
 test('try-on: the person is image 1 and the pieces follow it', () => {
@@ -82,7 +83,7 @@ test('brand reaches the prompt only as a logo the tags mention; no added text', 
   expect(renderPrompt('flatlay', [quarterZip])).not.toContain('Polo Ralph Lauren')
   const logo = { ...quarterZip, tags: ['cotton', 'embroidered logo'] }
   expect(renderPrompt('mannequin', [logo, jeans])).toContain('(top; colour: Heather blue; long sleeves; classic fit; logo: Polo Ralph Lauren; cotton, embroidered logo)')
-  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/no added text or captions, and no readable lettering on labels/i)
+  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/Inside every neckline is plain fabric, and waistbands are plain\. No added text or captions\./)
 })
 
 const oxford = { cutoutUrl: '/ox.png', name: 'White oxford shirt', category: 'top' as const, subcategory: 'shirt' as const, colors: ['white'], tags: ['button-down collar'], brand: null, fit: null }
@@ -95,7 +96,7 @@ test('mannequin and try-on: collars out over the knit, the shirt tucked or a sho
     expect(p).toMatch(/White oxford shirt is tucked in or shows a short hem/)
     expect(p).toMatch(/Navy wool overcoat is worn open so the layers show/)
   }
-  expect(renderPrompt('mannequin', [quarterZip, jeans])).not.toMatch(/neckline|worn open/)
+  expect(renderPrompt('mannequin', [quarterZip, jeans])).not.toMatch(/sit outside its neckline|worn open/)
 })
 
 test('mannequin build suits the clothes; try-on replaces all their clothes', () => {
@@ -128,15 +129,37 @@ test('flat lay: inner layers keep their sleeves out of sight under the outer pie
   expect(p).toMatch(/sleeves folded out of sight under Heather blue quarter-zip: none showing past its shoulders/)
 })
 
-test('every mode: background left at a cutout’s edges isn’t drawn, and neck labels are blank', () => {
+test('every mode: room left at a cutout’s edges isn’t the garment; necklines plain without naming a label; each piece once', () => {
   for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) {
     const p = renderPrompt(mode, [quarterZip, jeans])
-    expect(p).toMatch(/background left at the edges of a cutout .* is not part of the piece/i)
-    expect(p).toMatch(/show no neck labels at all/i)
+    expect(p).toMatch(/each image shows one garment cut out of a photo: any scrap of bed, wall or floor left at its edges is not part of the garment/i)
+    expect(p).toMatch(/Inside every neckline is plain fabric, and waistbands are plain/)
+    // naming a label at all drew one
+    expect(p).not.toMatch(/label/i)
+    expect(p).toMatch(/draw each piece exactly once/i)
   }
 })
 
-test('flat lay: trousers get plain side seams unless they say they’re striped', () => {
-  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/no stripe down the side/)
-  expect(renderPrompt('flatlay', [quarterZip, { ...jeans, name: 'Black track pants', tags: ['side stripe'] }])).not.toMatch(/no stripe down the side/)
+test('every mode: prints and logos stay where they are on the piece, and one under another layer stays hidden', () => {
+  for (const mode of ['flatlay', 'mannequin', 'tryon'] as const) {
+    expect(renderPrompt(mode, [quarterZip, jeans])).toMatch(/every print and logo exactly where it sits on the piece\. A print on a layer that another piece covers stays hidden under it/)
+  }
+})
+
+test('a tag naming the brand stays out of the details: it came back as a made-up waistband patch', () => {
+  const dockers = { ...jeans, name: 'Navy blue docker pants', brand: 'Dockers', tags: ['Dockers', 'flat front', 'straight leg'] }
+  expect(renderPrompt('flatlay', [quarterZip, dockers])).toContain('Image 2: Navy blue docker pants (bottom; colour: Navy blue; slim fit; flat front, straight leg)')
+})
+
+test('framing: the flat lay fits with paper on all four sides; the mannequin and the person are whole with space above and below', () => {
+  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides/)
+  expect(renderPrompt('mannequin', [quarterZip, jeans])).toMatch(/whole mannequin inside the frame with space above its head and below its feet/)
+  expect(renderPrompt('tryon', [quarterZip, jeans])).toMatch(/whole person inside the frame/)
+})
+
+test('flat lay: trousers get plain side seams, said without naming a stripe, unless they say they’re striped', () => {
+  const p = renderPrompt('flatlay', [quarterZip, jeans])
+  expect(p).toMatch(/each leg one even colour from waistband to hem, the outside seams the same colour as the legs/)
+  expect(p).not.toMatch(/stripe/i)
+  expect(renderPrompt('flatlay', [quarterZip, { ...jeans, name: 'Black track pants', tags: ['side stripe'] }])).not.toMatch(/outside seams the same colour/)
 })
