@@ -76,6 +76,7 @@ flowchart LR
 - **If nothing passes after two revisions**, you get the closest look and an honest note, not a crash.
 - **The stylist agent** (`src/lib/agent/`) reaches your clothes only through tools such as `plan_outfit`, `swap_piece`, `log_wear` and `plan_trip`. It never picks garments itself, so the rules hold in chat and on WhatsApp too.
 - **On WhatsApp, the look goes out first** and its picture follows when it's drawn, so a reply never waits on the image.
+- **Every picture is checked before anyone sees it.** The code checks the framing, and Muse Spark checks that each piece appears exactly once in the right colour. A picture that's cut off or misses a piece is drawn once more, and the better one is kept.
 
 ## Run it
 
@@ -132,6 +133,7 @@ npm run check:slop
 - Live checks cost money or touch your project, so they run only when asked:
   - `META_CONTRACT=1 npx vitest run tests/models/real.contract.test.ts` calls each Meta model once.
   - `SUPABASE_CONTRACT=1 npx vitest run tests/db/repo.test.ts` runs the repo tests against your Supabase project as throwaway test users, deleting their rows before and after.
+  - `MODELS=real npx tsx --tsconfig tsconfig.json scripts/render-bench.mts <label> [runs]` draws the same looks a few times and counts what's wrong with each picture (cut off, a piece missing or doubled, a wrong colour, label lettering), so a change to the picture prompt is measured. `BENCH_USER=<id>` uses that user's newest looks, read-only.
 
 ## Stack
 

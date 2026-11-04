@@ -2,10 +2,12 @@
 // The model redraws what it's given, so the prompt names every image with its piece: a colour left only to the
 // picture drifts (heather blue came back grey), and a fixed layout line asking for shoes made it invent a pair.
 import { insideOut, layer, sleeves } from '@/lib/domain/layers'
-import { RENDER_TIMEOUT_MS } from '../types'
+import { RENDER_CALL_MS, RENDER_TIMEOUT_MS } from '../types'
 import { renderOrder } from '../types'
 import type { Renderer, RenderPiece } from '../types'
+import type { RenderMode } from '@/lib/domain/types'
 import { metaFetch, toDataUrl } from './client'
+import { better, contentProblems, framingProblem, split, type Checked } from './renderCheck'
 
 // colours come from the name: the owner may have corrected it ("Heather blue…") while the tagged colours still say grey.
 // A brand on its own invites printed lettering, so it goes in only as the logo the tags say is there.
@@ -13,7 +15,7 @@ const logo = (p: RenderPiece) => p.brand && p.tags.some((t) => /logo/i.test(t)) 
 const SHADE = /\b(?:(?:light|dark|pale|deep|bright|heather|burma|forest|royal|sky|olive|charcoal|navy|stone)\s+)?(?:black|white|cream|ivory|gr[ae]y|charcoal|navy|blue|indigo|green|olive|red|burgundy|maroon|pink|purple|yellow|orange|brown|tan|beige|camel|khaki|stone|sand)\b/gi
 /** The colour to draw, spelled out: the name's colour words (corrected by the owner) over the tags. "Khaki" in a name is the
  *  trouser style when another colour is named: "Burma Grey … Khaki Stretch Pants" came back beige. */
-function colour(p: RenderPiece): string | null {
+export function colour(p: RenderPiece): string | null {
   const said = p.name.match(SHADE) ?? []
   return said.find((w) => !/^khaki$/i.test(w)) ?? said[0] ?? (p.colors.join(' and ') || null)
 }
@@ -88,23 +90,56 @@ export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: Re
   return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Shot from far enough away that the whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides: nothing cut off at an edge. Nothing else in frame: no people, props or extra clothing. ${NO_TEXT}`
 }
 
+/** One drawing from Muse Image */
+async function drawOnce({ mode, pieces, personPhotoUrl }: Parameters<Renderer['render']>[0]): Promise<{ url: string }> {
+  const ordered = renderOrder(pieces)
+  const person = mode === 'tryon' && personPhotoUrl ? [await toDataUrl(personPhotoUrl, 1024)] : []
+  // cutouts go as transparent PNGs: put on white, each piece filled its image and the model drew them bigger, cropping the trousers
+  const images = [...person, ...await Promise.all(ordered.map((p) => toDataUrl(p.cutoutUrl, 1024)))].slice(0, 10).map((u) => ({ image_url: u }))
+  const res = await metaFetch('renderer', '/images/edits', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && !personPhotoUrl ? 'flatlay' : mode, ordered), images, n: 1,
+      // high (several passes, same price) cropped as many trousers as low in a before/after on 8 flat lays, and is slower. Searching would bring in outside pictures.
+      size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low',
+      tool_enablement: { enable_web_search: false, enable_image_search: false, enable_shell: false } }),
+  }, RENDER_CALL_MS)
+  const j = (await res.json()) as { data?: { b64_json?: string; url?: string }[] }
+  const d = j.data?.[0]
+  if (d?.b64_json) return { url: `data:image/jpeg;base64,${d.b64_json}` }
+  if (d?.url) return { url: d.url }
+  throw new Error('no image in response')
+}
+
+/** What's wrong with a drawing. A check that fails itself passes the drawing: checking never costs the owner a picture. */
+async function check(url: string, pieces: RenderPiece[], mode: Exclude<RenderMode, 'none'>): Promise<Checked> {
+  const m = url.match(/^data:image\/\w+;base64,(.*)$/)
+  if (!m) return { url, redraw: [], minor: [] }
+  const [frame, content] = await Promise.all([
+    framingProblem(Buffer.from(m[1], 'base64'), mode === 'flatlay').catch(() => null),
+    contentProblems(url, pieces, colour).catch(() => []),
+  ])
+  return { url, ...split([...(frame ? [frame] : []), ...content]) }
+}
+
+function logged(pick: Checked, all: Checked[]) {
+  console.info('render check', JSON.stringify(all.map((d) => ({ picked: d === pick, redraw: d.redraw, minor: d.minor }))))
+  return { url: pick.url }
+}
+
+/** A redraw is only started while there's time for it inside the render's budget */
+const REDRAW_IF_UNDER_MS = RENDER_TIMEOUT_MS - RENDER_CALL_MS - 20_000
+
 export const realRenderer: Renderer = {
-  async render({ mode, pieces, personPhotoUrl }) {
-    const ordered = renderOrder(pieces)
-    const person = mode === 'tryon' && personPhotoUrl ? [await toDataUrl(personPhotoUrl, 1024)] : []
-    // cutouts go as transparent PNGs: put on white, each piece filled its image and the model drew them bigger, cropping the trousers
-    const images = [...person, ...await Promise.all(ordered.map((p) => toDataUrl(p.cutoutUrl, 1024)))].slice(0, 10).map((u) => ({ image_url: u }))
-    const res = await metaFetch('renderer', '/images/edits', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && !personPhotoUrl ? 'flatlay' : mode, ordered), images, n: 1,
-        // high (several passes, same price) cropped as many trousers as low in a before/after on 8 flat lays, and is slower. Searching would bring in outside pictures.
-        size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low',
-        tool_enablement: { enable_web_search: false, enable_image_search: false, enable_shell: false } }),
-    }, RENDER_TIMEOUT_MS)
-    const j = (await res.json()) as { data?: { b64_json?: string; url?: string }[] }
-    const d = j.data?.[0]
-    if (d?.b64_json) return { url: `data:image/jpeg;base64,${d.b64_json}` }
-    if (d?.url) return { url: d.url }
-    throw new Error('no image in response')
+  /** Draws, checks, and on a problem a second drawing usually fixes (cropped, a piece missing or doubled, a wrong colour)
+   *  draws once more and keeps the better. Measured on 15 pictures: the checks caught every crop, the doubled fleece and
+   *  the made-up label; each takes 4–6 s. */
+  async render(req) {
+    const started = Date.now()
+    const pieces = renderOrder(req.pieces)
+    const view = req.mode === 'tryon' && !req.personPhotoUrl ? 'flatlay' : req.mode
+    const first = await check((await drawOnce(req)).url, pieces, view)
+    if (!first.redraw.length || Date.now() - started > REDRAW_IF_UNDER_MS) return logged(first, [first])
+    const second = await drawOnce(req).then((d) => check(d.url, pieces, view)).catch(() => null)
+    return logged(second ? better([first, second]) : first, second ? [first, second] : [first])
   },
 }

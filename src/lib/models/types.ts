@@ -9,7 +9,10 @@ export class ModelError extends Error {
 }
 
 export const TIMEOUT_MS = 30_000
-export const RENDER_TIMEOUT_MS = 45_000
+/** One drawing call */
+export const RENDER_CALL_MS = 45_000
+/** A whole render: a drawing, its check, and one redraw when the check fails */
+export const RENDER_TIMEOUT_MS = 120_000
 
 export function withTimeout<T>(p: Promise<T>, ms: number, adapter: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>
