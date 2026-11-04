@@ -3,6 +3,8 @@ import type { Garment } from '@/lib/domain/types'
 import type { Rule, Violation } from './types'
 import { piecesOf, type RuleContext } from './types'
 
+const GRAPHIC = /graphic|print|slogan|logo/i
+
 const hasCleanShoes = (ctx: RuleContext) => [...ctx.garments.values()].some((g) => g.category === 'shoes' && g.status === 'clean')
 
 export const completeness: Rule = {
@@ -27,6 +29,11 @@ export const completeness: Rule = {
       v.push({ ruleId: 'completeness', garmentIds: sorted.map((g) => g.id),
         message: `${names.slice(0, -1).join(', ')} and ${names.at(-1)} don't go on together — ${names.length === 2 ? 'one or the other' : 'pick one'}` })
     }
+    // a dress shirt over a graphic tee: no style guide does it, and the owner said so. A plain tee under one is an undershirt
+    const dress = piecesOf(c, ctx).find((g) => g.subcategory === 'dress_shirt')
+    const graphic = piecesOf(c, ctx).find((g) => layer(g) === 'base' && GRAPHIC.test(`${g.name} ${g.tags.join(' ')}`) && !/\bpolo\b/i.test(g.name))
+    if (dress && graphic) v.push({ ruleId: 'completeness', garmentIds: [dress.id, graphic.id],
+      message: `${dress.name} doesn’t go over ${graphic.name} — a dress shirt goes over a plain tee or on its own` })
     // shoes only once the closet has a clean pair: a closet of tops and bottoms still gets outfits
     if (!cats.has('shoes') && hasCleanShoes(ctx)) v.push({ ruleId: 'completeness', garmentIds: [], message: 'Missing shoes' })
     return v

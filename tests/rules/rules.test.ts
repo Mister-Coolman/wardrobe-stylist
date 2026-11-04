@@ -67,6 +67,24 @@ describe('completeness', () => {
   })
 })
 
+describe('a dress shirt never goes over a graphic tee', () => {
+  const gs = [...wardrobe,
+    garment({ id: 'graphic', name: 'Blue-Grey graphic tee', category: 'top', subcategory: 'tshirt', tags: ['graphic print'] }),
+    garment({ id: 'plainTee', name: 'White crew tee', category: 'top', subcategory: 'tshirt', tags: ['cotton'] }),
+    garment({ id: 'flannel', name: 'Red flannel overshirt', category: 'top', subcategory: 'shirt', tags: ['flannel'] })]
+  const check = (...ids: string[]) => completeness.check(cand(...ids), ctx({}, gs))
+  test('a dress shirt over a graphic tee is rejected, naming both', () => {
+    const v = check('oxford', 'graphic', 'jeans', 'sneakers')
+    expect(v).toHaveLength(1)
+    expect(v[0].garmentIds.sort()).toEqual(['graphic', 'oxford'])
+    expect(v[0].message).toBe('White oxford shirt doesn’t go over Blue-Grey graphic tee — a dress shirt goes over a plain tee or on its own')
+  })
+  test('a plain tee under a dress shirt, or a graphic tee under a flannel, is fine', () => {
+    expect(check('oxford', 'plainTee', 'jeans', 'sneakers')).toEqual([])
+    expect(check('flannel', 'graphic', 'jeans', 'sneakers')).toEqual([])
+  })
+})
+
 describe('formality', () => {
   test('jeans at a smart event (required 4) is a violation naming the jeans', () => {
     const v = formality.check(cand('oxford', 'jeans', 'loafers'), ctx({ requiredFormality: 4 }))

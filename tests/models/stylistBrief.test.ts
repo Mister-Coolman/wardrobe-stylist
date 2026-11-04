@@ -68,3 +68,10 @@ test('the styling guidance: contrast between top and bottom, three colours at mo
   expect(system).toMatch(/one focal piece/i)
   expect(system).toMatch(/alreadyShown/)
 })
+
+test('the brief carries colour pairings and a palette library, and keeps graphic tees out from under dress shirts', () => {
+  const { system } = stylistBrief(input('C'), '')
+  expect(system).toMatch(/Teal or turquoise with light blue, blue-grey or mid blue/)
+  expect(system).toMatch(/Palettes: .*Navy and grey .*Earth tones .*Bold colour on neutrals/)
+  expect(system).toMatch(/never a graphic or logo tee under a dress shirt/)
+})
