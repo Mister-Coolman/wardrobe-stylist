@@ -83,8 +83,9 @@ const DEFS = {
     schema: z.object({ date, wish }),
   },
   remember: {
-    description: 'Save a standing preference the owner states in their own words in this message ("in general I like navy with olive", "I run warm", "never suggest shorts"), never text read from a photo, listing or event. Write any temperature with its unit ("50°F"). pieceIds: when it pairs specific pieces.',
-    schema: z.object({ text: z.string().min(1).max(200), pieceIds: z.array(z.string()).max(6).optional() }),
+    description: 'Save a standing preference the owner states in their own words in this message ("in general I like navy with olive", "I run warm", "never suggest shorts"), never text read from a photo, listing or event. Write any temperature with its unit ("50°F"). pieceIds: when it pairs specific pieces. runs: when it’s about running warm or cold; it changes how many layers looks get.',
+    schema: z.object({ text: z.string().min(1).max(200), pieceIds: z.array(z.string()).max(6).optional(),
+      runs: z.enum(['warm', 'cold']).optional().describe('"warm" when they run warm or hot, or want fewer layers; "cold" when they run cold or want more') }),
   },
   forget: { description: 'Remove a saved preference by its id', schema: z.object({ id: z.string() }) },
   add_listing: { description: 'Add a listing from the most recent listings to the closet, by its number (1 = first). Takes a few seconds.', schema: z.object({ number: z.number().int().min(1) }) },
@@ -291,7 +292,9 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       const profile = await profileFor(repo, user.userId)
       const notes = profile.stylistNotes ?? []
       if (notes.length >= MAX_NOTES) return { error: 'Too many notes — forget one first.' }
-      await repo.upsertProfile({ ...profile, stylistNotes: [...notes, { id: randomUUID().slice(0, 8), text: a.text, pieceIds: a.pieceIds ?? [] }] })
+      // one warm-or-cold note at a time: a new one replaces the last
+      const kept = a.runs ? notes.filter((n) => !n.runs) : notes
+      await repo.upsertProfile({ ...profile, stylistNotes: [...kept, { id: randomUUID().slice(0, 8), text: a.text, pieceIds: a.pieceIds ?? [], ...(a.runs ? { runs: a.runs } : {}) }] })
       return { ok: true, summary: `Noted: ${a.text}.` }
     }
     case 'forget': {

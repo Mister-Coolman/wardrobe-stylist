@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { layer } from '@/lib/domain/layers'
 import type { Candidate, Garment, Level, TempUnit } from '@/lib/domain/types'
-import { warmestPossible, warmthBand } from '@/lib/rules/weather'
+import { warmestPossible, warmthBandFor } from '@/lib/rules/weather'
 import { labelled } from '@/lib/ui/temperature'
 import { colourGuide } from '@/lib/stylist/palettes'
 import { GarmentTagsSchema, StyleProfileSchema } from '../schemas'
@@ -20,7 +20,7 @@ const rules = (unit: TempUnit) => labelled(`You are a sharp personal stylist. Bu
 Every look needs a top and a bottom (or a one-piece), plus shoes when the wardrobe has any; add outerwear when it's cold or wet.
 One piece per layer. Tops layer by subcategory, inside to out: at most one tshirt (tees, polos), one shirt (shirt, dress_shirt or any other top), one sweater; and only one bottom, one pair of shoes and one outerwear. Layer only what really layers: a tee under an open casual shirt (flannel, overshirt, chambray, camp collar) or a knit, never a graphic or logo tee under a dress shirt (a dress shirt goes over a plain tee or on its own); a polo only under a knit, collar out; a button shirt under a crewneck, V-neck or cardigan, collar out; nothing collared under a hoodie. Never add a layer just to make the warmth add up.
 Dress code is a 1–5 level (1 sporty · 2 casual · 3 smart casual · 4 smart · 5 formal); the least formal of the look's top, bottom, one-piece and shoes must be at least the required level and not more than two levels above. Casual is the default: on a sporty or casual day, unless ownerWish asks for smarter, build from casual pieces (tees, polos, hoodies, knits, jeans, chinos) and keep dress shirts and other smart (4+) tops and bottoms for days that call for them.
-Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (22° and up → 1–4, 15° to 21° → 2–6, 8° to 14° → 4–8, under 8° → 7+). When day.cold is set, follow it instead of the warmth table. Dress for the whole day: when the high is much warmer than the low, put the extra warmth in a layer that comes off (an open shirt, cardigan, zip or jacket). Wind over ${unit === 'F' ? '15 mph' : '25 km/h'} feels colder: aim for the warm end. At 50%+ rain every piece must be rain-safe.
+Warmth: sum of top/one-piece/outerwear warmth should suit the day's low (22° and up → 1–4, 15° to 21° → 2–6, 8° to 14° → 4–8, under 8° → 7+). When day.cold or day.warmth is set, follow it instead of the warmth table. Dress for the whole day: when the high is much warmer than the low, put the extra warmth in a layer that comes off (an open shirt, cardigan, zip or jacket). Wind over ${unit === 'F' ? '15 mph' : '25 km/h'} feels colder: aim for the warm end. At 50%+ rain every piece must be rain-safe.
 Colour: build on neutrals (navy, grey, olive, tan, white, black); three colours at most across the look, neutrals included (two is often cleanest): one leads (usually the bottom or the outer layer), one supports, at most one small accent. At most one bright colour or bold pattern per look; a pattern goes with solids, or with a second pattern of clearly different scale. Brown or tan shoes with navy, grey and olive; black shoes with black and charcoal.
 Contrast: what meets at the waist should differ clearly in lightness; a lighter top over a darker bottom is the safe default. Avoid near-matches that look like a failed match: a navy top on dark indigo jeans, medium blue with medium grey, olive with khaki, two blacks that differ. If a look needs one, break it with a lighter layer or a pattern between them. Tone-on-tone is fine on purpose: clearly different shades of one colour, with different textures.
 ${colourGuide()}
@@ -54,11 +54,13 @@ function dayBrief(input: ProposeInput) {
   const d = input.day, w = d.weather, unit = input.unit ?? 'C'
   const wind = unit === 'F' ? `${Math.round(w.windKph * 0.621)} mph` : `${w.windKph} km/h`
   // told up front, a closet that can't reach the day's band doesn't burn a revision round finding out
-  const cold = warmestPossible({ garments: new Map(input.wardrobe.map((g) => [g.id, g])) }) < warmthBand(w.tempLowC)[0]
+  const [lo, hi] = warmthBandFor(w, input.runs)
+  const cold = warmestPossible({ garments: new Map(input.wardrobe.map((g) => [g.id, g])) }) < lo
   return {
     date: d.date, requiredFormality: d.requiredFormality,
     weather: labelled(`${w.tempLowC}° to ${w.tempHighC}°, ${w.rainProbability}% rain, wind ${wind}, ${w.summary}`, unit),
     ...(cold ? { cold: COLD } : {}),
+    ...(input.runs && !cold ? { warmth: `The owner runs ${input.runs}: today's total warmth should be ${lo} to ${Number.isFinite(hi) ? hi : `${lo} or more`}${input.runs === 'warm' && lo === 1 ? ', so one layer is enough' : ''}.` } : {}),
     events: d.events.map((e) => `${e.allDay ? 'all day' : e.start ?? 'sometime'} ${e.title}${e.formality ? ` (dress ${e.formality})` : ''}`),
     ...(input.trip ? { alreadyWornThisTrip: input.trip.counts } : {}),
     ...(input.styleProfile ? { style: input.styleProfile } : {}),

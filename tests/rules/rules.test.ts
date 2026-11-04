@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest'
 import { completeness } from '@/lib/rules/completeness'
 import { formality } from '@/lib/rules/formality'
-import { weather } from '@/lib/rules/weather'
+import { runsOf, warmthBandFor, weather } from '@/lib/rules/weather'
 import { availability } from '@/lib/rules/availability'
 import { dailyRules, runRules } from '@/lib/rules/registry'
-import { cand, ctx, event, garment, wardrobe, weather as wx } from '../fixtures/wardrobe'
+import { cand, ctx, event, garment, profile, wardrobe, weather as wx } from '../fixtures/wardrobe'
 
 describe('completeness', () => {
   test('missing shoes is a violation', () => {
@@ -106,6 +106,34 @@ describe('formality', () => {
     expect(formality.score!(cand('oxford', 'jeans', 'sneakers'), casual)).toBe(-1)
     expect(formality.score!(cand('oxford', 'trousers', 'sneakers'), casual)).toBe(-2)
     expect(formality.score!(cand('oxford', 'trousers', 'loafers'), ctx({ requiredFormality: 4 }))).toBe(0)
+  })
+})
+
+describe('runs warm or cold', () => {
+  const gs = [...wardrobe,
+    garment({ id: 'polo', name: 'Navy pique polo', category: 'top', subcategory: 'tshirt', warmth: 1 }),
+    garment({ id: 'zip', name: 'Heather blue quarter-zip', category: 'top', subcategory: 'sweater', warmth: 3 })]
+  const owner = (runs?: 'warm' | 'cold') => ({ ...profile, stylistNotes: runs ? [{ id: 'n1', text: `I run ${runs}`, pieceIds: [], runs }] : [] })
+  // a 70°F afternoon after a 50°F morning
+  const mild = (runs?: 'warm' | 'cold') => ({ ...ctx({ weather: wx({ tempLowC: 10, tempHighC: 21 }) }, gs), profile: owner(runs) })
+  test('as told, the morning low decides: a polo on its own is too light', () =>
+    expect(weather.check(cand('polo', 'jeans', 'sneakers'), mild())).toHaveLength(1))
+  test('running warm, one layer does from 14° (57°F) by day, and a quarter-zip on a 21° afternoon is too much', () => {
+    expect(weather.check(cand('polo', 'jeans', 'sneakers'), mild('warm'))).toEqual([])
+    expect(weather.check(cand('polo', 'zip', 'jeans', 'sneakers'), mild('warm')).map((v) => v.message)).toEqual(['Too warm for a high of 21° when you run warm'])
+  })
+  test('running warm on a cold day still layers, a little less than usual', () => {
+    const cold = { ...ctx({ weather: wx({ tempLowC: 4, tempHighC: 9 }) }, gs), profile: owner('warm') }
+    expect(warmthBandFor(cold.day.weather, 'warm')).toEqual([4, 8])
+    expect(weather.check(cand('polo', 'jeans', 'sneakers'), cold)).toHaveLength(1)
+  })
+  test('running cold adds a layer a few degrees sooner', () => {
+    expect(warmthBandFor(wx({ tempLowC: 16, tempHighC: 24 }), undefined)).toEqual([2, 6])
+    expect(warmthBandFor(wx({ tempLowC: 16, tempHighC: 24 }), 'cold')).toEqual([4, 8])
+  })
+  test('the latest note that says so decides', () => {
+    expect(runsOf({ ...profile, stylistNotes: [{ id: 'a', text: 'I run cold', pieceIds: [], runs: 'cold' }, { id: 'b', text: 'navy with olive', pieceIds: [] }, { id: 'c', text: 'I run warm', pieceIds: [], runs: 'warm' }] })).toBe('warm')
+    expect(runsOf(profile)).toBeUndefined()
   })
 })
 

@@ -57,7 +57,7 @@ test('a cold day the closet can’t reach says so up front, so no round is spent
   const noCoat = wardrobe.filter((g) => g.category !== 'outerwear')
   expect(brief({ wardrobe: noCoat }).day.cold).toMatch(/coat would help/)
   expect(brief().day).not.toHaveProperty('cold')
-  expect(stylistBrief(input('F'), '').system).toMatch(/When day\.cold is set, follow it instead of the warmth table/)
+  expect(stylistBrief(input('F'), '').system).toMatch(/When day\.cold or day\.warmth is set, follow it instead of the warmth table/)
 })
 
 test('the styling guidance: contrast between top and bottom, three colours at most, texture, one focal piece, rotation', () => {
@@ -74,4 +74,10 @@ test('the brief carries colour pairings and a palette library, and keeps graphic
   expect(system).toMatch(/Teal or turquoise with light blue, blue-grey or mid blue/)
   expect(system).toMatch(/Palettes: .*Navy and grey .*Earth tones .*Bold colour on neutrals/)
   expect(system).toMatch(/never a graphic or logo tee under a dress shirt/)
+})
+
+test('an owner who runs warm is told one layer is enough on a mild day; the warmth line is absent otherwise', () => {
+  const mild = { ...input('F'), day: day({ weather: weather({ tempLowC: 10, tempHighC: 21 }) }) }
+  expect(stylistBrief({ ...mild, runs: 'warm' }, '').text).toMatch(/runs warm: today's total warmth should be 1 to 3, so one layer is enough/)
+  expect(stylistBrief(mild, '').text).not.toMatch(/runs warm/)
 })

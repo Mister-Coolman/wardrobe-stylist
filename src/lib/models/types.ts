@@ -53,6 +53,8 @@ export interface ProposeInput {
   wish?: string; referenceImageUrl?: string
   /** the owner's temperature unit: what the model is shown, so its reasons read right */
   unit?: TempUnit
+  /** whether the owner runs warm or cold, which moves the day's warmth band */
+  runs?: 'warm' | 'cold'
   /** the owner's standing preferences ("navy with olive", "I run warm") */
   notes?: string[]
 }

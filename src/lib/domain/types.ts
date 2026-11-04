@@ -38,7 +38,8 @@ export interface Profile {
   whatsappId?: string | null; whatsappLinkCode?: string | null; whatsappLinkExpires?: string | null
 }
 
-export interface StylistNote { id: string; text: string; pieceIds: string[] }
+/** runs: set when the note says the owner runs warm or cold; the weather check reads it */
+export interface StylistNote { id: string; text: string; pieceIds: string[]; runs?: 'warm' | 'cold' }
 
 /** What a stylist message shows besides its text. Card buttons just send a message, so they work the same on WhatsApp. */
 export type Card =

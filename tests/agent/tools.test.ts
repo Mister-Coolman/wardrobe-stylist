@@ -31,6 +31,16 @@ const call = (name: string, args: object = {}) => dispatchTool(name, JSON.string
 const outfitOf = (c: Card | undefined) => { if (c?.kind !== 'outfit') throw new Error(`not an outfit card: ${c?.kind}`); return c }
 const named = async (re: RegExp) => (await repo.listGarments('u1')).find((g) => re.test(g.name))!
 
+describe('runs warm or cold', () => {
+  test('"I run warm" is saved as a note the weather check reads; saying "I run cold" later replaces it', async () => {
+    await call('remember', { text: 'Runs warm: one layer from 57°F', runs: 'warm' })
+    await call('remember', { text: 'Likes navy with olive' })
+    await call('remember', { text: 'Runs cold after all', runs: 'cold' })
+    const notes = (await repo.getProfile('u1'))!.stylistNotes!
+    expect(notes.map((n) => [n.text, n.runs])).toEqual([['Likes navy with olive', undefined], ['Runs cold after all', 'cold']])
+  })
+})
+
 describe('look tools', () => {
   test('a new day’s look isn’t the one planned for any of the last few days, worn or not', async () => {
     const d = '2026-11-01', ids: string[] = []

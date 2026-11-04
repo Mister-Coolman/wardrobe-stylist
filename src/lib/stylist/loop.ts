@@ -5,6 +5,7 @@ import { ModelError } from '@/lib/models/types'
 import type { Models, ProposeInput } from '@/lib/models/types'
 import { CandidateSchema } from '@/lib/models/schemas'
 import { dailyRules, runRules } from '@/lib/rules/registry'
+import { runsOf } from '@/lib/rules/weather'
 import type { DayContext, Rule, RuleContext, TripUsage, Violation } from '@/lib/rules/types'
 
 export interface PlanOutfitInput {
@@ -53,7 +54,7 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
   const ctx: RuleContext = { garments: new Map(wardrobe.map((g) => [g.id, g])), day: input.day, profile: input.profile, trip: input.trip, poll: input.poll }
   const base: ProposeInput = { day: input.day, wardrobe, count: CANDIDATES, styleProfile: input.profile.styleProfile, avoidOutfits: input.avoidOutfits, trip: input.trip,
     keep: input.keep, drop: input.drop, wish: input.wish, referenceImageUrl: input.referenceImageUrl, unit: unitFor(input.profile),
-    notes: input.profile.stylistNotes?.length ? input.profile.stylistNotes.map((n) => n.text) : undefined }
+    notes: input.profile.stylistNotes?.length ? input.profile.stylistNotes.map((n) => n.text) : undefined, runs: runsOf(input.profile) }
   // a trip only asks for variety: a long trip on a small closet has to repeat looks
   const shown = new Set(input.trip ? [] : (input.avoidOutfits ?? []).map(setKey))
   const revisionLog: RevisionEntry[] = []
