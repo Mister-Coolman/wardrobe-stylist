@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { Repo } from '@/lib/db/repo'
 import type { Card, Garment, Level, Message, Outfit } from '@/lib/domain/types'
 import type { Product } from '@/lib/shop/search'
-import { localDate } from '@/lib/domain/dates'
+import { addDays, localDate, localTime } from '@/lib/domain/dates'
 import type { Models, ToolSpec } from '@/lib/models/types'
 import { profileFor } from '@/lib/profile'
 import type { SessionUser } from '@/lib/session'
@@ -146,6 +146,16 @@ async function today(ctx: ToolContext, d?: string) {
   return d ?? localDate((await profileFor(ctx.repo, ctx.user.userId)).tz)
 }
 
+/** From this local time a new look is for tomorrow: "new look please" at 11:34 pm went on a day with 26 minutes left */
+const LATE = '21:00'
+
+/** The day a new look is for: never one that's over, and tomorrow once it's late in the evening */
+async function lookDate(ctx: ToolContext, d?: string) {
+  const tz = (await profileFor(ctx.repo, ctx.user.userId)).tz, now = new Date(), today = localDate(tz, now)
+  if (d && d > today) return d
+  return localTime(tz, now) >= LATE ? addDays(today, 1) : today
+}
+
 /** Runs one tool call. Returns JSON-able data; errors come back as { error } so the model can recover. */
 export async function dispatchTool(name: string, rawArgs: string, ctx: ToolContext): Promise<unknown> {
   if (!(name in DEFS)) return { error: `unknown tool ${name}` }
@@ -182,7 +192,7 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       // the model has asked for "another look" on the wrong day; the look being replaced says which day it is
       const d = name === 'another_look' ? ctx.shownLooks?.at(-1)?.date ?? a.date : a.date
       const avoid = ctx.shownLooks?.map((l) => l.garmentIds)
-      return look(ctx, await planToday(repo, user, { date: await today(ctx, d), fresh: true, wish: a.wish, avoid, renderMode: drawLater(ctx), models: ctx.models }))
+      return look(ctx, await planToday(repo, user, { date: await lookDate(ctx, d), fresh: true, wish: a.wish, avoid, renderMode: drawLater(ctx), models: ctx.models }))
     }
     case 'swap_piece': {
       const outfit = await repo.getOutfit(user.userId, a.outfitId)

@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { runThread, summariseCard, TOO_MANY_ROUNDS, toolSpecs } from '@/lib/agent/thread'
 import { createLocalRepo } from '@/lib/db/local'
 import type { Repo } from '@/lib/db/repo'
@@ -13,7 +13,10 @@ import { sampleCloset } from '@/lib/fixtures/sampleCloset'
 const user = { userId: 'u1', email: 'u1', googleAccessToken: null }
 const web = (text: string, extra: object = {}) => ({ text, channel: 'web' as const, ...extra })
 let repo: Repo
+afterEach(() => { vi.useRealTimers() })
+// midday in New York: from 9 pm a new look is for tomorrow, and these tests mean today
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-04T17:00:00Z'))
   vi.stubEnv('WEATHER', 'fixture')
   repo = createLocalRepo(join(mkdtempSync(join(tmpdir(), 'thread-')), 'db.json'))
   await repo.insertGarments(sampleCloset('u1'))

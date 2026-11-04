@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { dispatchTool } from '@/lib/agent/tools'
 import type { ToolContext } from '@/lib/agent/tools'
 import { createLocalRepo } from '@/lib/db/local'
@@ -17,7 +17,10 @@ import { defaultProfile } from '@/lib/profile'
 const user = { userId: 'u1', email: 'u1', googleAccessToken: null }
 let repo: Repo
 let ctx: ToolContext
+afterEach(() => { vi.useRealTimers() })
+// midday in New York: from 9 pm a new look is for tomorrow, and these tests mean today
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-04T17:00:00Z'))
   vi.stubEnv('WEATHER', 'fixture')
   vi.stubEnv('MEDIA_DIR', mkdtempSync(join(tmpdir(), 'media-')))
   repo = createLocalRepo(join(mkdtempSync(join(tmpdir(), 'tools-')), 'db.json'))
@@ -80,6 +83,32 @@ describe('look tools', () => {
     const b = outfitOf(ctx.cards[0])
     expect(b.date).toBe(a.date)
     expect(b.pieces.map((p) => p.id).sort()).not.toEqual(a.pieces.map((p) => p.id).sort())
+  })
+
+  describe('never for a day that’s over; late in the evening, for tomorrow', () => {
+    const at = async (iso: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(iso))
+      const tz = (await repo.getProfile('u1'))?.tz ?? defaultProfile('u1').tz
+      return { tz, today: new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(iso)) }
+    }
+    afterEach(() => { vi.useRealTimers() })
+    test('another look at 11:30 pm, replacing a look for that day, is for tomorrow', async () => {
+      const { today } = await at('2026-11-04T04:30:00Z')
+      ctx.shownLooks = [{ date: today, garmentIds: [] }]
+      await call('another_look')
+      expect(outfitOf(ctx.cards[0]).date).toBe(addDays(today, 1))
+    })
+    test('another look replacing yesterday’s look is for today', async () => {
+      const { today } = await at('2026-11-04T15:00:00Z')
+      ctx.shownLooks = [{ date: addDays(today, -1), garmentIds: [] }]
+      await call('another_look')
+      expect(outfitOf(ctx.cards[0]).date).toBe(today)
+    })
+    test('in the afternoon, a look for today stays today', async () => {
+      const { today } = await at('2026-11-04T19:00:00Z')
+      await call('plan_outfit', { date: today })
+      expect(outfitOf(ctx.cards[0]).date).toBe(today)
+    })
   })
 
   test('a look in view is not handed back for another day either', async () => {
