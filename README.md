@@ -1,6 +1,6 @@
 # Wardrobe Stylist
 
-**A stylist you can text, who knows every piece in your closet.** Film your closet once. Each morning you get one outfit that fits your calendar, the weather and what's actually clean, in the app or on WhatsApp. When you travel, you get a packing list that won't run you out of shirts.
+**A stylist you can text, who knows every piece in your closet.** Add your clothes once, by filming the rail or holding pieces up. Each morning you get one outfit that fits your calendar, the weather and what's actually clean, in the app or on WhatsApp. When you travel, you get a packing list that won't run you out of shirts.
 
 **Try it:** [www.wardrobe-stylist.xyz](https://www.wardrobe-stylist.xyz). Tap **Try the demo**; no account needed. You get your own copy of a real closet and a sample calendar.
 

@@ -7,7 +7,7 @@ Everything marked **generated** is in `demo-video/out/`. The two **phone** clips
 |---|---|---|---|---|---|
 | 1 | 0:00–0:08 | Title | generated card | Wardrobe Stylist: a stylist you can text, who knows every piece in your closet | "This is Wardrobe Stylist." |
 | 2 | 0:08–0:20 | The problem | generated card | Plenty of clothes, same few outfits. Mornings decided blind; packing is worse. | "I own plenty of clothes and still wear the same few things…" |
-| 3 | 0:20–0:45 | Scan the closet | **phone clip A** | Scan once. SAM 3.1 finds each piece; Muse Spark tags it. | "I filmed my closet once…" |
+| 3 | 0:20–0:45 | Scan the closet | **phone clip A** | Hold pieces up one at a time (sped up). SAM 3.1 finds each piece; Muse Spark tags it; you confirm. | "I added my clothes by holding them up to the camera, a handful at a time. This is sped up…" |
 | 4 | 0:45–1:15 | Today | generated app clip | One look for the day: calendar, forecast, only what's clean; each piece says why | "Every morning it picks one look…" |
 | 5 | 1:15–1:50 | Text the stylist | generated app clip | "Something for drinks after work" → a look and its picture; spilled coffee → laundry | "I can just text it…" |
 | 6 | 1:50–2:05 | Same thread on WhatsApp | **phone clip B** | The same stylist on WhatsApp, with a look every morning | "…and it's the same conversation on WhatsApp." |
@@ -19,7 +19,7 @@ Everything marked **generated** is in `demo-video/out/`. The two **phone** clips
 
 Use iPhone screen recording (Control Centre → Screen Recording). Portrait is fine: put it in the middle of the frame.
 
-**A. Scan (25 s).** In the app: Scan → Hold up. Hold three or four pieces up one at a time, then stop and show the review screen ("Found N pieces"). Trim the wait while it processes.
+**A. Scan (about 25 s once sped up).** In the app: Scan → Hold up. Hold three or four pieces up one at a time, then stop and show the review screen ("Found N pieces"). Speed the holding-up part up (2–4×) and cut the processing wait; the slate and caption say it's sped up, so nobody reads it as the whole closet in 25 seconds.
 
 **B. WhatsApp (15 s).** Open the chat with the stylist. Scroll the morning message with its look and picture, then text "another look" and show the reply arriving.
 
