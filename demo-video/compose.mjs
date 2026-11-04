@@ -1,7 +1,7 @@
 // Lays out the recorded app shots (phone screen on the left, caption on the right) and the cards, at 30 fps, and encodes
 // every shot to out/NN-name.webm plus the whole sequence to out/rough-cut.webm (VP9). Uses Playwright's bundled ffmpeg.
-import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { execFileSync, spawn } from 'node:child_process'
+import { createWriteStream, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
 const sharp = createRequire(import.meta.url)('sharp')
@@ -24,12 +24,17 @@ const SHOTS = [
   { name: 'end', card: 'end', s: 7 },
 ]
 
+// this ffmpeg has no pipe protocol, so frames go through a named pipe it reads as a file
+let pipes = 0
 const encoder = (file) => {
-  const p = spawn(FFMPEG, ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
-    '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', '-b:v', '5M', '-pix_fmt', 'yuv420p', file], { stdio: ['pipe', 'inherit', 'inherit'] })
+  const fifo = `${work}frames-${pipes++}.fifo`
+  rmSync(fifo, { force: true }); execFileSync('mkfifo', [fifo])
+  const p = spawn(FFMPEG, ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', fifo,
+    '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', '-b:v', '5M', '-pix_fmt', 'yuv420p', file], { stdio: ['ignore', 'inherit', 'inherit'] })
   const done = new Promise((ok, no) => p.on('close', (c) => (c ? no(new Error(`ffmpeg ${c}`)) : ok())))
-  const write = (buf) => new Promise((ok) => (p.stdin.write(buf) ? ok() : p.stdin.once('drain', ok)))
-  return { write, end: () => { p.stdin.end(); return done } }
+  const sink = createWriteStream(fifo)
+  const write = (buf) => new Promise((ok) => (sink.write(buf) ? ok() : sink.once('drain', ok)))
+  return { write, end: async () => { await new Promise((ok) => sink.end(ok)); await done; rmSync(fifo, { force: true }) } }
 }
 
 // the phone: screen scaled to 980 px tall, rounded, on a dark bezel with a soft shadow
