@@ -49,3 +49,7 @@ next-env.d.ts
 
 # your own test media (closet videos, photos)
 samples/
+
+# demo video renders
+demo-video/out/
+demo-video/work/

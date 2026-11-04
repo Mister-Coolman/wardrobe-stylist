@@ -10,7 +10,7 @@ test('try the demo: no account, a copy of the owner’s closet, the sample calen
   await page.getByRole('button', { name: 'Try the demo' }).click()
   await expect(page).toHaveURL(/\/today/)
   await expect(page.getByText(/Demo · a copy of a real closet/)).toBeVisible()
-  await expect(page.getByTestId('day-strip')).toContainText('Client lunch', { timeout: 30_000 })
+  await expect(page.getByTestId('day-strip')).toContainText('Lunch with friends', { timeout: 30_000 })
   await expect(page.getByText('Calendar not connected')).toHaveCount(0)
   await expect(page.getByRole('list', { name: 'Pieces' })).toBeVisible({ timeout: 30_000 })
 

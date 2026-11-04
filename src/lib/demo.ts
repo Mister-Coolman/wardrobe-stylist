@@ -37,7 +37,7 @@ export function demoSession(cookie: string | undefined): { userId: string; email
 export function demoEvents(userId: string, date: string): CalendarEvent[] {
   const ev = (title: string, start: string, end: string, location: string): CalendarEvent =>
     ({ id: `demo-${date}-${start}`, userId, date, start, end, allDay: false, title, location, attendees: [], source: 'calendar' })
-  return [ev('Client lunch', '12:30', '13:30', 'Midtown'), ev('Drinks after work', '18:30', '20:00', 'Lower East Side')]
+  return [ev('Lunch with friends', '12:30', '13:30', 'Midtown'), ev('Drinks after work', '18:30', '20:00', 'Lower East Side')]
 }
 
 /** A new demo user seeded from the owner's confirmed closet; null when today's cap is reached or the owner has no closet. */

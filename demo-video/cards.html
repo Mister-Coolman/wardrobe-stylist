@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=block" rel="stylesheet">
+<style>
+  :root { --paper: #F4F1EA; --raised: #FBF9F4; --studio: #E9E5DC; --ink: #1C1A17; --muted: #5E5850; --faint: #8F887D; --rule: #DAD4C8; --accent: #8A2E1C; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; }
+  body { font-family: 'Instrument Sans', sans-serif; color: var(--ink); background: var(--paper); }
+  body.clear { background: transparent; }
+  .card { width: 1920px; height: 1080px; padding: 140px 180px; display: flex; flex-direction: column; justify-content: center; }
+  .serif { font-family: 'Instrument Serif', serif; font-weight: 400; }
+  .eyebrow { font-size: 26px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 36px; }
+  h1 { font-size: 168px; line-height: 1; letter-spacing: -.01em; }
+  h2 { font-size: 96px; line-height: 1.04; }
+  .lede { font-size: 48px; line-height: 1.3; color: var(--muted); margin-top: 40px; max-width: 1400px; }
+  .foot { position: absolute; left: 180px; bottom: 100px; font-size: 26px; color: var(--faint); }
+  .lines { margin-top: 56px; display: grid; gap: 28px; }
+  .lines div { font-size: 44px; line-height: 1.3; color: var(--muted); padding-left: 32px; border-left: 4px solid var(--rule); }
+  .lines div b { color: var(--ink); font-weight: 500; }
+  .flow { display: flex; gap: 22px; margin-top: 64px; align-items: stretch; }
+  .step { flex: 1; background: var(--raised); border: 1px solid var(--rule); border-radius: 18px; padding: 30px 30px 34px; }
+  .step .n { font-size: 22px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  .step .t { font-size: 36px; margin-top: 12px; line-height: 1.2; }
+  .step .s { font-size: 24px; color: var(--muted); margin-top: 12px; line-height: 1.35; }
+  table { margin-top: 52px; border-collapse: collapse; font-size: 30px; width: 100%; }
+  td { padding: 16px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+  td:first-child { width: 520px; font-weight: 600; }
+  td:last-child { color: var(--muted); }
+  .url { font-size: 120px; margin-top: 28px; }
+  .slate { background: #111; color: #eee; align-items: center; text-align: center; }
+  .slate .eyebrow { color: #D0694F; }
+  .slate h2 { color: #fff; }
+  .slate .lede { color: #aaa; margin-inline: auto; }
+  /* caption panel beside the phone in app clips: 1920x1080, transparent, text on the right */
+  .cap { position: absolute; left: 980px; top: 0; width: 820px; height: 1080px; display: flex; flex-direction: column; justify-content: center; }
+  .cap .eyebrow { margin-bottom: 26px; }
+  .cap h2 { font-size: 84px; }
+  .cap .lede { font-size: 38px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const CARDS = {
+  title: `<div class="card"><div class="eyebrow">Meta Global AI Developer Hackathon · Build for Your World</div>
+    <h1 class="serif">Wardrobe Stylist</h1>
+    <p class="lede">A stylist you can text, who knows every piece in your closet.</p></div>`,
+  problem: `<div class="card"><div class="eyebrow">The problem</div>
+    <h2 class="serif">I own plenty of clothes and still wear the same few things.</h2>
+    <div class="lines">
+      <div><b>Every morning</b> is a decision made without knowing what the day holds.</div>
+      <div><b>Every trip</b> is the same problem, times every day away.</div>
+      <div>A stylist would fix it, if they knew <b>your closet, your week and your laundry.</b></div>
+    </div></div>`,
+  how: `<div class="card"><div class="eyebrow">How a look gets picked</div>
+    <h2 class="serif">The model proposes. The code decides.</h2>
+    <div class="flow">
+      <div class="step"><div class="n">1 · Muse Spark</div><div class="t">Proposes three looks</div><div class="s">from your confirmed pieces, the day's events and forecast</div></div>
+      <div class="step"><div class="n">2 · Rules</div><div class="t">Check every look</div><div class="s">dress code, warmth, rain, laundry, layering, colour</div></div>
+      <div class="step"><div class="n">3 · Revise</div><div class="t">Fixes what failed</div><div class="s">"↺ Swapped suede loafers → boots: 80% rain"</div></div>
+      <div class="step"><div class="n">4 · Muse Image</div><div class="t">Draws the look</div><div class="s">flat lay, mannequin or on you; each picture checked, redrawn if cut off</div></div>
+    </div>
+    <table>
+      <tr><td>SAM 3.1</td><td>Finds each garment in a closet video or photo</td></tr>
+      <tr><td>Muse Spark</td><td>Tags pieces, plans looks, runs the stylist and its tools, reads photos</td></tr>
+      <tr><td>Muse Image · Voice Transcribe</td><td>Draws each look · voice messages</td></tr>
+      <tr><td>WhatsApp Cloud API</td><td>Text the stylist; a look every morning</td></tr>
+    </table></div>`,
+  end: `<div class="card"><div class="eyebrow">Try it</div>
+    <h2 class="serif">Tap “Try the demo”. No account needed.</h2>
+    <div class="url serif">wardrobe-stylist.xyz</div>
+    <p class="lede">You get your own copy of a real closet and a sample calendar.</p>
+    <div class="foot">github.com/Mister-Coolman/wardrobe-stylist</div></div>`,
+  slateA: `<div class="card slate"><div class="eyebrow">Phone clip A · about 25 s</div><h2 class="serif">Scan the closet</h2>
+    <p class="lede">Scan → Hold up: three or four pieces, then the “Found N pieces” review</p></div>`,
+  slateB: `<div class="card slate"><div class="eyebrow">Phone clip B · about 15 s</div><h2 class="serif">The same stylist on WhatsApp</h2>
+    <p class="lede">The morning message with its look, then “another look” and the reply</p></div>`,
+}
+const CAPS = {
+  scan: ['Scan once', 'Film your closet once.', 'SAM 3.1 finds each piece; Muse Spark tags its colour, warmth, formality and fit.'],
+  today: ['Today', 'One look for the day.', 'Built from your calendar, the forecast and only what’s clean. Each piece says why it’s there.'],
+  notes: ['Fitting notes', 'Every check, out in the open.', 'Dress code, weather, laundry, and anything the stylist changed on the way.'],
+  ask: ['Text your stylist', '“Something for drinks after work.”', 'A look in seconds, then its picture, drawn by Muse Image.'],
+  laundry: ['It keeps track', '“I spilled coffee on the shirt.”', 'Into the laundry; the next look won’t use it.'],
+  trip: ['Trips', 'Four days in Chicago.', 'A look for every day and a packing list that respects how often you rewear things.'],
+}
+const id = location.hash.slice(1)
+if (CAPS[id]) {
+  document.body.classList.add('clear')
+  const [e, h, l] = CAPS[id]
+  root.innerHTML = `<div class="cap"><div class="eyebrow">${e}</div><h2 class="serif">${h}</h2><p class="lede">${l}</p></div>`
+} else root.innerHTML = CARDS[id] ?? ''
+window.IDS = { cards: Object.keys(CARDS), caps: Object.keys(CAPS) }
+</script>
+</body>
+</html>

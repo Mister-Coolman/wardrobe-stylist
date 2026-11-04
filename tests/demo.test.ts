@@ -63,6 +63,6 @@ test('the cookie only signs in as a demo user it was signed for', async () => {
 
 test('a demo day has sample events on whatever date it is', () => {
   const evs = demoEvents('demo-x@demo.wardrobe-stylist.xyz', '2026-11-09')
-  expect(evs.map((e) => e.title)).toEqual(['Client lunch', 'Drinks after work'])
+  expect(evs.map((e) => e.title)).toEqual(['Lunch with friends', 'Drinks after work'])
   expect(evs.map((e) => [e.date, e.start])).toEqual([['2026-11-09', '12:30'], ['2026-11-09', '18:30']])
 })
