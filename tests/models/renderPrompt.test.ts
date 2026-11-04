@@ -32,9 +32,8 @@ test('flat lay: with no shoes it says so and never asks for them', () => {
   expect(renderPrompt('flatlay', [quarterZip, jeans, boots])).toMatch(/shoes at the bottom/i)
 })
 
-test('flat lay: trousers are laid straight, legs down, folded once at the knee so the outfit fits the frame', () => {
-  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/legs pointing down, folded once at the knee so the lower legs lie back over the thighs/i)
-  expect(renderPrompt('mannequin', [quarterZip, jeans])).not.toMatch(/folded once/)
+test('flat lay: trousers are laid straight, legs down', () => {
+  expect(renderPrompt('flatlay', [quarterZip, jeans])).toMatch(/legs pointing down/i)
 })
 
 test('try-on: the person is image 1 and the pieces follow it', () => {
