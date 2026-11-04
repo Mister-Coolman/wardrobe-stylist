@@ -1,6 +1,7 @@
 // muse-image-1.0 via POST /v1/images/edits (JSON body, 1–10 input images, b64_json out).
 // The model redraws what it's given, so the prompt names every image with its piece: a colour left only to the
 // picture drifts (heather blue came back grey), and a fixed layout line asking for shoes made it invent a pair.
+import sharp from 'sharp'
 import { insideOut, layer, sleeves } from '@/lib/domain/layers'
 import { RENDER_CALL_MS, RENDER_TIMEOUT_MS } from '../types'
 import { renderOrder } from '../types'
@@ -100,8 +101,28 @@ export function renderPrompt(mode: 'tryon' | 'mannequin' | 'flatlay', pieces: Re
   return `An overhead flat-lay photograph of exactly ${pieces.length} pieces, one per input image, on warm off-white paper (#E9E5DC), evenly lit, soft natural shadows:\n${list}\n${keep}\n${layout(pieces)} Shot from far enough away that the whole outfit fits, from the top of the collar to the trouser hems or shoes, with bare paper showing on all four sides: nothing cut off at an edge. Nothing else in frame: no people, props or extra clothing. ${NO_TEXT}`
 }
 
+/** Flat lays are drawn at 2:3 and given paper at the sides back to 4:5. The model fills about 94% of the frame's height
+ *  whatever it's told, and at 4:5 that cut the trouser hems off in about one flat lay in four; a taller frame leaves them room. */
+const TALL = '1024x1536'
+const FRAME = 4 / 5
+
+/** Paper added at both sides until the picture is 4:5. Each side is its picture edge carried outwards: a strip averaged
+ *  across and smoothed down, so the paper's shading continues (one flat colour left a visible seam). */
+export async function toFrame(jpg: Buffer): Promise<Buffer> {
+  const { width = 0, height = 0 } = await sharp(jpg).metadata()
+  const extra = Math.round(height * FRAME) - width
+  if (extra <= 0) return jpg
+  const side = async (left: number, w: number) => sharp(await sharp(jpg).extract({ left, top: 0, width: 16, height }).resize(1, height, { fit: 'fill' }).blur(6).toBuffer())
+    .resize(w, height, { fit: 'fill', kernel: 'nearest' }).toBuffer()
+  const l = Math.floor(extra / 2), r = Math.ceil(extra / 2)
+  return sharp(jpg).extend({ left: l, right: r, top: 0, bottom: 0, background: '#E9E5DC' })
+    .composite([{ input: await side(0, l), left: 0, top: 0 }, { input: await side(width - 16, r), left: l + width, top: 0 }])
+    .jpeg({ quality: 90 }).toBuffer()
+}
+
 /** One drawing from Muse Image */
 async function drawOnce({ mode, pieces, personPhotoUrl }: Parameters<Renderer['render']>[0]): Promise<{ url: string }> {
+  const view = mode === 'tryon' && !personPhotoUrl ? 'flatlay' : mode
   const ordered = renderOrder(pieces)
   const person = mode === 'tryon' && personPhotoUrl ? [await toDataUrl(personPhotoUrl, 1024)] : []
   // cutouts go as transparent PNGs: put on white, each piece filled its image and the model drew them bigger, cropping the trousers
@@ -110,12 +131,15 @@ async function drawOnce({ mode, pieces, personPhotoUrl }: Parameters<Renderer['r
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'muse-image-1.0', prompt: renderPrompt(mode === 'tryon' && !personPhotoUrl ? 'flatlay' : mode, ordered), images, n: 1,
       // high (several passes, same price) cropped as many trousers as low in a before/after on 8 flat lays, and is slower. Searching would bring in outside pictures.
-      size: '1024x1280', output_format: 'jpeg', reasoning_strength: 'low',
+      size: view === 'flatlay' ? TALL : '1024x1280', output_format: 'jpeg', reasoning_strength: 'low',
       tool_enablement: { enable_web_search: false, enable_image_search: false, enable_shell: false } }),
   }, RENDER_CALL_MS)
   const j = (await res.json()) as { data?: { b64_json?: string; url?: string }[] }
   const d = j.data?.[0]
-  if (d?.b64_json) return { url: `data:image/jpeg;base64,${d.b64_json}` }
+  if (d?.b64_json) {
+    const jpg = Buffer.from(d.b64_json, 'base64')
+    return { url: `data:image/jpeg;base64,${(view === 'flatlay' ? await toFrame(jpg) : jpg).toString('base64')}` }
+  }
   if (d?.url) return { url: d.url }
   throw new Error('no image in response')
 }

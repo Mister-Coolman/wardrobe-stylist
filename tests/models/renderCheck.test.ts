@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import { describe, expect, test } from 'vitest'
 import { better, framingProblem, LETTERING, split } from '@/lib/models/real/renderCheck'
+import { toFrame } from '@/lib/models/real/renderer'
 
 const PAPER = { r: 233, g: 229, b: 220 }
 /** A 4:5 picture on paper with a navy block from y0 to y1 (shares of the height), x from 30% to 70% */
@@ -46,5 +47,19 @@ describe('which drawing to keep', () => {
     expect(better([a, b]).url).toBe('b')
     expect(better([b, c]).url).toBe('c')
     expect(better([c, { ...c, url: 'd' }]).url).toBe('c')
+  })
+})
+
+describe('a tall flat lay is given paper at the sides', () => {
+  test('a 2:3 drawing comes back 4:5, the drawing untouched in the middle and the sides the colour of its edges', async () => {
+    const tall = await sharp({ create: { width: 400, height: 600, channels: 3, background: PAPER } })
+      .composite([{ input: await sharp({ create: { width: 160, height: 560, channels: 3, background: { r: 20, g: 30, b: 70 } } }).png().toBuffer(), left: 120, top: 20 }]).jpeg().toBuffer()
+    const out = await toFrame(tall)
+    const { width, height } = await sharp(out).metadata()
+    expect(width).toBe(480); expect(height).toBe(600)
+    const px = async (x: number, y: number) => [...(await sharp(out).extract({ left: x, top: y, width: 1, height: 1 }).removeAlpha().raw().toBuffer())]
+    for (const [x, y] of [[5, 300], [475, 300]]) for (const [c, v] of (await px(x, y)).entries()) expect(Math.abs(v - [PAPER.r, PAPER.g, PAPER.b][c])).toBeLessThan(6)
+    expect((await px(240, 300))[2]).toBeGreaterThan(50)
+    expect(await framingProblem(out)).toBeNull()
   })
 })
