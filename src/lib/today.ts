@@ -1,6 +1,6 @@
 import 'server-only'
 import type { CalendarEvent, Garment, Outfit, Profile, RenderMode, Weather } from '@/lib/domain/types'
-import { localDate } from '@/lib/domain/dates'
+import { addDays, localDate } from '@/lib/domain/dates'
 import type { Repo } from '@/lib/db/repo'
 import { demoEvents, isDemo } from '@/lib/demo'
 import { CalendarAuthError, fetchCalendarEvents } from '@/lib/integrations/calendar'
@@ -60,7 +60,12 @@ export async function dayFor(repo: Repo, user: SessionUser, date: string | null,
   return { profile, day, calendarConnected: connected }
 }
 
-/** Reuses the latest outfit for the day unless `fresh`; a fresh plan avoids every look already shown that day, and `avoid`'s. */
+/** How many days back a new look steers clear of each day's pick: with nothing logged as worn, rotation had nothing
+ *  to go on and the same look came back three mornings running. */
+const RECENT_DAYS = 3
+
+/** Reuses the latest outfit for the day unless `fresh`; a fresh plan avoids every look already shown that day, each of
+ *  the last few days' picks, and `avoid`'s. */
 /** wish: what the owner asked for; referenceImageUrl: a look to match; swap: replan an outfit with some pieces left out; avoid: garment sets shown elsewhere */
 export async function planToday(repo: Repo, user: SessionUser, opts: { date?: string | null; fresh?: boolean; manual?: ManualWeather; renderMode?: RenderMode
   wish?: string; referenceImageUrl?: string; swap?: { outfitId: string; drop: string[]; wish?: string }; avoid?: string[][]; models?: Models } = {}): Promise<TodayPlan> {
@@ -70,6 +75,8 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   const { profile, day, calendarConnected } = await dayFor(repo, user, swapping?.contextDate ?? opts.date ?? null, opts.manual)
   const shown = await repo.listOutfitsFor(user.userId, day.date)
   const wardrobe = await repo.listGarments(user.userId, { confirmed: true })
+  const recent = async () => (await Promise.all(Array.from({ length: RECENT_DAYS }, (_, i) => repo.listOutfitsFor(user.userId, addDays(day.date, -1 - i)))))
+    .flatMap((os) => os.slice(-1).map((o) => o.garmentIds))
   const piecesOf = (o: Outfit) => o.garmentIds.map((id) => wardrobe.find((g) => g.id === id)).filter((g): g is Garment => !!g)
 
   if (!opts.fresh && shown.length) {
@@ -83,7 +90,7 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping ? [keepRule(keep, drop)] : []),
     // only when there's a remembered pairing, so other looks don't get a "no pairing" note
     ...(profile.stylistNotes?.some((n) => n.pieceIds.length >= 2) ? [likedPairs] : [])]
-  const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: [...shown.map((o) => o.garmentIds), ...(opts.avoid ?? [])], poll, rules,
+  const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: [...shown.map((o) => o.garmentIds), ...await recent(), ...(opts.avoid ?? [])], poll, rules,
     keep: swapping ? keep : undefined, drop: swapping ? drop : undefined, wish: opts.swap?.wish ?? opts.wish, referenceImageUrl: opts.referenceImageUrl })
   if (!r.ok) return { day, calendarConnected, result: r }
   if (r.outfit.renderUrl) {

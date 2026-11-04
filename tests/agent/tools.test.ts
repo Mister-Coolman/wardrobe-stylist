@@ -29,6 +29,15 @@ const outfitOf = (c: Card | undefined) => { if (c?.kind !== 'outfit') throw new 
 const named = async (re: RegExp) => (await repo.listGarments('u1')).find((g) => re.test(g.name))!
 
 describe('look tools', () => {
+  test('a new day’s look isn’t the one planned for any of the last few days, worn or not', async () => {
+    const d = '2026-11-01', ids: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const p = await planToday(repo, user, { date: addDays(d, i) })
+      if (!p.result.ok) throw new Error('no look')
+      ids.push([...p.result.outfit.garmentIds].sort().join())
+    }
+    expect(new Set(ids).size).toBe(3)
+  })
   test('log_wear by pieces: "I wore X and Y today" counts the wear for just those pieces', async () => {
     const before = await repo.listGarments('u1')
     const a = before[0], b = before.find((g) => g.category !== a.category)!
