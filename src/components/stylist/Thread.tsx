@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import type { Card, Message } from '@/lib/domain/types'
+import { ReplyWorking } from '@/components/ui/Working'
 import { CardView } from './cards/Cards'
 import { Composer } from './Composer'
 import { SwipeToReply } from './SwipeToReply'
@@ -121,7 +122,7 @@ export function Thread({ initial }: { initial: Message[] }) {
             </li>
           )
         })}
-        {busy && <li className="text-sm text-ink-muted" aria-live="polite">Thinking it through…</li>}
+        {busy && <li><ReplyWorking /></li>}
       </ol>
       {failed && (
         <div role="alert" className="mt-4 flex items-center gap-3 text-sm text-error">

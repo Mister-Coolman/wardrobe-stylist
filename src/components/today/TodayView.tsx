@@ -5,6 +5,7 @@ import type { TodayPlan } from '@/lib/today'
 import { applyRender } from '@/lib/ui/todayState'
 import { Button } from '@/components/ui/Button'
 import { Tag } from '@/components/ui/Tag'
+import { DRAW_STEPS, LOOK_STEPS, PictureFrame, WorkingLine } from '@/components/ui/Working'
 import { AnythingElse } from './AnythingElse'
 import { DayStrip } from './DayStrip'
 import { FittingNotes } from './FittingNotes'
@@ -16,7 +17,6 @@ import { PieceList } from './PieceList'
 import { PollButton } from './PollButton'
 import { RenderModePicker } from './RenderModePicker'
 
-const STEPS = ['Checking the forecast…', 'Reading your calendar…', 'Picking pieces…', 'Laying it out…']
 type Manual = 'warm' | 'mild' | 'cold'
 
 function headerDate(date: string, plan: TodayPlan | null, unit: TempUnit) {
@@ -29,7 +29,6 @@ function headerDate(date: string, plan: TodayPlan | null, unit: TempUnit) {
 export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempUnit }) {
   const [plan, setPlan] = useState<TodayPlan | null>(null)
   const [busy, setBusy] = useState<'load' | 'another' | 'event' | null>('load')
-  const [step, setStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [manual, setManual] = useState<Manual | undefined>()
   const [worn, setWorn] = useState<'idle' | 'busy' | 'done'>('idle')
@@ -38,7 +37,7 @@ export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempU
   const [render, setRender] = useState<{ busy: boolean; note?: string; failed?: RenderMode }>({ busy: false })
 
   const call = useCallback(async (kind: 'load' | 'another' | 'event', init?: RequestInit & { path?: string }) => {
-    setBusy(kind); setError(null); setStep(0)
+    setBusy(kind); setError(null)
     try {
       const res = await fetch(init?.path ?? '/api/today', init)
       if (!res.ok) throw new Error()
@@ -59,11 +58,6 @@ export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempU
     window.addEventListener('outfit-planned', reload)
     return () => window.removeEventListener('outfit-planned', reload)
   }, [call])
-  useEffect(() => {
-    if (!busy) return
-    const t = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 900)
-    return () => clearInterval(t)
-  }, [busy])
 
   async function applyMode(m: RenderMode) {
     if (!plan?.result.ok) return
@@ -93,8 +87,8 @@ export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempU
       <div aria-live="polite">
         <div className="h-3 w-40 bg-studio" />
         <div className="mt-4 h-9 w-3/4 bg-studio" />
-        <div className="-mx-5 mt-6 aspect-[4/5] bg-studio" />
-        <p className="mt-4 text-sm text-ink-muted">{error ?? STEPS[step]}</p>
+        {error ? <div className="-mx-5 mt-6 aspect-[4/5] bg-studio" /> : <PictureFrame className="-mx-5 mt-6" />}
+        {error ? <p className="mt-4 text-sm text-ink-muted">{error}</p> : <WorkingLine steps={LOOK_STEPS} className="mt-4" />}
         {error && <Button variant="secondary" className="mt-4" onClick={() => call('load')}>Try again</Button>}
       </div>
     )
@@ -127,10 +121,10 @@ export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempU
           <div className="mt-4">
             <RenderModePicker value={mode ?? r.outfit.renderMode} disabled={!!busy || render.busy} onChange={applyMode} />
           </div>
-          <div className={`mt-2 ${(busy && busy !== 'load') || render.busy ? 'opacity-50' : ''}`}>
+          <div className={`mt-2 ${(busy && busy !== 'load') || render.busy ? 'shimmer opacity-60' : ''}`}>
             <LookHero mode={r.outfit.renderMode} url={r.outfit.renderUrl} pieces={r.pieces} />
           </div>
-          {render.busy && <p aria-live="polite" className="mt-3 text-sm text-ink-muted">Laying it out…</p>}
+          {render.busy && <WorkingLine steps={DRAW_STEPS} className="mt-3" />}
           {render.note && <p className="mt-3 text-sm text-ink-muted">{withUnit(render.note, unit)}</p>}
           {render.failed && (
             <p role="alert" className="mt-3 text-sm">
@@ -138,7 +132,7 @@ export function TodayView({ wardrobe, unit }: { wardrobe: Garment[]; unit: TempU
               <button type="button" className="min-h-11 underline underline-offset-[3px]" onClick={() => applyMode(render.failed!)}>Try again</button>
             </p>
           )}
-          {busy && <p aria-live="polite" className="mt-3 text-sm text-ink-muted">{STEPS[step]}</p>}
+          {busy && <WorkingLine key={busy} steps={LOOK_STEPS} className="mt-3" />}
           {error && <p role="alert" className="mt-3 text-sm text-error">{error}</p>}
 
           <div className="mt-6 flex items-center gap-3 pr-[72px]">

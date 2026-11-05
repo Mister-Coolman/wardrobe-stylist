@@ -131,6 +131,14 @@ body {
   .spinner { animation-duration: 2s; }
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fade-in 300ms var(--ease-out) both; }
+
+/* a picture on its way: a soft band of light crossing the studio gray */
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / .35) 50%, transparent 80%); animation: shimmer 1.8s var(--ease-out) infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .shimmer::after { animation: none; opacity: 0; } }
 
 dialog.sheet[open] { animation: sheet-up 360ms var(--ease-out) both; }
 dialog.sheet::backdrop { animation: fade-in 220ms var(--ease-out) both; }
