@@ -31,6 +31,23 @@ const call = (name: string, args: object = {}) => dispatchTool(name, JSON.string
 const outfitOf = (c: Card | undefined) => { if (c?.kind !== 'outfit') throw new Error(`not an outfit card: ${c?.kind}`); return c }
 const named = async (re: RegExp) => (await repo.listGarments('u1')).find((g) => re.test(g.name))!
 
+describe('a piece asked for by name', () => {
+  test('plan_outfit with include always has it, even when a saved note says to save it for special occasions', async () => {
+    const knit = (await repo.listGarments('u1')).find((g) => g.subcategory === 'sweater' && g.status === 'clean')!
+    const p = (await repo.getProfile('u1')) ?? defaultProfile('u1')
+    await repo.upsertProfile({ ...p, stylistNotes: [{ id: 'n', text: `save ${knit.name} for special occasions`, pieceIds: [knit.id] }] })
+    for (let i = 0; i < 2; i++) {
+      ctx.cards = []
+      const r = await call(i ? 'another_look' : 'plan_outfit', { include: [knit.id] })
+      expect(r.error).toBeUndefined()
+      expect(outfitOf(ctx.cards[0]).pieces.map((x) => x.id)).toContain(knit.id)
+    }
+  })
+  test('an id that isn’t in the closet is refused, not planned around', async () => {
+    expect((await call('plan_outfit', { include: ['nope'] })).error).toMatch(/not in the closet/)
+  })
+})
+
 describe('runs warm or cold', () => {
   test('"I run warm" is saved as a note the weather check reads; saying "I run cold" later replaces it', async () => {
     await call('remember', { text: 'Runs warm: one layer from 57°F', runs: 'warm' })

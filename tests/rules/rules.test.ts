@@ -131,6 +131,14 @@ describe('runs warm or cold', () => {
     expect(warmthBandFor(wx({ tempLowC: 16, tempHighC: 24 }), undefined)).toEqual([2, 6])
     expect(warmthBandFor(wx({ tempLowC: 16, tempHighC: 24 }), 'cold')).toEqual([4, 8])
   })
+  test('a piece the owner asked for by name is theirs to wear warm: too warm becomes a note, not a rejection', () => {
+    const asked = { ...mild('warm'), insist: ['zip'] }
+    expect(weather.check(cand('polo', 'zip', 'jeans', 'sneakers'), asked)).toEqual([])
+    expect(weather.note(cand('polo', 'zip', 'jeans', 'sneakers'), asked)).toBe('Weather: warmer than a 21° high calls for, as you asked')
+    // too light still counts: asking for a tee doesn't make a cold day warm
+    const cold = { ...ctx({ weather: wx({ tempLowC: 4, tempHighC: 9 }) }, gs), insist: ['polo'] }
+    expect(weather.check(cand('polo', 'jeans', 'sneakers'), cold)).toHaveLength(1)
+  })
   test('the latest note that says so decides', () => {
     expect(runsOf({ ...profile, stylistNotes: [{ id: 'a', text: 'I run cold', pieceIds: [], runs: 'cold' }, { id: 'b', text: 'navy with olive', pieceIds: [] }, { id: 'c', text: 'I run warm', pieceIds: [], runs: 'warm' }] })).toBe('warm')
     expect(runsOf(profile)).toBeUndefined()

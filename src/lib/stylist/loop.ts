@@ -17,6 +17,8 @@ export interface PlanOutfitInput {
   poll?: RuleContext['poll']
   /** passed to the stylist: a swap's pieces, the owner's wish, a look to match */
   keep?: string[]; drop?: string[]; wish?: string; referenceImageUrl?: string
+  /** pieces the owner asked for by name (also in keep): the look may run warmer than the day calls for */
+  insist?: string[]
 }
 export type PlanOutfitResult =
   | { ok: true; outfit: Omit<Outfit, 'id' | 'userId'>; bestEffort: boolean }
@@ -51,7 +53,7 @@ export async function planOutfit(input: PlanOutfitInput): Promise<PlanOutfitResu
 
   const wardrobe = input.wardrobe.filter((g) => g.confirmed)
   const rules = input.rules ?? dailyRules
-  const ctx: RuleContext = { garments: new Map(wardrobe.map((g) => [g.id, g])), day: input.day, profile: input.profile, trip: input.trip, poll: input.poll }
+  const ctx: RuleContext = { garments: new Map(wardrobe.map((g) => [g.id, g])), day: input.day, profile: input.profile, trip: input.trip, poll: input.poll, insist: input.insist }
   const base: ProposeInput = { day: input.day, wardrobe, count: CANDIDATES, styleProfile: input.profile.styleProfile, avoidOutfits: input.avoidOutfits, trip: input.trip,
     keep: input.keep, drop: input.drop, wish: input.wish, referenceImageUrl: input.referenceImageUrl, unit: unitFor(input.profile),
     notes: input.profile.stylistNotes?.length ? input.profile.stylistNotes.map((n) => n.text) : undefined, runs: runsOf(input.profile) }

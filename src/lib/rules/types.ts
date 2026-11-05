@@ -14,6 +14,8 @@ export interface RuleContext {
   garments: Map<string, Garment>; day: DayContext; profile: Profile; trip?: TripUsage
   /** stretch: friends' pick for this day, e.g. { garmentIds, score: '5–2' } */
   poll?: { garmentIds: string[]; score: string }
+  /** pieces the owner asked for by name: the look may run warmer than the day calls for */
+  insist?: string[]
 }
 export interface Rule {
   id: string

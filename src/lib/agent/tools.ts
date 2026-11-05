@@ -37,6 +37,7 @@ export interface ToolContext {
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD, defaults to today')
 const wish = z.string().max(200).optional()
+const include = z.array(z.string()).min(1).max(6).optional()
 export const MAX_NOTES = 30
 const NO_PHOTO = { error: 'no photo in this message — ask the owner to send one' }
 const DEFS = {
@@ -47,10 +48,10 @@ const DEFS = {
     schema: z.object({ query: z.string().optional(), category: z.enum(['top', 'bottom', 'onepiece', 'outerwear', 'shoes', 'accessory']).optional() }),
   },
   plan_outfit: {
-    description: 'Plan a fresh outfit for a day. The only way to choose clothes — never pick garments yourself. wish: what the owner asked for ("fall themed", "all black").',
-    schema: z.object({ date, wish }),
+    description: 'Plan a fresh outfit for a day. The only way to choose clothes — never pick garments yourself. wish: what the owner asked for ("fall themed", "all black"). include: ids of pieces they asked for by name ("with the red cashmere"; for "add X over this", the look\'s pieces and X), which every look then has, whatever a saved note says about them.',
+    schema: z.object({ date, wish, include }),
   },
-  another_look: { description: 'A different outfit for the same day as the newest look shown (date is used only when no look is in view)', schema: z.object({ date, wish }) },
+  another_look: { description: 'A different outfit for the same day as the newest look shown (date is used only when no look is in view). include: as for plan_outfit.', schema: z.object({ date, wish, include }) },
   swap_piece: {
     description: 'Replan an outfit, keeping every piece except the dropped ones. drop: piece ids from the outfit; wish: what the replacement should be ("smarter", "warmer"). To change the feel of the whole look, use plan_outfit with a wish instead.',
     schema: z.object({ outfitId: z.string(), drop: z.array(z.string()).min(1), wish }),
@@ -193,7 +194,13 @@ export async function dispatchTool(name: string, rawArgs: string, ctx: ToolConte
       // the model has asked for "another look" on the wrong day; the look being replaced says which day it is
       const d = name === 'another_look' ? ctx.shownLooks?.at(-1)?.date ?? a.date : a.date
       const avoid = ctx.shownLooks?.map((l) => l.garmentIds)
-      return look(ctx, await planToday(repo, user, { date: await lookDate(ctx, d), fresh: true, wish: a.wish, avoid, renderMode: drawLater(ctx), models: ctx.models }))
+      const include = (a.include as string[] | undefined) ?? []
+      if (include.length) {
+        const closet = new Set((await repo.listGarments(user.userId, { confirmed: true })).map((g) => g.id))
+        const missing = include.filter((id) => !closet.has(id))
+        if (missing.length) return { error: `not in the closet: ${missing.join(', ')} — find the piece with search_wardrobe first` }
+      }
+      return look(ctx, await planToday(repo, user, { date: await lookDate(ctx, d), fresh: true, wish: a.wish, avoid, include, renderMode: drawLater(ctx), models: ctx.models }))
     }
     case 'swap_piece': {
       const outfit = await repo.getOutfit(user.userId, a.outfitId)

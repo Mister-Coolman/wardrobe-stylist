@@ -68,7 +68,7 @@ const RECENT_DAYS = 3
  *  the last few days' picks, and `avoid`'s. */
 /** wish: what the owner asked for; referenceImageUrl: a look to match; swap: replan an outfit with some pieces left out; avoid: garment sets shown elsewhere */
 export async function planToday(repo: Repo, user: SessionUser, opts: { date?: string | null; fresh?: boolean; manual?: ManualWeather; renderMode?: RenderMode
-  wish?: string; referenceImageUrl?: string; swap?: { outfitId: string; drop: string[]; wish?: string }; avoid?: string[][]; models?: Models } = {}): Promise<TodayPlan> {
+  wish?: string; referenceImageUrl?: string; swap?: { outfitId: string; drop: string[]; wish?: string }; avoid?: string[][]; include?: string[]; models?: Models } = {}): Promise<TodayPlan> {
   const models = opts.models ?? getModels()
   const swapping = opts.swap ? await repo.getOutfit(user.userId, opts.swap.outfitId) : null
   if (opts.swap && !swapping) throw new Error('no such outfit')
@@ -86,12 +86,15 @@ export async function planToday(repo: Repo, user: SessionUser, opts: { date?: st
   const poll = pollsEnabled() ? await friendsPick(repo, user.userId, day.date) : undefined
   const useStyle = process.env.NEXT_PUBLIC_FEATURE_STYLE === '1' && !!profile.styleProfile
   const drop = opts.swap?.drop ?? []
-  const keep = swapping ? swapping.garmentIds.filter((id) => !drop.includes(id)) : []
-  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping ? [keepRule(keep, drop)] : []),
+  // pieces asked for by name are kept like a swap's, and a saved note about them ("save it for special occasions") gives way
+  const include = opts.include ?? []
+  const keep = [...new Set([...(swapping ? swapping.garmentIds.filter((id) => !drop.includes(id)) : []), ...include])]
+  const asked = include.length ? { ...profile, stylistNotes: profile.stylistNotes?.filter((n) => !n.pieceIds.some((id) => include.includes(id))) } : profile
+  const rules = [...dailyRules, ...(poll ? [pollWinner] : []), ...(useStyle ? [styleMatch] : []), ...(swapping || include.length ? [keepRule(keep, drop)] : []),
     // only when there's a remembered pairing, so other looks don't get a "no pairing" note
-    ...(profile.stylistNotes?.some((n) => n.pieceIds.length >= 2) ? [likedPairs] : [])]
-  const r = await planOutfit({ day, wardrobe, profile, models, renderMode: opts.renderMode, avoidOutfits: [...shown.map((o) => o.garmentIds), ...await recent(), ...(opts.avoid ?? [])], poll, rules,
-    keep: swapping ? keep : undefined, drop: swapping ? drop : undefined, wish: opts.swap?.wish ?? opts.wish, referenceImageUrl: opts.referenceImageUrl })
+    ...(asked.stylistNotes?.some((n) => n.pieceIds.length >= 2) ? [likedPairs] : [])]
+  const r = await planOutfit({ day, wardrobe, profile: asked, models, insist: include.length ? include : undefined, renderMode: opts.renderMode, avoidOutfits: [...shown.map((o) => o.garmentIds), ...await recent(), ...(opts.avoid ?? [])], poll, rules,
+    keep: keep.length ? keep : undefined, drop: swapping ? drop : undefined, wish: opts.swap?.wish ?? opts.wish, referenceImageUrl: opts.referenceImageUrl })
   if (!r.ok) return { day, calendarConnected, result: r }
   if (r.outfit.renderUrl) {
     try { r.outfit.renderUrl = await persistRender(user.userId, r.outfit.renderUrl) } catch { r.outfit.renderUrl = null; r.outfit.renderMode = 'none' }

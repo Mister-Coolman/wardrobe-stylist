@@ -61,17 +61,19 @@ export const weather: Rule = {
       // no warmth number: the owner reads this too, and the model already sees each piece's warmth
       if (warmth < ceiling) v.push({ ruleId: 'weather', garmentIds: [], message: `Too light for a low of ${w.tempLowC}° — wear your warmest layers; a coat would help` })
     } else if (warmth < lo) v.push({ ruleId: 'weather', garmentIds: [], message: `Too light for a low of ${w.tempLowC}°` })
-    if (warmth > hi) v.push({ ruleId: 'weather', garmentIds: [], message: warmByDay(w, runs) ? `Too warm for a high of ${w.tempHighC}° when you run warm` : `Too warm for a low of ${w.tempLowC}°` })
+    // a piece asked for by name is the owner's call: running warm in it is noted, not refused
+    if (warmth > hi && !ctx.insist?.length) v.push({ ruleId: 'weather', garmentIds: [], message: warmByDay(w, runs) ? `Too warm for a high of ${w.tempHighC}° when you run warm` : `Too warm for a low of ${w.tempLowC}°` })
     if (w.rainProbability >= RAIN_THRESHOLD) {
       for (const g of gs.filter((g) => !g.rainSafe))
         v.push({ ruleId: 'weather', garmentIds: [g.id], message: `${g.name} won't survive ${w.rainProbability}% rain` })
     }
     return v
   },
-  note(_c, ctx) {
+  note(c, ctx) {
     const w = ctx.day.weather
     const rain = w.rainProbability >= RAIN_THRESHOLD ? `, rain-safe for ${w.rainProbability}% rain` : ''
     const runs = runsOf(ctx.profile)
+    if (ctx.insist?.length && outfitWarmth(piecesOf(c, ctx)) > warmthBandFor(w, runs)[1]) return `Weather: warmer than a ${w.tempHighC}° high calls for, as you asked${rain}`
     if (warmestPossible(ctx) < warmthBandFor(w, runs)[0]) return `Weather: as warm as your closet goes for ${w.tempLowC}°${rain} — a coat would help`
     return `Weather: ${warmByDay(w, runs) ? `one layer for a ${w.tempHighC}° high, as you run warm` : runs === 'cold' ? `layered warmer for ${w.tempLowC}° to ${w.tempHighC}°, as you run cold` : `layered for ${w.tempLowC}° to ${w.tempHighC}°`}${rain}`
   },
