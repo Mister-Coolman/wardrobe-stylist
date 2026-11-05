@@ -25,6 +25,6 @@ Use iPhone screen recording (Control Centre → Screen Recording). Portrait is f
 
 ## Putting it together
 
-- `out/rough-cut.webm` already plays every generated shot in order, with a black **"Phone clip A"** / **"Phone clip B"** slate where your clips go. Drop your two clips over those slates in any editor (iMovie, CapCut, Clipchamp) and export.
-- Each shot is also in `out/` on its own (`01-title.webm` …), and the cards as PNGs (`cards/`), if you'd rather assemble from scratch.
-- YouTube and Devpost accept the .webm as it is.
+- `out/rough-cut.mp4` already plays every generated shot in order, with a black **"Phone clip A"** / **"Phone clip B"** slate where your clips go. Drop your two clips over those slates in any editor (iMovie, CapCut, Clipchamp) and export.
+- Each shot is also in `out/` on its own (`01-title.mp4` …), and the cards as PNGs (`cards/`), if you'd rather assemble from scratch.
+- Everything is H.264 .mp4, so iMovie imports it directly.

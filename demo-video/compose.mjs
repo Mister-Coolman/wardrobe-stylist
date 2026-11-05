@@ -1,15 +1,14 @@
 // Lays out the recorded app shots (phone screen on the left, caption on the right) and the cards, at 30 fps, and encodes
-// every shot to out/NN-name.webm plus the whole sequence to out/rough-cut.webm (VP9). Uses Playwright's bundled ffmpeg.
-import { execFileSync, spawn } from 'node:child_process'
-import { createWriteStream, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
-import { homedir } from 'node:os'
+// every shot to out/NN-name.mp4 plus the whole sequence to out/rough-cut.mp4 (H.264, which iMovie imports). Frames are
+// written to work/frames/ and encoded by mp4.swift, with macOS's own AVFoundation.
+import { execFileSync } from 'node:child_process'
+import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 const sharp = createRequire(import.meta.url)('sharp')
 
 const here = new URL('./', import.meta.url).pathname
 const cards = `${here}out/cards/`, work = `${here}work/`, out = `${here}out/`
-const cache = `${homedir()}/Library/Caches/ms-playwright/`
-const FFMPEG = `${cache}${readdirSync(cache).find((d) => d.startsWith('ffmpeg'))}/ffmpeg-mac`
+const MP4 = `${work}mp4`
 const FPS = 30, W = 1920, H = 1080
 
 const SHOTS = [
@@ -24,18 +23,15 @@ const SHOTS = [
   { name: 'end', card: 'end', s: 7 },
 ]
 
-// this ffmpeg has no pipe protocol, so frames go through a named pipe it reads as a file
-let pipes = 0
-const encoder = (file) => {
-  const fifo = `${work}frames-${pipes++}.fifo`
-  rmSync(fifo, { force: true }); execFileSync('mkfifo', [fifo])
-  const p = spawn(FFMPEG, ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', fifo,
-    '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', '-b:v', '5M', '-pix_fmt', 'yuv420p', file], { stdio: ['ignore', 'inherit', 'inherit'] })
-  const done = new Promise((ok, no) => p.on('close', (c) => (c ? no(new Error(`ffmpeg ${c}`)) : ok())))
-  const sink = createWriteStream(fifo)
-  const write = (buf) => new Promise((ok) => (sink.write(buf) ? ok() : sink.once('drain', ok)))
-  return { write, end: async () => { await new Promise((ok) => sink.end(ok)); await done; rmSync(fifo, { force: true }) } }
+if (!existsSync(MP4)) execFileSync('swiftc', ['-O', `${here}mp4.swift`, '-o', MP4], { stdio: 'inherit' })
+const frames = `${work}frames/`
+rmSync(frames, { recursive: true, force: true })
+/** Frames for one encode; the rough cut's folder gets a hard link to every shot's frame, so nothing is written twice */
+const folder = (name) => {
+  const dir = `${frames}${name}/`; mkdirSync(dir, { recursive: true }); let n = 0
+  return { dir, add: (file) => { const f = `${dir}${String(n++).padStart(6, '0')}.jpg`; typeof file === 'string' ? linkSync(file, f) : writeFileSync(f, file); return f } }
 }
+const encode = (dir, file) => execFileSync(MP4, [dir, String(FPS), file], { stdio: 'inherit' })
 
 // the phone: screen scaled to 980 px tall, rounded, on a dark bezel with a soft shadow
 const SCREEN_H = 960, SCREEN_W = Math.round(SCREEN_H * 860 / 1864), BEZEL = 14, R = 44
@@ -70,15 +66,17 @@ async function* cardFrames(card, s) {
   for (let f = 0; f < s * FPS; f++) yield jpg
 }
 
-const all = encoder(`${out}rough-cut.webm`)
+const all = folder('rough-cut')
 let total = 0
 for (const [i, shot] of SHOTS.entries()) {
   if (shot.app && !existsSync(`${work}${shot.app}/frames.json`)) { console.log('skipped', shot.name, '(not recorded)'); continue }
-  const one = encoder(`${out}${String(i + 1).padStart(2, '0')}-${shot.name}.webm`)
+  const name = `${String(i + 1).padStart(2, '0')}-${shot.name}`
+  const one = folder(name)
   let n = 0
-  for await (const jpg of shot.app ? appFrames(shot.app) : cardFrames(shot.card, shot.s)) { await one.write(jpg); await all.write(jpg); n++ }
-  await one.end(); total += n
+  for await (const jpg of shot.app ? appFrames(shot.app) : cardFrames(shot.card, shot.s)) { all.add(one.add(jpg)); n++ }
+  encode(one.dir, `${out}${name}.mp4`); total += n
   console.log(shot.name, (n / FPS).toFixed(1), 's')
 }
-await all.end()
+encode(all.dir, `${out}rough-cut.mp4`)
+rmSync(frames, { recursive: true, force: true })
 console.log('rough cut', (total / FPS).toFixed(1), 's')
