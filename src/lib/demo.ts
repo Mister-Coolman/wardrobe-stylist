@@ -11,6 +11,19 @@ import type { StorageLike } from '@/lib/storage'
 
 export const DEMO_COOKIE = 'ws_demo_user'
 const DOMAIN = 'demo.wardrobe-stylist.xyz'
+/** Cutouts copied at once: copying all ~37 together made storage fail with "fetch failed" for judges */
+const COPIES_AT_ONCE = 4
+
+/** Runs f over items, `n` at a time, keeping their order */
+async function inBatches<T, R>(items: T[], n: number, f: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (next < items.length) { const i = next++; out[i] = await f(items[i]) }
+  }))
+  return out
+}
+
 /** New demo users a day, so a public button can't run through the model credits */
 export const DEMO_DAILY_CAP = 50
 
@@ -54,12 +67,14 @@ export async function startDemo(repo: Repo, storage: StorageLike, sourceUserId: 
   const copy = async (url: string) => {
     if (!url.startsWith(MEDIA_PREFIX + from)) return url
     const path = pathFromUrl(url)
-    return storage.put(`${to}/${path.slice(from.length)}`, await storage.read(url), path.endsWith('.png') ? 'image/png' : 'image/jpeg')
+    const once = async () => storage.put(`${to}/${path.slice(from.length)}`, await storage.read(url), path.endsWith('.png') ? 'image/png' : 'image/jpeg')
+    // a dropped connection gets one more try after a short pause
+    return once().catch(async () => { await new Promise((r) => setTimeout(r, 300)); return once() })
   }
-  const pieces = await Promise.all(closet.map(async ({ id: _, ...g }) => {
+  const pieces = await inBatches(closet, COPIES_AT_ONCE, async ({ id: _, ...g }) => {
     const cutoutUrl = await copy(g.cutoutUrl)
     return { ...g, userId: id, cutoutUrl, photoUrl: cutoutUrl }
-  }))
+  })
   await repo.insertGarments(pieces)
   await repo.upsertProfile(defaultProfile(id))
   return id
